@@ -1,5 +1,3 @@
-'use client';
-
 import { ClerkProvider, SignUp } from '@clerk/nextjs';
 import ConvexClientProvider from '@/components/ConvexClientProvider';
 
