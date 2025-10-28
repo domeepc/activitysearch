@@ -1,0 +1,10 @@
+.sign_in {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.sign_in > * > * {
+  position: relative;
+  margin: 20% 0;
+}

@@ -114,10 +114,10 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50 box-border p-0 m-0;
+    @apply border-border outline-ring/50 box-border;
   }
   body {
-    @apply bg-background text-foreground h-screen p-0 m-0 font-sans;
+    @apply bg-background text-foreground h-screen p-0 m-0 font-sans bg-gray-200;
   }
 
   header {

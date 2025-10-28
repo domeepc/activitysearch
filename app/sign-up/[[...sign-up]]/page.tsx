@@ -1,8 +1,10 @@
 import { SignUp } from '@clerk/nextjs';
 
+import './style.css';
+
 export default function SignUpPage() {
   return (
-    <div className="fixed flex justify-center items-center inset-0 bg-gray-200 overflow-hidden">
+    <div className="sign_up">
       <SignUp />
     </div>
   );

@@ -1,8 +1,8 @@
 import { SignIn } from '@clerk/nextjs';
-
-export default function Page() {
+import './style.css';
+export default function SignInPage() {
   return (
-    <div className=" overflow-hidden fixed flex justify-center items-center inset-0 bg-gray-200">
+    <div className="sign_in">
       <SignIn />
     </div>
   );
