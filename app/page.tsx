@@ -1,8 +1,16 @@
+'use client';
+
+import { Authenticated } from 'convex/react';
+
+import './home.css';
+
 export default function Home() {
   return (
-    <main>
-      <h1>Welcome to the Home Page</h1>
-      <p>This is the main landing page of the application.</p>
-    </main>
+    <Authenticated>
+      <section>
+        <div className="filter_tab"></div>
+        <div className="map_tab"> </div>
+      </section>
+    </Authenticated>
   );
 }

@@ -8,5 +8,6 @@ export default defineSchema({
     lastname: v.string(),
     username: v.string(),
     email: v.string(),
+    avatar: v.string(),
   }).index('byExternalId', ['externalId']),
 });
