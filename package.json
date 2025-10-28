@@ -12,6 +12,7 @@
     "@clerk/backend": "^2.19.0",
     "@clerk/nextjs": "^6.34.0",
     "@radix-ui/react-avatar": "^1.1.10",
+    "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-slot": "^1.2.3",
     "@react-google-maps/api": "^2.20.7",

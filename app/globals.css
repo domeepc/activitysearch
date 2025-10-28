@@ -114,17 +114,13 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring/50 box-border p-0 m-0;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground h-screen p-0 m-0 font-sans;
   }
-}
 
-header {
-  @apply sticky top-0 z-50 w-full bg-background/95 backdrop-blur-sm border-b border-border;
-}
-
-body {
-  height: 100vh;
+  header {
+    @apply sticky top-0 z-50 w-full bg-white;
+  }
 }

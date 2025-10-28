@@ -1,9 +1,8 @@
 section {
-  position: sticky;
-  display: flex;
+  position: relative;
   z-index: 10;
-  top: 10%;
-  justify-content: center;
+  margin: 2rem;
+  justify-content: flex-start;
 }
 
 .filter_tab {
@@ -12,20 +11,15 @@ section {
   height: max-content;
   border-radius: 1rem;
   gap: 1rem;
-  top: 10%;
-
   background-color: #fff;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: flex-start;
 }
 
 .filters {
   width: max-content;
-}
-
-.profile_menu {
-  border: lightgray 1px solid;
 }
 
 .map_tab {
@@ -35,4 +29,23 @@ section {
   background-color: aliceblue;
   position: absolute;
   top: 0;
+}
+
+.mobile_filter_tab_button {
+  position: absolute;
+  z-index: 10;
+  left: 0;
+  bottom: 0;
+  margin: 2rem;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .filter_tab {
+    padding: 2rem 0;
+    gap: 1rem;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
 }

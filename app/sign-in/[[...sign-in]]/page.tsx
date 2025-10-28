@@ -2,11 +2,8 @@ import { SignIn } from '@clerk/nextjs';
 
 export default function Page() {
   return (
-    <header
-      className="flex min-h-screen flex-col items-center justify-center py-2 px-2
-          bg-gray-100"
-    >
+    <div className=" overflow-hidden fixed flex justify-center items-center inset-0 bg-gray-200">
       <SignIn />
-    </header>
+    </div>
   );
 }
