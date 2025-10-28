@@ -21,13 +21,12 @@ import { SignOutButton } from '@clerk/nextjs';
 
 export default function Navbar() {
   const user = useQuery(api.users.current);
-  const avatarUrl = user?.avatar;
 
   return (
     <nav>
       <h1>NavBar</h1>
 
-      <Authenticated>
+      <Authenticated >
         <ul className="md:flex hidden">
           <li>
             <Link href="/">
@@ -50,7 +49,7 @@ export default function Navbar() {
           <DropdownMenu>
             <DropdownMenuTrigger className="profile_button">
               <Avatar>
-                <AvatarImage src={avatarUrl} />
+                <AvatarImage src={user?.avatar} />
               </Avatar>
               <span className="hidden md:flex">{user?.name}</span>
             </DropdownMenuTrigger>
