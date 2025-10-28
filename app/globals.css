@@ -120,3 +120,11 @@
     @apply bg-background text-foreground;
   }
 }
+
+header {
+  @apply sticky top-0 z-50 w-full bg-background/95 backdrop-blur-sm border-b border-border;
+}
+
+body {
+  height: 100vh;
+}

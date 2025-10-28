@@ -9,6 +9,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+import { Calendar, Home, MessageSquare } from 'lucide-react';
+
+import Link from 'next/link';
+
 import './style.css';
 import { AvatarImage, Avatar } from '@/components/ui/avatar';
 import { Authenticated, useQuery } from 'convex/react';
@@ -22,9 +26,21 @@ export default function Navbar() {
     <nav>
       <h1>NavBar</h1>
       <ul>
-        <li>Home</li>
-        <li>About</li>
-        <li>Contact</li>
+        <li>
+          <Link href="/">
+            <Home className="icon" /> Home
+          </Link>
+        </li>
+        <li>
+          <Link href="/reservations">
+            <Calendar className="icon" /> Reservations
+          </Link>
+        </li>
+        <li>
+          <Link href="/chat">
+            <MessageSquare className="icon" /> Chat
+          </Link>
+        </li>
       </ul>
 
       <Authenticated>
@@ -37,7 +53,7 @@ export default function Navbar() {
               <span>{user?.name}</span>
             </DropdownMenuTrigger>
 
-            <DropdownMenuContent align="start">
+            <DropdownMenuContent align="start" className="profile_menu">
               <DropdownMenuGroup>
                 <DropdownMenuItem>My account</DropdownMenuItem>
                 <DropdownMenuItem>Settings</DropdownMenuItem>
