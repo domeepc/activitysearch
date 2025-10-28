@@ -1,17 +1,12 @@
-import { ClerkProvider, SignIn } from '@clerk/nextjs';
-import ConvexClientProvider from '@/components/ConvexClientProvider';
+import { SignIn } from '@clerk/nextjs';
 
 export default function Page() {
   return (
-    <ClerkProvider>
-      <ConvexClientProvider>
-        <header
-          className="flex min-h-screen flex-col items-center justify-center py-2 px-2
+    <header
+      className="flex min-h-screen flex-col items-center justify-center py-2 px-2
           bg-gray-100"
-        >
-          <SignIn />
-        </header>
-      </ConvexClientProvider>
-    </ClerkProvider>
+    >
+      <SignIn />
+    </header>
   );
 }
