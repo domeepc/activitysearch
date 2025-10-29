@@ -51,11 +51,14 @@ export default function Home() {
       <div className="mobile_filter_tab_button md:hidden">
         <Dialog>
           <DialogTrigger asChild>
-            <Button variant="outline" size="icon-lg" className="rounded-full">
-              <Search />
+            <Button
+              variant="outline"
+              className="rounded-full aspect-square p-6"
+            >
+              <Search className="size-6" />
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
             <DialogTitle>Activities</DialogTitle>
             <div className="filter_tab">
               <FilterContent />

@@ -38,6 +38,15 @@ nav > ul > li > * {
 }
 .profile_menu {
   border: lightgray 1px solid;
+  width: 10rem;
+}
+
+.profile_menu > * {
+  font-size: 1rem;
+}
+
+.sign_out > * {
+  font-weight: 500;
 }
 
 @media (max-width: 768px) {

@@ -9,7 +9,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-import { Calendar, Home, HomeIcon, MessageSquare } from 'lucide-react';
+import {
+  Calendar,
+  Home,
+  HomeIcon,
+  LogOut,
+  MessageSquare,
+  Settings,
+  User,
+} from 'lucide-react';
 
 import Link from 'next/link';
 
@@ -18,6 +26,7 @@ import { AvatarImage, Avatar } from '@/components/ui/avatar';
 import { Authenticated, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { SignOutButton } from '@clerk/nextjs';
+import { DropdownMenuLabel } from '@radix-ui/react-dropdown-menu';
 
 export default function Navbar() {
   const user = useQuery(api.users.current);
@@ -26,7 +35,7 @@ export default function Navbar() {
     <nav>
       <h1>NavBar</h1>
 
-      <Authenticated >
+      <Authenticated>
         <ul className="md:flex hidden">
           <li>
             <Link href="/">
@@ -48,47 +57,53 @@ export default function Navbar() {
         <div>
           <DropdownMenu>
             <DropdownMenuTrigger className="profile_button">
-              <Avatar>
+              <Avatar className="size-10 md:size-8">
                 <AvatarImage src={user?.avatar} />
               </Avatar>
               <span className="hidden md:flex">{user?.name}</span>
             </DropdownMenuTrigger>
 
             <DropdownMenuContent align="end" className="profile_menu">
+              <DropdownMenuLabel className="font-semibold pl-1.5">
+                {user?.name}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
               <DropdownMenuGroup>
-                <DropdownMenuItem>My account</DropdownMenuItem>
-                <DropdownMenuItem>Settings</DropdownMenuItem>
+                <Link href="/dashboard">
+                  <DropdownMenuItem>
+                    <User className="icon" />
+                    My account
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/settings">
+                  <DropdownMenuItem>
+                    <Settings className="icon" />
+                    Settings
+                  </DropdownMenuItem>
+                </Link>
               </DropdownMenuGroup>
 
               <DropdownMenuGroup className="block md:hidden">
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <Link
-                    href="/"
-                    className="flex gap-1 align-middle justify-center"
-                  >
+                <Link href="/">
+                  <DropdownMenuItem>
                     <HomeIcon className="icon" /> Home
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Link
-                    href="/reservations"
-                    className="flex gap-1 align-middle justify-center"
-                  >
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/reservations">
+                  <DropdownMenuItem>
                     <Calendar className="icon" /> Reservations
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Link
-                    href="/chat"
-                    className="flex gap-1 justify-center align-middle"
-                  >
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/chat">
+                  <DropdownMenuItem>
                     <MessageSquare className="icon" /> Chat
-                  </Link>
-                </DropdownMenuItem>
+                  </DropdownMenuItem>
+                </Link>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem className="sign_out">
+                <LogOut className="icon" />
                 <SignOutButton />
               </DropdownMenuItem>
             </DropdownMenuContent>
