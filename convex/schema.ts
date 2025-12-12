@@ -10,4 +10,8 @@ export default defineSchema({
     email: v.string(),
     avatar: v.string(),
   }).index('byExternalId', ['externalId']),
+  organizer: defineTable({
+    userId: v.string("users"),
+    organization: v.string(),
+  }),
 });
