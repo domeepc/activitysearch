@@ -1,0 +1,412 @@
+{
+  "activities": [
+    {
+      "id": "act-001",
+      "title": "Kayaking in Marjan Park",
+      "description": "Explore the beautiful coastline of Split with guided kayaking tours around Marjan Hill. Suitable for beginners and experienced paddlers.",
+      "category": "Water Sports",
+      "location": {
+        "name": "Marjan Park, Split",
+        "address": "Šetalište Petra Preradovića, 21000, Split, Croatia",
+        "coordinates": {
+          "lat": 43.5166,
+          "lng": 16.4269
+        }
+      },
+      "price": {
+        "amount": 35,
+        "currency": "EUR",
+        "type": "per person"
+      },
+      "duration": "2 hours",
+      "difficulty": "beginner",
+      "maxParticipants": 12,
+      "minAge": 12,
+      "tags": ["outdoor", "water", "adventure", "nature", "guided"],
+      "rating": 4.7,
+      "reviewCount": 143,
+      "availableSeasons": ["spring", "summer", "autumn"],
+      "equipment": ["kayak", "paddle", "life jacket", "waterproof bag"],
+      "images": [
+        "https://example.com/kayaking-marjan-1.jpg",
+        "https://example.com/kayaking-marjan-2.jpg"
+      ]
+    },
+    {
+      "id": "act-002",
+      "title": "Rock Climbing at Omiš",
+      "description": "Experience world-class rock climbing on the stunning cliffs of Omiš. Professional guides ensure safety while you enjoy breathtaking views of the Cetina River canyon.",
+      "category": "Adventure Sports",
+      "location": {
+        "name": "Omiš Climbing Area",
+        "address": "Omiš, 21310, Croatia",
+        "coordinates": {
+          "lat": 43.4447,
+          "lng": 16.6889
+        }
+      },
+      "price": {
+        "amount": 55,
+        "currency": "EUR",
+        "type": "per person"
+      },
+      "duration": "4 hours",
+      "difficulty": "intermediate",
+      "maxParticipants": 8,
+      "minAge": 14,
+      "tags": ["outdoor", "adventure", "climbing", "guided", "nature"],
+      "rating": 4.9,
+      "reviewCount": 267,
+      "availableSeasons": ["spring", "summer", "autumn", "winter"],
+      "equipment": ["climbing harness", "helmet", "rope", "climbing shoes", "chalk bag"],
+      "images": [
+        "https://example.com/climbing-omis-1.jpg",
+        "https://example.com/climbing-omis-2.jpg"
+      ]
+    },
+    {
+      "id": "act-003",
+      "title": "Wine Tasting Tour in Pelješac",
+      "description": "Discover the rich wine heritage of Pelješac Peninsula. Visit traditional wineries, taste premium Croatian wines including the famous Plavac Mali, and enjoy local delicacies.",
+      "category": "Food & Wine",
+      "location": {
+        "name": "Pelješac Peninsula",
+        "address": "Pelješac, 20250, Croatia",
+        "coordinates": {
+          "lat": 42.9342,
+          "lng": 17.3578
+        }
+      },
+      "price": {
+        "amount": 75,
+        "currency": "EUR",
+        "type": "per person"
+      },
+      "duration": "6 hours",
+      "difficulty": "easy",
+      "maxParticipants": 16,
+      "minAge": 18,
+      "tags": ["wine", "culture", "food", "guided", "indoor"],
+      "rating": 4.8,
+      "reviewCount": 198,
+      "availableSeasons": ["spring", "summer", "autumn", "winter"],
+      "equipment": [],
+      "includes": ["transportation", "wine tasting", "food pairings", "professional guide"],
+      "images": [
+        "https://example.com/wine-peljesac-1.jpg",
+        "https://example.com/wine-peljesac-2.jpg"
+      ]
+    },
+    {
+      "id": "act-004",
+      "title": "Scuba Diving in Vis",
+      "description": "Dive into the crystal-clear waters of Vis Island. Explore underwater caves, WWII shipwrecks, and vibrant marine life with certified diving instructors.",
+      "category": "Water Sports",
+      "location": {
+        "name": "Vis Island",
+        "address": "Vis, 21480, Croatia",
+        "coordinates": {
+          "lat": 43.0614,
+          "lng": 16.1833
+        }
+      },
+      "price": {
+        "amount": 95,
+        "currency": "EUR",
+        "type": "per person"
+      },
+      "duration": "3 hours",
+      "difficulty": "intermediate",
+      "maxParticipants": 6,
+      "minAge": 16,
+      "tags": ["water", "diving", "adventure", "nature", "guided"],
+      "rating": 4.9,
+      "reviewCount": 312,
+      "availableSeasons": ["spring", "summer", "autumn"],
+      "equipment": ["wetsuit", "diving mask", "fins", "oxygen tank", "BCD", "regulator"],
+      "certificationRequired": "PADI Open Water or equivalent",
+      "images": [
+        "https://example.com/diving-vis-1.jpg",
+        "https://example.com/diving-vis-2.jpg"
+      ]
+    },
+    {
+      "id": "act-005",
+      "title": "Hiking in Paklenica National Park",
+      "description": "Trek through the dramatic landscapes of Paklenica National Park. Enjoy stunning canyon views, diverse flora and fauna, and the thrill of mountain trails.",
+      "category": "Hiking & Trekking",
+      "location": {
+        "name": "Paklenica National Park",
+        "address": "Dr. Franje Tuđmana 14a, 23244 Starigrad, Croatia",
+        "coordinates": {
+          "lat": 44.3144,
+          "lng": 15.4486
+        }
+      },
+      "price": {
+        "amount": 25,
+        "currency": "EUR",
+        "type": "per person"
+      },
+      "duration": "5 hours",
+      "difficulty": "intermediate",
+      "maxParticipants": 20,
+      "minAge": 10,
+      "tags": ["outdoor", "hiking", "nature", "guided", "adventure"],
+      "rating": 4.6,
+      "reviewCount": 421,
+      "availableSeasons": ["spring", "summer", "autumn"],
+      "equipment": ["hiking boots", "backpack", "water bottle"],
+      "includes": ["park entrance fee", "professional guide", "trail map"],
+      "images": [
+        "https://example.com/hiking-paklenica-1.jpg",
+        "https://example.com/hiking-paklenica-2.jpg"
+      ]
+    },
+    {
+      "id": "act-006",
+      "title": "Stand-Up Paddleboarding in Hvar",
+      "description": "Glide across the turquoise waters surrounding Hvar Island on a stand-up paddleboard. Perfect for all skill levels, with equipment and instruction provided.",
+      "category": "Water Sports",
+      "location": {
+        "name": "Hvar Town Beach",
+        "address": "Hvar, 21450, Croatia",
+        "coordinates": {
+          "lat": 43.1729,
+          "lng": 16.4416
+        }
+      },
+      "price": {
+        "amount": 30,
+        "currency": "EUR",
+        "type": "per person"
+      },
+      "duration": "2 hours",
+      "difficulty": "beginner",
+      "maxParticipants": 10,
+      "minAge": 8,
+      "tags": ["water", "paddleboarding", "outdoor", "beginner-friendly", "nature"],
+      "rating": 4.5,
+      "reviewCount": 187,
+      "availableSeasons": ["spring", "summer", "autumn"],
+      "equipment": ["paddleboard", "paddle", "ankle leash", "life jacket"],
+      "images": [
+        "https://example.com/sup-hvar-1.jpg",
+        "https://example.com/sup-hvar-2.jpg"
+      ]
+    },
+    {
+      "id": "act-007",
+      "title": "Cooking Class: Dalmatian Cuisine",
+      "description": "Learn to prepare authentic Dalmatian dishes with a local chef. Shop for fresh ingredients at the market and cook traditional meals in a charming kitchen setting.",
+      "category": "Food & Wine",
+      "location": {
+        "name": "Split Old Town",
+        "address": "Ul. Petra Grgeca 1, 21000, Split, Croatia",
+        "coordinates": {
+          "lat": 43.5081,
+          "lng": 16.4402
+        }
+      },
+      "price": {
+        "amount": 65,
+        "currency": "EUR",
+        "type": "per person"
+      },
+      "duration": "4 hours",
+      "difficulty": "easy",
+      "maxParticipants": 12,
+      "minAge": 12,
+      "tags": ["cooking", "culture", "food", "indoor", "guided"],
+      "rating": 4.9,
+      "reviewCount": 234,
+      "availableSeasons": ["spring", "summer", "autumn", "winter"],
+      "equipment": [],
+      "includes": ["market visit", "ingredients", "chef instruction", "meal", "recipes"],
+      "images": [
+        "https://example.com/cooking-split-1.jpg",
+        "https://example.com/cooking-split-2.jpg"
+      ]
+    },
+    {
+      "id": "act-008",
+      "title": "Paragliding over Biokovo Mountain",
+      "description": "Soar above the stunning Biokovo Mountain range and the Makarska Riviera. Experience the thrill of tandem paragliding with certified pilots and enjoy unforgettable aerial views.",
+      "category": "Adventure Sports",
+      "location": {
+        "name": "Biokovo Nature Park",
+        "address": "Makarska, 21300, Croatia",
+        "coordinates": {
+          "lat": 43.3450,
+          "lng": 17.0167
+        }
+      },
+      "price": {
+        "amount": 120,
+        "currency": "EUR",
+        "type": "per person"
+      },
+      "duration": "1.5 hours",
+      "difficulty": "beginner",
+      "maxParticipants": 4,
+      "minAge": 16,
+      "tags": ["adventure", "flying", "outdoor", "guided", "extreme"],
+      "rating": 5.0,
+      "reviewCount": 156,
+      "availableSeasons": ["spring", "summer", "autumn"],
+      "equipment": ["paragliding harness", "helmet", "flight suit"],
+      "includes": ["tandem flight", "certified pilot", "photos/videos", "insurance"],
+      "images": [
+        "https://example.com/paragliding-biokovo-1.jpg",
+        "https://example.com/paragliding-biokovo-2.jpg"
+      ]
+    },
+    {
+      "id": "act-009",
+      "title": "Cycling Tour through Brač Island",
+      "description": "Cycle through picturesque villages, olive groves, and coastal paths of Brač Island. Discover hidden beaches and enjoy local hospitality along the way.",
+      "category": "Cycling",
+      "location": {
+        "name": "Bol, Brač Island",
+        "address": "Bol, 21420, Croatia",
+        "coordinates": {
+          "lat": 43.2633,
+          "lng": 16.6553
+        }
+      },
+      "price": {
+        "amount": 45,
+        "currency": "EUR",
+        "type": "per person"
+      },
+      "duration": "5 hours",
+      "difficulty": "intermediate",
+      "maxParticipants": 15,
+      "minAge": 14,
+      "tags": ["cycling", "outdoor", "nature", "guided", "sightseeing"],
+      "rating": 4.7,
+      "reviewCount": 203,
+      "availableSeasons": ["spring", "summer", "autumn"],
+      "equipment": ["bicycle", "helmet", "water bottle", "repair kit"],
+      "includes": ["bike rental", "guide", "snacks", "water"],
+      "images": [
+        "https://example.com/cycling-brac-1.jpg",
+        "https://example.com/cycling-brac-2.jpg"
+      ]
+    },
+    {
+      "id": "act-010",
+      "title": "Snorkeling at Blue Lagoon",
+      "description": "Explore the vibrant underwater world of the Blue Lagoon. Perfect for families and beginners, this snorkeling adventure offers clear waters and abundant marine life.",
+      "category": "Water Sports",
+      "location": {
+        "name": "Blue Lagoon, Drvenik",
+        "address": "Drvenik Veli, 21275, Croatia",
+        "coordinates": {
+          "lat": 43.4333,
+          "lng": 16.0500
+        }
+      },
+      "price": {
+        "amount": 20,
+        "currency": "EUR",
+        "type": "per person"
+      },
+      "duration": "3 hours",
+      "difficulty": "beginner",
+      "maxParticipants": 20,
+      "minAge": 6,
+      "tags": ["snorkeling", "water", "family-friendly", "nature", "outdoor"],
+      "rating": 4.6,
+      "reviewCount": 389,
+      "availableSeasons": ["spring", "summer", "autumn"],
+      "equipment": ["mask", "snorkel", "fins", "life jacket"],
+      "includes": ["boat transfer", "equipment", "guide", "drinks"],
+      "images": [
+        "https://example.com/snorkeling-blue-lagoon-1.jpg",
+        "https://example.com/snorkeling-blue-lagoon-2.jpg"
+      ]
+    },
+    {
+      "id": "act-011",
+      "title": "Sunset Sailing Trip",
+      "description": "Set sail along the Dalmatian coast and watch the sun set over the Adriatic. Includes swimming stops, drinks, and breathtaking views.",
+      "category": "Sailing & Boating",
+      "location": {
+        "name": "Split Harbor",
+        "address": "Obala Hrvatskog narodnog preporoda, 21000, Split, Croatia",
+        "coordinates": {
+          "lat": 43.5067,
+          "lng": 16.4392
+        }
+      },
+      "price": {
+        "amount": 50,
+        "currency": "EUR",
+        "type": "per person"
+      },
+      "duration": "3 hours",
+      "difficulty": "easy",
+      "maxParticipants": 10,
+      "minAge": 5,
+      "tags": ["sailing", "romantic", "water", "sunset", "relaxation"],
+      "rating": 4.8,
+      "reviewCount": 512,
+      "availableSeasons": ["spring", "summer", "autumn"],
+      "equipment": [],
+      "includes": ["sailing yacht", "skipper", "drinks", "snacks", "swimming gear"],
+      "images": [
+        "https://example.com/sailing-sunset-1.jpg",
+        "https://example.com/sailing-sunset-2.jpg"
+      ]
+    },
+    {
+      "id": "act-012",
+      "title": "Zipline Adventure in Omiš",
+      "description": "Feel the adrenaline rush as you zipline over the Cetina River canyon. Multiple zipline courses with varying heights and speeds for different thrill levels.",
+      "category": "Adventure Sports",
+      "location": {
+        "name": "Omiš Adventure Park",
+        "address": "Cetina Canyon, 21310 Omiš, Croatia",
+        "coordinates": {
+          "lat": 43.4450,
+          "lng": 16.6850
+        }
+      },
+      "price": {
+        "amount": 40,
+        "currency": "EUR",
+        "type": "per person"
+      },
+      "duration": "2 hours",
+      "difficulty": "beginner",
+      "maxParticipants": 12,
+      "minAge": 10,
+      "tags": ["zipline", "adventure", "outdoor", "adrenaline", "guided"],
+      "rating": 4.7,
+      "reviewCount": 278,
+      "availableSeasons": ["spring", "summer", "autumn"],
+      "equipment": ["harness", "helmet", "gloves"],
+      "includes": ["safety equipment", "instruction", "guide", "insurance"],
+      "images": [
+        "https://example.com/zipline-omis-1.jpg",
+        "https://example.com/zipline-omis-2.jpg"
+      ]
+    }
+  ],
+  "metadata": {
+    "version": "1.0.0",
+    "lastUpdated": "2025-12-12",
+    "totalActivities": 12,
+    "categories": [
+      "Water Sports",
+      "Adventure Sports",
+      "Food & Wine",
+      "Hiking & Trekking",
+      "Cycling",
+      "Sailing & Boating"
+    ],
+    "region": "Dalmatia, Croatia",
+    "currency": "EUR"
+  }
+}

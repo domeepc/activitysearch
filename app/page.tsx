@@ -18,9 +18,14 @@ import {
   InputGroupInput,
 } from '@/components/ui/input-group';
 import { Search } from 'lucide-react';
-import GoogleMapComponent from '@/components/ui/googleMaps/googleMaps';
+import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import './home.css';
+
+const OpenStreetMapComponent = dynamic(
+  () => import('@/components/ui/leafletMap/leafletMap'),
+  { ssr: false }
+);
 
 const FilterContent = () => (
   <>
@@ -71,7 +76,7 @@ export default function Home() {
       </div>
 
       <div className="map_tab">
-        <GoogleMapComponent />
+        <OpenStreetMapComponent />
       </div>
     </Authenticated>
   );
