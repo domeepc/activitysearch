@@ -9,10 +9,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from '@/components/ui/native-select';
 import { Search } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
@@ -20,6 +16,7 @@ import './home.css';
 import { ActivityData } from '@/components/ui/leafletMap/leafletMap';
 import { useEffect, useState} from 'react';
 import SearchAutocomplete from '@/components/ui/search-autocomplete';
+import { MultiSelect, MultiSelectTrigger, MultiSelectContent, MultiSelectValue, MultiSelectGroup, MultiSelectItem } from '@/components/ui/multi-select';
 
 const OpenStreetMapComponent = dynamic(
   () => import('@/components/ui/leafletMap/leafletMap'),
@@ -28,19 +25,27 @@ const OpenStreetMapComponent = dynamic(
 
 const FilterContent = ({ 
   activities, 
-  selectedCategory, 
+  selectedCategories, 
   onCategoryChange,
   onActivitySelect 
 }: { 
   activities: ActivityData[]; 
-  selectedCategory: string;
-  onCategoryChange: (category: string) => void;
+  selectedCategories: string[];
+  onCategoryChange: (categories: string[]) => void;
   onActivitySelect: (activity: ActivityData) => void;
 }) => {
   // Get unique categories
   const uniqueCategories = Array.from(
     new Set(activities.map((activity) => activity.category))
   );
+
+  const handleCategoryToggle = (category: string) => {
+    if (selectedCategories.includes(category)) {
+      onCategoryChange(selectedCategories.filter(c => c !== category));
+    } else {
+      onCategoryChange([...selectedCategories, category]);
+    }
+  };
 
   return (
     <>
@@ -49,25 +54,31 @@ const FilterContent = ({
         onActivitySelect={onActivitySelect}
         placeholder="Search by activity or location..."
       />
-      <NativeSelect 
-        className="filters" 
-        value={selectedCategory}
-        onChange={(e) => onCategoryChange(e.target.value)}
-      >
-        <NativeSelectOption value="">All Categories</NativeSelectOption>
-        {uniqueCategories.map((category) => (
-          <NativeSelectOption key={category} value={category}>
-            {category}
-          </NativeSelectOption>
-        ))}
-      </NativeSelect>
+      <MultiSelect>
+  <MultiSelectTrigger className="w-full max-w-62">
+    <MultiSelectValue placeholder="Select category..." />
+  </MultiSelectTrigger>
+  <MultiSelectContent search={false} className='filter_tab_content'>
+    <MultiSelectGroup>
+      {uniqueCategories.map((category) => (
+        <MultiSelectItem
+          key={category}
+          value={category}
+          onSelect={() => handleCategoryToggle(category)}
+        >
+          {category}
+        </MultiSelectItem>
+      ))}
+    </MultiSelectGroup>
+  </MultiSelectContent>
+</MultiSelect>
     </>
   );
 };
 
 export default function Home() {
   const [activities, setActivities] = useState<ActivityData[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedActivity, setSelectedActivity] = useState<ActivityData | null>(null);
 
   useEffect(() => {
@@ -84,16 +95,16 @@ export default function Home() {
     getActivityData();
   }, []);
 
-  // Filter activities based on selected category
-  const filteredActivities = selectedCategory
-    ? activities.filter((activity) => activity.category === selectedCategory)
+  // Filter activities based on selected categories
+  const filteredActivities = selectedCategories.length > 0
+    ? activities.filter((activity) => selectedCategories.includes(activity.category))
     : activities;
 
   // Handle activity selection from search
   const handleActivitySelect = (activity: ActivityData) => {
     setSelectedActivity(activity);
     // Reset category filter to show the selected activity
-    setSelectedCategory('');
+    setSelectedCategories([]);
   };
 
   return (
@@ -102,8 +113,8 @@ export default function Home() {
         <div className="filter_tab">
           <FilterContent 
             activities={activities}
-            selectedCategory={selectedCategory}
-            onCategoryChange={setSelectedCategory}
+            selectedCategories={selectedCategories}
+            onCategoryChange={setSelectedCategories}
             onActivitySelect={handleActivitySelect}
           />
         </div>
@@ -124,8 +135,8 @@ export default function Home() {
             <div className="filter_tab">
               <FilterContent 
                 activities={activities}
-                selectedCategory={selectedCategory}
-                onCategoryChange={setSelectedCategory}
+                selectedCategories={selectedCategories}
+                onCategoryChange={setSelectedCategories}
                 onActivitySelect={handleActivitySelect}
               />
             </div>

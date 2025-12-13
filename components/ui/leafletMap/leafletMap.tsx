@@ -42,8 +42,16 @@ export interface ActivityData {
 const CustomMarker = ({ activity }: { activity: ActivityData }) => {
   const map = useMap();
   
+  const customIcon = L.divIcon({
+    html: '<div style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: white; border-radius: 50%; border: 2px solid #3b82f6; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></div>',
+    className: 'custom-marker',
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -32],
+  });
+  
   return (
-    <Marker 
+    <Marker icon={customIcon}
       position={[activity.location.coordinates.lat, activity.location.coordinates.lng]}
       eventHandlers={{
         click: () => {
@@ -51,7 +59,7 @@ const CustomMarker = ({ activity }: { activity: ActivityData }) => {
         },
       }}
     >
-      <Popup>
+      <Popup className='max-w-max shadow-lg'>
         <ActivityCard activity={activity} />
       </Popup>
     </Marker>
@@ -100,10 +108,9 @@ export default function OpenStreetMapComponent({
   const defaultCenter: [number, number] = [43.5113657, 16.4688471];
 
   return (
-    <MapContainer center={defaultCenter} zoom={14} style={{ height: '100%', width: '100%' }}>
+    <MapContainer center={defaultCenter} zoom={14} style={{ height: '100%', width: '100%' }} attributionControl={false}>
       <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
       />
       <MapUpdater selectedActivity={selectedActivity} />
       {activities.map((activity) => (
