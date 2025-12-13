@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Popup, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import ActivityCard from './activityCard';
+import { useEffect } from 'react';
 
 // Fix for default marker icons in Leaflet
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -46,7 +47,7 @@ const CustomMarker = ({ activity }: { activity: ActivityData }) => {
       position={[activity.location.coordinates.lat, activity.location.coordinates.lng]}
       eventHandlers={{
         click: () => {
-          map.flyTo([activity.location.coordinates.lat, activity.location.coordinates.lng], 14, { duration: 1 });
+          map.flyTo([activity.location.coordinates.lat, activity.location.coordinates.lng], 15, { duration: 1 });
         },
       }}
     >
@@ -58,7 +59,44 @@ const CustomMarker = ({ activity }: { activity: ActivityData }) => {
 };
 
 
-export default function OpenStreetMapComponent({ activities = [] }: { activities?: ActivityData[] }) {
+// Component to handle map updates
+const MapUpdater = ({ selectedActivity }: { selectedActivity: ActivityData | null }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (selectedActivity) {
+      map.flyTo(
+        [selectedActivity.location.coordinates.lat, selectedActivity.location.coordinates.lng],
+        15,
+        { duration: 1.5 }
+      );
+      
+      // Open the popup for the selected activity
+      map.eachLayer((layer) => {
+        if (layer instanceof L.Marker) {
+          const marker = layer as L.Marker;
+          const position = marker.getLatLng();
+          if (
+            position.lat === selectedActivity.location.coordinates.lat &&
+            position.lng === selectedActivity.location.coordinates.lng
+          ) {
+            marker.openPopup();
+          }
+        }
+      });
+    }
+  }, [selectedActivity, map]);
+
+  return null;
+};
+
+export default function OpenStreetMapComponent({ 
+  activities = [], 
+  selectedActivity = null 
+}: { 
+  activities?: ActivityData[];
+  selectedActivity?: ActivityData | null;
+}) {
   const defaultCenter: [number, number] = [43.5113657, 16.4688471];
 
   return (
@@ -67,6 +105,7 @@ export default function OpenStreetMapComponent({ activities = [] }: { activities
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
+      <MapUpdater selectedActivity={selectedActivity} />
       {activities.map((activity) => (
         <CustomMarker key={activity.id} activity={activity} />
       ))}
