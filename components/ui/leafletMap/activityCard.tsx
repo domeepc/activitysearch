@@ -1,5 +1,7 @@
 "use client";
 
+import Tag from "./tag";
+
 interface ActivityCardProps {
   activity: {
     id: string;
@@ -20,10 +22,10 @@ interface ActivityCardProps {
 
 export default function ActivityCard({ activity }: ActivityCardProps) {
   return (
-    <div className="w-64 p-4 bg-white rounded-lg">
-      <div className="flex justify-between items-start mb-2">
+    <div className="p-4 max-w-max">
+      <div className="flex justify-between items-center mb-2 gap-2">
         <h3 className="text-lg font-semibold">{activity.title}</h3>
-        <span className="text-xs px-2 py-1 bg-gray-100 rounded">{activity.category}</span>
+        <Tag label={activity.category} />
       </div>
       
       <p className="text-sm text-gray-600 mb-3 line-clamp-2">

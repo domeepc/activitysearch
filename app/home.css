@@ -18,6 +18,58 @@ section {
   align-items: flex-start;
 }
 
+#filter_select{
+  border-color: var(--color-gray-200);
+}
+
+[data-selected-item] {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+}
+
+/* Category-specific badge colors */
+[data-selected-item][data-category="Water Sports"] {
+  background-color: #3b82f6 !important;
+  color: white !important;
+  border-color: #3b82f6 !important;
+}
+
+[data-selected-item][data-category="Adventure Sports"] {
+  background-color: #f59e0b !important;
+  color: white !important;
+  border-color: #f59e0b !important;
+}
+
+[data-selected-item][data-category="Food & Wine"] {
+  background-color: #ef4444 !important;
+  color: white !important;
+  border-color: #ef4444 !important;
+}
+
+[data-selected-item][data-category="Hiking & Trekking"] {
+  background-color: #22c55e !important;
+  color: white !important;
+  border-color: #22c55e !important;
+}
+
+[data-selected-item][data-category="Cycling"] {
+  background-color: #a855f7 !important;
+  color: white !important;
+  border-color: #a855f7 !important;
+}
+
+[data-selected-item][data-category="Sailing & Boating"] {
+  background-color: #06b6d4 !important;
+  color: white !important;
+  border-color: #06b6d4 !important;
+}
+
+/* Hover effect for badges */
+[data-selected-item]:hover {
+  opacity: 0.9;
+}
+
+
 .filters {
   width: max-content;
 }
