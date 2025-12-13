@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   DropdownMenu,
@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from "@/components/ui/dropdown-menu";
 
 import {
   Calendar,
@@ -17,16 +17,16 @@ import {
   MessageSquare,
   Settings,
   User,
-} from 'lucide-react';
+} from "lucide-react";
 
-import Link from 'next/link';
+import Link from "next/link";
 
-import './style.css';
-import { AvatarImage, Avatar } from '@/components/ui/avatar';
-import { Authenticated, useQuery } from 'convex/react';
-import { api } from '../../../convex/_generated/api';
-import { SignOutButton } from '@clerk/nextjs';
-import { DropdownMenuLabel } from '@radix-ui/react-dropdown-menu';
+import "./style.css";
+import { AvatarImage, Avatar } from "@/components/ui/avatar";
+import { Authenticated, useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import { SignOutButton } from "@clerk/nextjs";
+import { DropdownMenuLabel } from "@radix-ui/react-dropdown-menu";
 
 export default function Navbar() {
   const user = useQuery(api.users.current);

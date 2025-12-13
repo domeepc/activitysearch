@@ -103,11 +103,31 @@ export default function Home() {
         )
       : activities;
 
+  const [pendingActivity, setPendingActivity] = useState<ActivityData | null>(
+    null
+  );
+  const [isMobileDialogOpen, setIsMobileDialogOpen] = useState(false);
+
   // Handle activity selection from search
   const handleActivitySelect = (activity: ActivityData) => {
     setSelectedActivity(activity);
     // Reset category filter to show the selected activity
     setSelectedCategories([]);
+  };
+
+  // Handle activity selection on mobile - don't fly until search is clicked
+  const handleMobileActivitySelect = (activity: ActivityData) => {
+    setPendingActivity(activity);
+    setSelectedCategories([]);
+  };
+
+  // Handle mobile search button click
+  const handleMobileSearch = () => {
+    if (pendingActivity) {
+      setSelectedActivity(pendingActivity);
+      setPendingActivity(null);
+    }
+    setIsMobileDialogOpen(false);
   };
 
   return (
@@ -124,7 +144,7 @@ export default function Home() {
       </section>
 
       <div className="mobile_filter_tab_button md:hidden">
-        <Dialog>
+        <Dialog open={isMobileDialogOpen} onOpenChange={setIsMobileDialogOpen}>
           <DialogTrigger asChild>
             <Button
               variant="outline"
@@ -140,15 +160,16 @@ export default function Home() {
                 activities={activities}
                 selectedCategories={selectedCategories}
                 onCategoryChange={setSelectedCategories}
-                onActivitySelect={handleActivitySelect}
+                onActivitySelect={handleMobileActivitySelect}
               />
             </div>
             <DialogFooter>
-              <DialogClose asChild>
-                <Button className="bg-blue-600 hover:bg-blue-900">
-                  Search
-                </Button>
-              </DialogClose>
+              <Button
+                className="bg-blue-600 hover:bg-blue-900"
+                onClick={handleMobileSearch}
+              >
+                Search
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
