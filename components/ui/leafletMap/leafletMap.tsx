@@ -3,18 +3,17 @@
 import { MapContainer, TileLayer, Popup, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useEffect, useState } from 'react';
 import ActivityCard from './activityCard';
 
 // Fix for default marker icons in Leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-interface ActivityData {
+export interface ActivityData {
   id: string;
   title: string;
   description: string;
@@ -59,23 +58,8 @@ const CustomMarker = ({ activity }: { activity: ActivityData }) => {
 };
 
 
-export default function OpenStreetMapComponent() {
+export default function OpenStreetMapComponent({ activities = [] }: { activities?: ActivityData[] }) {
   const defaultCenter: [number, number] = [43.5113657, 16.4688471];
-
-  const [activities, setActivities] = useState<ActivityData[]>([]);
-  useEffect(() => {
-    const getActivityData = async () => {
-      try {
-        const response = await fetch('/data.json');
-        const data = await response.json();
-        setActivities(data.activities);
-      } catch (error) {
-        console.error('Error loading activity data:', error);
-      }
-    };
-
-    getActivityData();
-  }, []);
 
   return (
     <MapContainer center={defaultCenter} zoom={14} style={{ height: '100%', width: '100%' }}>
