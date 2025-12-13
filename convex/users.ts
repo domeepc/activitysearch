@@ -18,6 +18,19 @@ export const current = query({
   },
 });
 
+export const getOAuthProviders = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return null;
+    }
+    return {
+      providers: identity.emailVerified ? ['google', 'microsoft', 'facebook'] : [],
+    };
+  },
+});
+
 export const upsertFromClerk = internalMutation({
   args: { data: v.any() as Validator<UserJSON> }, // no runtime validation, trust Clerk
   async handler(ctx, { data }) {
@@ -61,6 +74,16 @@ export const deleteFromClerk = internalMutation({
     const user = await userByExternalId(ctx, clerkUserId);
 
     if (user !== null) {
+      // Remove this user from ALL users' friends lists
+      const allUsers = await ctx.db.query('users').collect();
+      for (const otherUser of allUsers) {
+        if (otherUser._id !== user._id && otherUser.friends.includes(user._id)) {
+          await ctx.db.patch(otherUser._id, {
+            friends: otherUser.friends.filter((id) => id !== user._id),
+          });
+        }
+      }
+      
       await ctx.db.delete(user._id);
     } else {
       console.warn(
@@ -156,8 +179,10 @@ export const updateUserProfile = action({
     // Initialize Clerk client
     const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY! });
     
-    // Update Clerk user if name, lastname, username, or avatar is provided
-    // Note: email updates require a separate flow with verification
+    // Get full user details from Clerk to check external accounts
+    const clerkUser = await clerk.users.getUser(clerkUserId);
+    
+    // Update Clerk user if name, lastname, username, or email is provided
     const clerkUpdates: {
       firstName?: string;
       lastName?: string;
@@ -178,11 +203,52 @@ export const updateUserProfile = action({
       }
     }
     
+    // Handle email updates - Update Clerk first, then Convex
+    if (args.email !== undefined) {
+      // Check if user has OAuth accounts (Google, Microsoft, Facebook)
+      const hasOAuthAccount = clerkUser.externalAccounts.some(
+        (account) => 
+          account.provider === 'google' || 
+          account.provider === 'microsoft' || 
+          account.provider === 'facebook'
+      );
+      
+      if (!hasOAuthAccount) {
+        // Check if the email already exists for this user
+        const existingEmail = clerkUser.emailAddresses.find(
+          (email) => email.emailAddress === args.email
+        );
+        
+        if (!existingEmail) {
+          try {
+            // Create the new email address in Clerk (unverified)
+            // Don't delete old email yet - will delete after verification
+            await clerk.emailAddresses.createEmailAddress({
+              userId: clerkUserId,
+              emailAddress: args.email,
+              verified: false,
+            });
+          } catch (error: any) {
+            const errorMessage = error?.errors?.[0]?.message || error?.message || 'Unknown error';
+            
+            // Handle specific error cases
+            if (errorMessage.toLowerCase().includes('taken') || 
+                errorMessage.toLowerCase().includes('already exists') ||
+                errorMessage.toLowerCase().includes('in use')) {
+              throw new Error('This email address is already in use by another account');
+            }
+            
+            throw new Error(errorMessage);
+          }
+        }
+      }
+    }
+    
     // Note: Avatar updates are only stored in local database
     // Clerk avatar updates require uploading to their storage service
     // For now, we store avatars (base64 or URLs) locally
     
-    // Update local database (including email and avatar which are stored locally)
+    // Update local database AFTER Clerk update (including email and avatar which are stored locally)
     return await ctx.runMutation(api.users.updateUserProfileMutation, args);
   },
 });
@@ -281,6 +347,108 @@ export const removeFriend = mutation({
     }
     
     return await ctx.db.get(user._id);
+  },
+});
+
+export const finalizeEmailChange = action({
+  args: {
+    newEmailId: v.string(),
+    oldEmail: v.string(),
+  },
+  handler: async (ctx, { newEmailId, oldEmail }): Promise<void> => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("User not authenticated");
+    }
+    
+    const clerkUserId = identity.subject;
+    const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY! });
+    
+    try {
+      // Get updated user data
+      let clerkUser = await clerk.users.getUser(clerkUserId);
+      
+      // Set the new email as primary (even if not verified yet)
+      await clerk.users.updateUser(clerkUserId, {
+        primaryEmailAddressID: newEmailId,
+      });
+      
+      // Reload user to get updated state
+      clerkUser = await clerk.users.getUser(clerkUserId);
+      
+      // Delete the old email (should work now that new email is primary)
+      const oldEmailAddress = clerkUser.emailAddresses.find(
+        (email) => email.emailAddress === oldEmail
+      );
+      
+      if (oldEmailAddress && oldEmailAddress.id !== newEmailId) {
+        await clerk.emailAddresses.deleteEmailAddress(oldEmailAddress.id);
+      }
+    } catch (error: any) {
+      throw new Error(error?.message || 'Unknown error');
+    }
+  },
+});
+
+export const unlinkOAuthProvider = action({
+  args: {
+    provider: v.union(v.literal('google'), v.literal('microsoft'), v.literal('facebook')),
+  },
+  handler: async (ctx, { provider }): Promise<void> => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("User not authenticated");
+    }
+    
+    const clerkUserId = identity.subject;
+    const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY! });
+    
+    try {
+      const clerkUser = await clerk.users.getUser(clerkUserId);
+      
+      // Clerk uses provider names like "oauth_google", "oauth_microsoft", etc.
+      const providerPrefix = `oauth_${provider}`;
+      
+      // Find the external account to unlink
+      const externalAccount = clerkUser.externalAccounts.find(
+        (account) => account.provider === provider || account.provider === providerPrefix
+      );
+      
+      if (!externalAccount) {
+        throw new Error(`No ${provider} account linked`);
+      }
+      
+      // Delete the external account
+      await clerk.users.deleteUserExternalAccount({ userId: clerkUserId, externalAccountId: externalAccount.id });
+    } catch (error: any) {
+      throw new Error(error?.message || 'Unknown error');
+    }
+  },
+});
+
+export const deleteAccount = action({
+  args: {},
+  handler: async (ctx): Promise<void> => {
+    // Get current user to get the external ID
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("User not authenticated");
+    }
+    
+    const clerkUserId = identity.subject;
+    
+    // Initialize Clerk client
+    const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY! });
+    
+    // Delete from Clerk
+    try {
+      await clerk.users.deleteUser(clerkUserId);
+    } catch (error: any) {
+      console.error("Error deleting Clerk user:", error);
+      throw new Error(`Failed to delete user from Clerk: ${error?.message || 'Unknown error'}`);
+    }
+    
+    // Delete from local database will be handled by the deleteFromClerk webhook
   },
 });
 

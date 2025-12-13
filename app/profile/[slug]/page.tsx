@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect, use, useRef } from "react";
 import { useQuery, useAction, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import {
   Card,
   CardContent,
@@ -15,11 +16,17 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { UserAvatarSection } from "@/components/UserAvatarSection";
-import { UserPlus, UserMinus } from "lucide-react";
+import { UserPlus, UserMinus, Mail, Check } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -36,8 +43,18 @@ export default function ProfilePage({
 }) {
   const resolvedParams = use(params);
   const router = useRouter();
+  const { user: clerkUser } = useUser();
+  const verificationEmailSentRef = useRef(false);
   const [isEditing, setIsEditing] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showVerifyEmailDialog, setShowVerifyEmailDialog] = useState(false);
+  const [oldEmailBeforeChange, setOldEmailBeforeChange] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [verificationError, setVerificationError] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [autoSendCooldown, setAutoSendCooldown] = useState(0);
   const [usernameError, setUsernameError] = useState("");
   const [errors, setErrors] = useState({
     name: "",
@@ -61,6 +78,9 @@ export default function ProfilePage({
   const updateProfile = useAction(api.users.updateUserProfile);
   const addFriend = useMutation(api.users.addFriend);
   const removeFriend = useMutation(api.users.removeFriend);
+  const deleteAccount = useAction(api.users.deleteAccount);
+  const finalizeEmailChange = useAction(api.users.finalizeEmailChange);
+  const unlinkOAuthProvider = useAction(api.users.unlinkOAuthProvider);
   const friends = useQuery(
     api.users.getUsersByIds,
     user?.friends && user.friends.length > 0
@@ -176,6 +196,10 @@ export default function ProfilePage({
       return;
     }
 
+    // Store old email BEFORE updating
+    const emailChanged = formData.email !== user?.email;
+    const oldEmail = user?.email || "";
+
     try {
       await updateProfile({
         name: formData.name,
@@ -188,8 +212,44 @@ export default function ProfilePage({
       setIsEditing(false);
       setUsernameError("");
       setErrors({ name: "", lastname: "", email: "" });
-    } catch (error) {
+
+      // Refresh if username changed (slug might have changed)
+      if (formData.username !== user?.username) {
+        setTimeout(() => window.location.reload(), 500);
+      }
+
+      // Show verification dialog if email changed
+      if (emailChanged && clerkUser) {
+        setOldEmailBeforeChange(oldEmail);
+        // Wait longer for backend to create the email, then reload and show dialog
+        setTimeout(async () => {
+          try {
+            await clerkUser.reload();
+            setShowVerifyEmailDialog(true);
+          } catch (error) {
+            console.error("Failed to reload user:", error);
+            setErrors({
+              ...errors,
+              email: "Failed to update email. Please try again.",
+            });
+          }
+        }, 2500);
+      }
+    } catch (error: any) {
       console.error("Failed to update user:", error);
+      const errorMessage = error?.message || "Failed to update profile";
+
+      // Check for specific email errors
+      if (
+        errorMessage.toLowerCase().includes("email") &&
+        (errorMessage.toLowerCase().includes("exists") ||
+          errorMessage.toLowerCase().includes("already") ||
+          errorMessage.toLowerCase().includes("taken"))
+      ) {
+        setErrors({ ...errors, email: "This email address is already in use" });
+      } else {
+        setErrors({ ...errors, email: errorMessage });
+      }
     }
   };
 
@@ -212,24 +272,291 @@ export default function ProfilePage({
     }
   };
 
-  if (user === undefined) {
+  const handleDeleteAccount = async () => {
+    try {
+      await deleteAccount({});
+      setShowDeleteDialog(false);
+      // The useEffect will handle the redirect once currentUser becomes null
+    } catch (error) {
+      console.error("Failed to delete account:", error);
+    }
+  };
+
+  const handleVerifyEmail = async () => {
+    if (!clerkUser) return;
+
+    setVerifying(true);
+    setVerificationError("");
+
+    try {
+      // Find the unverified email address
+      const unverifiedEmail = clerkUser.emailAddresses.find(
+        (email) => email.verification?.status !== "verified"
+      );
+
+      if (!unverifiedEmail) {
+        setVerificationError("No email address to verify");
+        setVerifying(false);
+        return;
+      }
+
+      // Attempt to verify the email with the code
+      await unverifiedEmail.attemptVerification({
+        code: verificationCode,
+      });
+
+      // Find all emails that are NOT the one we just verified
+      // These are the old emails that should be deleted
+      const emailsToDelete = clerkUser.emailAddresses
+        .filter((email) => email.id !== unverifiedEmail.id)
+        .map((email) => email.emailAddress);
+
+      // Make new email primary and delete old emails
+      await finalizeEmailChange({
+        newEmailId: unverifiedEmail.id,
+        oldEmail: emailsToDelete[0] || "", // Take the first old email
+      });
+
+      setShowVerifyEmailDialog(false);
+      setVerificationCode("");
+
+      // Reload the page to update the profile - this will update the verified badge
+      window.location.reload();
+    } catch (error: any) {
+      console.error("Failed to verify email:", error);
+      setVerificationError(
+        error?.errors?.[0]?.message ||
+          "Verification failed. Please check your code."
+      );
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleResendVerificationEmail = async () => {
+    if (!clerkUser || resendCooldown > 0) return;
+
+    try {
+      await clerkUser.reload();
+      const unverifiedEmail = clerkUser.emailAddresses.find(
+        (email) => email.verification?.status !== "verified"
+      );
+
+      if (unverifiedEmail) {
+        await unverifiedEmail.prepareVerification({ strategy: "email_code" });
+        setVerificationError("");
+        setResendCooldown(60); // 60 second cooldown
+      } else {
+        setVerificationError("No unverified email found");
+      }
+    } catch (error) {
+      console.error("Failed to resend verification email:", error);
+      setVerificationError(
+        "Failed to resend verification email. Please try again."
+      );
+    }
+  };
+  const handleUnlinkOAuth = async (
+    provider: "google" | "microsoft" | "facebook"
+  ) => {
+    try {
+      await unlinkOAuthProvider({ provider });
+      await clerkUser?.reload();
+      setTimeout(() => window.location.reload(), 500);
+    } catch (error) {
+      console.error(`Failed to unlink ${provider}:`, error);
+    }
+  };
+
+  const getEmailVerificationStatus = () => {
+    if (!clerkUser) return null;
+    // Find the email that matches the current email in formData
+    const currentEmail = clerkUser.emailAddresses.find(
+      (email) => email.emailAddress === formData.email
+    );
+    // Also check if this is the primary email
+    const isPrimary = currentEmail?.id === clerkUser.primaryEmailAddressId;
+    // Check if email exists and has a verification object with verified status
+    if (!currentEmail?.verification) return false;
+    return currentEmail.verification.status === "verified" && isPrimary;
+  };
+  // Cooldown timer for resend button
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => {
+        setResendCooldown(resendCooldown - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
+
+  // Cooldown timer for auto-send on dialog open (5 minutes)
+  useEffect(() => {
+    if (autoSendCooldown > 0) {
+      const timer = setTimeout(() => {
+        setAutoSendCooldown(autoSendCooldown - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [autoSendCooldown]);
+
+  // Send verification email when dialog opens (only if no cooldown)
+  useEffect(() => {
+    if (
+      showVerifyEmailDialog &&
+      clerkUser &&
+      !verificationEmailSentRef.current &&
+      autoSendCooldown === 0
+    ) {
+      verificationEmailSentRef.current = true;
+
+      const sendVerificationEmail = async () => {
+        try {
+          await clerkUser.reload();
+          const unverifiedEmail = clerkUser.emailAddresses.find(
+            (email) => email.verification?.status !== "verified"
+          );
+
+          if (unverifiedEmail) {
+            await unverifiedEmail.prepareVerification({
+              strategy: "email_code",
+            });
+            setAutoSendCooldown(300); // 5 minutes cooldown for auto-send
+          } else {
+            setVerificationError(
+              "No unverified email address found. Please try again."
+            );
+          }
+        } catch (error) {
+          console.error("Failed to send verification email:", error);
+          setVerificationError(
+            "Failed to send verification email. Please try resending."
+          );
+        }
+      };
+
+      sendVerificationEmail();
+    }
+
+    // Reset the ref when dialog closes
+    if (!showVerifyEmailDialog) {
+      verificationEmailSentRef.current = false;
+    }
+  }, [showVerifyEmailDialog, clerkUser, autoSendCooldown]);
+
+  // Redirect to sign-in if not authenticated or user not found
+  useEffect(() => {
+    if (currentUser === null || user === null) {
+      window.location.replace("/sign-in");
+    }
+  }, [currentUser, user]);
+
+  if (user === undefined || currentUser === undefined) {
     return (
       <div className="container mx-auto p-6 max-w-4xl">
         <Card>
-          <CardContent className="flex items-center justify-center py-8">
-            <p className="text-muted-foreground">Loading profile...</p>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-10 w-24" />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Avatar skeleton */}
+            <div className="flex justify-center">
+              <Skeleton className="h-32 w-32 rounded-full" />
+            </div>
+
+            {/* Form fields skeletons */}
+            <div className="grid gap-6">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-24 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <div className="flex flex-wrap gap-2">
+                  <Skeleton className="h-6 w-16" />
+                  <Skeleton className="h-6 w-20" />
+                  <Skeleton className="h-6 w-24" />
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  if (user === null) {
+  if (user === null || currentUser === null) {
     return (
       <div className="container mx-auto p-6 max-w-4xl">
         <Card>
-          <CardContent className="flex items-center justify-center py-8">
-            <p className="text-muted-foreground">User not found</p>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-10 w-24" />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Avatar skeleton */}
+            <div className="flex justify-center">
+              <Skeleton className="h-32 w-32 rounded-full" />
+            </div>
+
+            {/* Form fields skeletons */}
+            <div className="grid gap-6">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-24 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <div className="flex flex-wrap gap-2">
+                  <Skeleton className="h-6 w-16" />
+                  <Skeleton className="h-6 w-20" />
+                  <Skeleton className="h-6 w-24" />
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -237,10 +564,10 @@ export default function ProfilePage({
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <div className="container mx-auto p-4 md:p-6 max-w-4xl">
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
             <div>
               <CardTitle>
                 {isOwnProfile ? "Profile" : `${formData.name}'s Profile`}
@@ -251,7 +578,7 @@ export default function ProfilePage({
                   : `@${formData.username}`}
               </CardDescription>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               {isOwnProfile ? (
                 isEditing ? (
                   <>
@@ -273,9 +600,21 @@ export default function ProfilePage({
                     </Button>
                   </>
                 ) : (
-                  <Button onClick={() => setIsEditing(true)}>
-                    Edit Profile
-                  </Button>
+                  <>
+                    <Button
+                      variant="destructive"
+                      onClick={() => setShowDeleteDialog(true)}
+                      className="w-full md:w-auto"
+                    >
+                      Delete Account
+                    </Button>
+                    <Button
+                      onClick={() => setIsEditing(true)}
+                      className="w-full md:w-auto"
+                    >
+                      Edit Profile
+                    </Button>
+                  </>
                 )
               ) : (
                 <>
@@ -283,12 +622,16 @@ export default function ProfilePage({
                     <Button
                       variant="outline"
                       onClick={() => setShowRemoveDialog(true)}
+                      className="w-full md:w-auto"
                     >
                       <UserMinus className="h-4 w-4 mr-2" />
                       Remove Friend
                     </Button>
                   ) : (
-                    <Button onClick={handleAddFriend}>
+                    <Button
+                      onClick={handleAddFriend}
+                      className="w-full md:w-auto"
+                    >
                       <UserPlus className="h-4 w-4 mr-2" />
                       Add Friend
                     </Button>
@@ -313,7 +656,9 @@ export default function ProfilePage({
             {/* Name */}
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
-              {isEditing && isOwnProfile ? (
+              {user === undefined ? (
+                <Skeleton className="h-5 w-48" />
+              ) : isEditing && isOwnProfile ? (
                 <>
                   <Input
                     id="name"
@@ -336,7 +681,9 @@ export default function ProfilePage({
             {/* Last Name */}
             <div className="space-y-2">
               <Label htmlFor="lastname">Last Name</Label>
-              {isEditing && isOwnProfile ? (
+              {user === undefined ? (
+                <Skeleton className="h-5 w-48" />
+              ) : isEditing && isOwnProfile ? (
                 <>
                   <Input
                     id="lastname"
@@ -412,9 +759,66 @@ export default function ProfilePage({
                     )}
                   </>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
-                    {formData.email}
-                  </p>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-muted-foreground">
+                        {formData.email}
+                      </p>
+                      {getEmailVerificationStatus() === true ? (
+                        <Badge
+                          variant="default"
+                          className="flex items-center gap-1"
+                        >
+                          <Check className="h-3 w-3" />
+                          Verified
+                        </Badge>
+                      ) : getEmailVerificationStatus() === false ? (
+                        <Badge
+                          variant="outline"
+                          className="flex items-center gap-1 cursor-pointer hover:bg-accent"
+                          onClick={() => setShowVerifyEmailDialog(true)}
+                        >
+                          <Mail className="h-3 w-3" />
+                          Not Verified - Click to Verify
+                        </Badge>
+                      ) : null}
+                    </div>
+
+                    {/* OAuth Provider Links */}
+                    {clerkUser?.externalAccounts &&
+                      clerkUser.externalAccounts.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-xs text-muted-foreground">
+                            Linked accounts:
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {clerkUser.externalAccounts.map((account) => (
+                              <Badge
+                                key={account.id}
+                                variant="secondary"
+                                className="flex items-center gap-2"
+                              >
+                                {account.provider}
+                                <button
+                                  onClick={() =>
+                                    handleUnlinkOAuth(
+                                      account.provider as
+                                        | "google"
+                                        | "microsoft"
+                                        | "facebook"
+                                    )
+                                  }
+                                  className="hover:text-destructive"
+                                  title={`Unlink ${account.provider}`}
+                                >
+                                  ×
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                  </div>
                 )}
               </div>
             )}
@@ -424,13 +828,16 @@ export default function ProfilePage({
               <Label htmlFor="description">
                 {isOwnProfile ? "Description" : "About"}
               </Label>
-              {isEditing && isOwnProfile ? (
+              {user === undefined ? (
+                <Skeleton className="h-24 w-full" />
+              ) : isEditing && isOwnProfile ? (
                 <Textarea
                   id="description"
                   name="description"
                   value={formData.description}
                   onChange={handleChange}
                   rows={4}
+                  className="resize-none"
                 />
               ) : (
                 <p className="text-sm text-muted-foreground">
@@ -462,20 +869,41 @@ export default function ProfilePage({
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label>Experience Points</Label>
-                <span className="text-sm font-medium text-muted-foreground">
-                  {formData.exp} / 1000 XP
-                </span>
+                {user === undefined ? (
+                  <Skeleton className="h-4 w-24" />
+                ) : (
+                  <span className="text-sm font-medium text-muted-foreground">
+                    {formData.exp} / 1000 XP
+                  </span>
+                )}
               </div>
-              <Progress value={(formData.exp / 1000) * 100} className="h-3" />
-              <p className="text-xs text-muted-foreground">
-                {Math.round((formData.exp / 1000) * 100)}% to next level
-              </p>
+              {user === undefined ? (
+                <Skeleton className="h-3 w-full" />
+              ) : (
+                <>
+                  <Progress
+                    value={(formData.exp / 1000) * 100}
+                    className="h-3"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {Math.round((formData.exp / 1000) * 100)}% to next level
+                  </p>
+                </>
+              )}
             </div>
 
             {/* Friends */}
             <div className="space-y-2">
-              <Label>Friends ({formData.friends.length})</Label>
-              {formData.friends.length > 0 && friends ? (
+              <Label>
+                Friends ({friends?.length ?? formData.friends.length})
+              </Label>
+              {formData.friends.length > 0 && friends === undefined ? (
+                <div className="flex flex-wrap gap-2">
+                  <Skeleton className="h-6 w-24" />
+                  <Skeleton className="h-6 w-28" />
+                  <Skeleton className="h-6 w-20" />
+                </div>
+              ) : formData.friends.length > 0 && friends ? (
                 <div className="flex flex-wrap gap-2">
                   {friends.map((friend) => (
                     <Badge
@@ -488,10 +916,6 @@ export default function ProfilePage({
                     </Badge>
                   ))}
                 </div>
-              ) : formData.friends.length > 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Loading friends...
-                </p>
               ) : (
                 <p className="text-sm text-muted-foreground">No friends yet</p>
               )}
@@ -519,6 +943,104 @@ export default function ProfilePage({
             </Button>
             <Button variant="destructive" onClick={handleRemoveFriend}>
               Remove Friend
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Account Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Account</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete your account? This action cannot
+              be undone. All your data, including your profile, friends, and
+              activity history will be permanently deleted.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteAccount}>
+              Delete Account
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Email Verification Dialog */}
+      <Dialog
+        open={showVerifyEmailDialog}
+        onOpenChange={setShowVerifyEmailDialog}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5" />
+              Verify Your Email
+            </DialogTitle>
+            <DialogDescription>
+              We've sent a verification code to your new email address. Please
+              enter the code below to verify your email.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="verification-code">Verification Code</Label>
+              <div className="flex justify-center">
+                <InputOTP
+                  maxLength={6}
+                  value={verificationCode}
+                  onChange={(value) => setVerificationCode(value)}
+                >
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+              {verificationError && (
+                <p className="text-sm font-medium text-destructive text-center">
+                  {verificationError}
+                </p>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleResendVerificationEmail}
+              disabled={resendCooldown > 0}
+            >
+              {resendCooldown > 0
+                ? `Resend Code (${resendCooldown}s)`
+                : "Resend Code"}
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowVerifyEmailDialog(false);
+                setVerificationCode("");
+                setVerificationError("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleVerifyEmail}
+              disabled={verifying || verificationCode.length !== 6}
+            >
+              {verifying ? "Verifying..." : "Verify Email"}
             </Button>
           </DialogFooter>
         </DialogContent>
