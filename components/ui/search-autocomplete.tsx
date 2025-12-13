@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, MapPin, Tag } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { ActivityData } from './leafletMap/leafletMap';
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Search, MapPin, Tag } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ActivityData } from "./leafletMap/leafletMap";
 
 interface SearchAutocompleteProps {
   activities: ActivityData[];
@@ -13,7 +13,7 @@ interface SearchAutocompleteProps {
 }
 
 interface SearchResult {
-  type: 'activity' | 'location';
+  type: "activity" | "location";
   activity: ActivityData;
   matchField: string;
 }
@@ -21,10 +21,10 @@ interface SearchResult {
 export default function SearchAutocomplete({
   activities,
   onActivitySelect,
-  placeholder = 'Search by activity or location...',
-  className = '',
+  placeholder = "Search by activity or location...",
+  className = "",
 }: SearchAutocompleteProps) {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -40,7 +40,7 @@ export default function SearchAutocomplete({
         // Search by activity title
         if (activity.title.toLowerCase().includes(searchLower)) {
           matchedResults.push({
-            type: 'activity',
+            type: "activity",
             activity,
             matchField: activity.title,
           });
@@ -48,15 +48,17 @@ export default function SearchAutocomplete({
         // Search by location name
         else if (activity.location.name.toLowerCase().includes(searchLower)) {
           matchedResults.push({
-            type: 'location',
+            type: "location",
             activity,
             matchField: activity.location.name,
           });
         }
         // Search by location address
-        else if (activity.location.address.toLowerCase().includes(searchLower)) {
+        else if (
+          activity.location.address.toLowerCase().includes(searchLower)
+        ) {
           matchedResults.push({
-            type: 'location',
+            type: "location",
             activity,
             matchField: activity.location.address,
           });
@@ -70,13 +72,16 @@ export default function SearchAutocomplete({
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     }
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Handle keyboard navigation
@@ -84,25 +89,26 @@ export default function SearchAutocomplete({
     if (!isOpen) return;
 
     switch (e.key) {
-      case 'ArrowDown':
+      case "ArrowDown":
         e.preventDefault();
-        setHighlightedIndex((prev) => 
+        setHighlightedIndex((prev) =>
           prev < results.length - 1 ? prev + 1 : prev
         );
         break;
-      case 'ArrowUp':
+      case "ArrowUp":
         e.preventDefault();
-        setHighlightedIndex((prev) =>
-          prev > 0 ? prev - 1 : prev
-        );
+        setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : prev));
         break;
-      case 'Enter':
+      case "Enter":
         e.preventDefault();
         if (highlightedIndex >= 0 && highlightedIndex < results.length) {
           handleSelect(results[highlightedIndex].activity);
+        } else if (results.length > 0) {
+          // If no item is highlighted, select the first result
+          handleSelect(results[0].activity);
         }
         break;
-      case 'Escape':
+      case "Escape":
         setIsOpen(false);
         inputRef.current?.blur();
         break;
@@ -132,7 +138,7 @@ export default function SearchAutocomplete({
   };
 
   return (
-    <div ref={wrapperRef} className={cn('relative w-full', className)}>
+    <div ref={wrapperRef} className={cn("relative w-full", className)}>
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <input
@@ -170,7 +176,7 @@ export default function SearchAutocomplete({
               )}
             >
               <div className="mt-0.5 shrink-0">
-                {result.type === 'activity' ? (
+                {result.type === "activity" ? (
                   <Tag className="h-4 w-4 text-blue-500" />
                 ) : (
                   <MapPin className="h-4 w-4 text-green-500" />
@@ -181,10 +187,10 @@ export default function SearchAutocomplete({
                   {highlightMatch(result.activity.title, searchTerm)}
                 </div>
                 <div className="text-xs text-muted-foreground truncate mt-0.5">
-                  {result.type === 'location' && (
+                  {result.type === "location" && (
                     <>{highlightMatch(result.matchField, searchTerm)}</>
                   )}
-                  {result.type === 'activity' && (
+                  {result.type === "activity" && (
                     <span className="flex items-center gap-1">
                       <MapPin className="h-3 w-3 inline" />
                       {result.activity.location.name}
@@ -192,7 +198,8 @@ export default function SearchAutocomplete({
                   )}
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5">
-                  {result.activity.category} • {result.activity.price.amount} {result.activity.price.currency}
+                  {result.activity.category} • {result.activity.price.amount}{" "}
+                  {result.activity.price.currency}
                 </div>
               </div>
             </button>
