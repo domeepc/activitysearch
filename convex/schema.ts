@@ -8,6 +8,7 @@ export default defineSchema({
     name: v.string(),
     lastname: v.string(),
     username: v.string(),
+    slug: v.string(),
     description: v.string(),
     email: v.string(),
     contact: v.string(),
@@ -15,7 +16,7 @@ export default defineSchema({
     totalExp: v.int64(),
     friends: v.array(v.id("users")),
 
-  }).index('byExternalId', ['externalId']),
+  }).index('byExternalId', ['externalId']).index('byUsername', ['username']).index('bySlug', ['slug']),
   
   
   organizers: defineTable({
