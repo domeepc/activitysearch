@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserAvatarSection } from "@/components/UserAvatarSection";
-import { UserPlus, UserMinus, Mail, Check } from "lucide-react";
+import { UserPlus, UserMinus, Mail, Check, Lock } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -49,6 +49,18 @@ export default function ProfilePage({
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showVerifyEmailDialog, setShowVerifyEmailDialog] = useState(false);
+  const [showUnlinkWarningDialog, setShowUnlinkWarningDialog] = useState(false);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [showPasswordRequiredDialog, setShowPasswordRequiredDialog] =
+    useState(false);
+  const [pendingUnlinkProvider, setPendingUnlinkProvider] = useState<
+    "google" | "microsoft" | "facebook" | null
+  >(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [settingPassword, setSettingPassword] = useState(false);
   const [oldEmailBeforeChange, setOldEmailBeforeChange] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [verifying, setVerifying] = useState(false);
@@ -359,12 +371,98 @@ export default function ProfilePage({
   const handleUnlinkOAuth = async (
     provider: "google" | "microsoft" | "facebook"
   ) => {
+    // Show warning dialog for Google accounts (cannot be unlinked)
+    if (provider === "google") {
+      setShowUnlinkWarningDialog(true);
+      return;
+    }
+
+    // Check if user has a password set
+    const hasPassword = clerkUser?.passwordEnabled;
+    if (!hasPassword) {
+      setPendingUnlinkProvider(provider);
+      setShowPasswordRequiredDialog(true);
+      return;
+    }
+
     try {
       await unlinkOAuthProvider({ provider });
       await clerkUser?.reload();
       setTimeout(() => window.location.reload(), 500);
     } catch (error) {
       console.error(`Failed to unlink ${provider}:`, error);
+    }
+  };
+
+  const handleSetPassword = async () => {
+    setPasswordError("");
+
+    if (!newPassword || !confirmPassword) {
+      setPasswordError("Please fill in all fields");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setPasswordError("Password must be at least 8 characters long");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Passwords do not match");
+      return;
+    }
+
+    setSettingPassword(true);
+
+    try {
+      const hasPassword = clerkUser?.passwordEnabled;
+
+      if (hasPassword) {
+        // User already has a password, change it
+        if (!currentPassword) {
+          setPasswordError("Please enter your current password");
+          setSettingPassword(false);
+          return;
+        }
+        await clerkUser?.updatePassword({
+          currentPassword,
+          newPassword,
+        });
+      } else {
+        // User doesn't have a password, create one
+        await clerkUser?.updatePassword({
+          newPassword,
+        });
+      }
+
+      await clerkUser?.reload();
+      setShowPasswordDialog(false);
+      setNewPassword("");
+      setConfirmPassword("");
+      setCurrentPassword("");
+      setPasswordError("");
+
+      // If there's a pending unlink, show the password required dialog again
+      if (pendingUnlinkProvider) {
+        // Now that password is set, attempt to unlink
+        try {
+          await unlinkOAuthProvider({ provider: pendingUnlinkProvider });
+          await clerkUser?.reload();
+          setTimeout(() => window.location.reload(), 500);
+        } catch (error) {
+          console.error(`Failed to unlink ${pendingUnlinkProvider}:`, error);
+        }
+        setPendingUnlinkProvider(null);
+        setShowPasswordRequiredDialog(false);
+      }
+    } catch (error: any) {
+      console.error("Failed to set/update password:", error);
+      setPasswordError(
+        error?.errors?.[0]?.message ||
+          "Failed to set password. Please try again."
+      );
+    } finally {
+      setSettingPassword(false);
     }
   };
 
@@ -818,6 +916,34 @@ export default function ProfilePage({
                           </div>
                         </div>
                       )}
+
+                    {/* Password Section */}
+                    <div className="space-y-2 pt-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-muted-foreground">
+                          Password:
+                        </p>
+                        <Badge
+                          variant={
+                            clerkUser?.passwordEnabled ? "default" : "outline"
+                          }
+                          className="flex items-center gap-1"
+                        >
+                          <Lock className="h-3 w-3" />
+                          {clerkUser?.passwordEnabled ? "Set" : "Not Set"}
+                        </Badge>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowPasswordDialog(true)}
+                        className="w-full"
+                      >
+                        {clerkUser?.passwordEnabled
+                          ? "Change Password"
+                          : "Set Password"}
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -968,6 +1094,159 @@ export default function ProfilePage({
             </Button>
             <Button variant="destructive" onClick={handleDeleteAccount}>
               Delete Account
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Password Required Dialog */}
+      <Dialog
+        open={showPasswordRequiredDialog}
+        onOpenChange={(open) => {
+          setShowPasswordRequiredDialog(open);
+          if (!open) setPendingUnlinkProvider(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Password Required</DialogTitle>
+            <DialogDescription>
+              To unlink OAuth providers, you must first set a password for your
+              account. This ensures you can still sign in after removing OAuth
+              providers.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowPasswordRequiredDialog(false);
+                setPendingUnlinkProvider(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setShowPasswordRequiredDialog(false);
+                setShowPasswordDialog(true);
+              }}
+            >
+              Set Password
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Set/Change Password Dialog */}
+      <Dialog
+        open={showPasswordDialog}
+        onOpenChange={(open) => {
+          setShowPasswordDialog(open);
+          if (!open) {
+            setNewPassword("");
+            setConfirmPassword("");
+            setCurrentPassword("");
+            setPasswordError("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5" />
+              {clerkUser?.passwordEnabled ? "Change Password" : "Set Password"}
+            </DialogTitle>
+            <DialogDescription>
+              {clerkUser?.passwordEnabled
+                ? "Enter your current password and choose a new one."
+                : "Set a password to secure your account and enable OAuth unlinking."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {clerkUser?.passwordEnabled && (
+              <div className="space-y-2">
+                <Label htmlFor="current-password">Current Password</Label>
+                <Input
+                  id="current-password"
+                  name="current-password"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Enter current password"
+                />
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New Password</Label>
+              <Input
+                id="new-password"
+                name="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password (min. 8 characters)"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">Confirm Password</Label>
+              <Input
+                id="confirm-password"
+                name="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+              />
+            </div>
+            {passwordError && (
+              <p className="text-sm font-medium text-destructive">
+                {passwordError}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowPasswordDialog(false);
+                setNewPassword("");
+                setConfirmPassword("");
+                setCurrentPassword("");
+                setPasswordError("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSetPassword} disabled={settingPassword}>
+              {settingPassword
+                ? "Setting..."
+                : clerkUser?.passwordEnabled
+                ? "Change Password"
+                : "Set Password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unlink Warning Dialog */}
+      <Dialog
+        open={showUnlinkWarningDialog}
+        onOpenChange={setShowUnlinkWarningDialog}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cannot Unlink Google Account</DialogTitle>
+            <DialogDescription>
+              Google email accounts cannot be removed through the interface due
+              to Google's security policies. If you need to unlink your Google
+              account, please contact us at support@activitysearch.com for
+              assistance.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowUnlinkWarningDialog(false)}>
+              OK
             </Button>
           </DialogFooter>
         </DialogContent>

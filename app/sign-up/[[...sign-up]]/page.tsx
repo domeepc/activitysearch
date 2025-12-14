@@ -1,11 +1,6 @@
-import { SignUp } from "@clerk/nextjs";
-
+import CustomSignUp from "@/components/CustomSignUp";
 import "./style.css";
 
 export default function SignUpPage() {
-  return (
-    <div className="sign_up">
-      <SignUp />
-    </div>
-  );
+  return <CustomSignUp />;
 }
