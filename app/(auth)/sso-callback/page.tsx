@@ -38,12 +38,12 @@ export default function SSOCallback() {
     if (!signUpLoaded || !signInLoaded) return;
 
     // Set timeout to redirect to sign-in if taking too long
-    const timeoutId = setTimeout(() => {
-      console.log("OAuth callback timeout - redirecting to sign-in");
-      if (!showDialog) {
-        router.push("/sign-in");
-      }
-    }, 10000); // 10 seconds timeout
+    // const timeoutId = setTimeout(() => {
+    //   console.log("OAuth callback timeout - redirecting to sign-in");
+    //   if (!showDialog) {
+    //     router.push("/sign-in");
+    //   }
+    // }, 10000); // 10 seconds timeout
 
     const handleCallback = async () => {
       try {
@@ -58,10 +58,17 @@ export default function SSOCallback() {
         // Check for sign-in flow first
         if (signIn?.status === "complete") {
           console.log("Sign in complete, redirecting to home");
-          clearTimeout(timeoutId);
+          // clearTimeout(timeoutId);
           await setActiveSignIn({ session: signIn.createdSessionId! });
           router.push("/");
           return;
+        }
+
+        // Check if sign-in needs additional verification (like second factor)
+        if (signIn && signIn.status === "needs_first_factor") {
+          console.log("Sign-in needs first factor verification");
+          // For OAuth, this should auto-complete, so we just wait for the status to update
+          // The OAuth callback will trigger the completion automatically
         }
 
         // Handle sign-in with missing requirements
@@ -73,7 +80,7 @@ export default function SSOCallback() {
           const user = signIn.userData;
           console.log("Sign-in needs profile completion", user);
 
-          clearTimeout(timeoutId);
+          // clearTimeout(timeoutId);
           setIsSignIn(true);
 
           setShowDialog(true);
@@ -82,7 +89,7 @@ export default function SSOCallback() {
 
         // Check if we have a sign up in progress
         if (signUp?.status === "missing_requirements") {
-          clearTimeout(timeoutId);
+          // clearTimeout(timeoutId);
           setIsSignIn(false);
 
           const missingFields = signUp.missingFields || [];
@@ -95,25 +102,33 @@ export default function SSOCallback() {
             console.log("Showing dialog for missing fields");
             setShowDialog(true);
           } else {
-            console.log(
-              "No missing fields,ignIn, setActiveSignUp, setActiveSignIning sign up"
-            );
+            console.log("No missing fields, completing sign up");
             await setActiveSignUp({ session: signUp.createdSessionId! });
             router.push("/");
           }
         } else if (signUp?.status === "complete") {
           console.log("Sign up complete, redirecting to home");
-          clearTimeout(timeoutId);
+          // clearTimeout(timeoutId);
           await setActiveSignUp({ session: signUp.createdSessionId! });
           router.push("/");
+        } else if (signIn && signIn.status) {
+          // If sign-in exists but not complete, keep waiting
+          console.log("Sign-in flow in progress, status:", signIn.status);
+        } else if (signUp && signUp.status) {
+          // If sign-up exists but not handled above, keep waiting
+          console.log("Sign-up flow in progress, status:", signUp.status);
         } else {
-          console.log("No active sign up or sign in flow");
+          console.log(
+            "No active sign up or sign in flow, checking for redirectUrlComplete"
+          );
+          // Don't redirect immediately - the OAuth might be completing
+          // Give it a moment before deciding it failed
         }
       } catch (err) {
         console.error("OAuth callback error:", err);
         console.error("Error type:", typeof err);
         console.error("Error stringified:", JSON.stringify(err, null, 2));
-        clearTimeout(timeoutId);
+        // clearTimeout(timeoutId);
         router.push("/sign-in");
       }
     };
@@ -121,7 +136,7 @@ export default function SSOCallback() {
     handleCallback();
 
     // Cleanup timeout on unmount
-    return () => clearTimeout(timeoutId);
+    // return () => clearTimeout(timeoutId);
   }, [
     signUpLoaded,
     signInLoaded,

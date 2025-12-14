@@ -35,6 +35,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import DialogAddActivity from "@/components/ui/dialogAddActivity";
 
 export default function ProfilePage({
   params,
@@ -53,6 +54,7 @@ export default function ProfilePage({
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [showPasswordRequiredDialog, setShowPasswordRequiredDialog] =
     useState(false);
+  const [showActivityDialog, setShowActivityDialog] = useState(false);
   const [pendingUnlinkProvider, setPendingUnlinkProvider] = useState<
     "google" | "microsoft" | "facebook" | null
   >(null);
@@ -86,6 +88,9 @@ export default function ProfilePage({
   });
 
   const user = useQuery(api.users.getUserBySlug, { slug: resolvedParams.slug });
+  const organisation = useQuery(api.organisation.getOrganisationByOwnerId, {
+    ownerId: user?._id as Id<"users">,
+  });
   const currentUser = useQuery(api.users.current);
   const updateProfile = useAction(api.users.updateUserProfile);
   const addFriend = useMutation(api.users.addFriend);
@@ -109,6 +114,7 @@ export default function ProfilePage({
   );
 
   const isOwnProfile = currentUser?._id === user?._id;
+  const isOrganisator = currentUser?.role === "organizer";
   const isFriend = currentUser?.friends.includes(user?._id as Id<"users">);
 
   useEffect(() => {
@@ -210,7 +216,7 @@ export default function ProfilePage({
 
     // Store old email BEFORE updating
     const emailChanged = formData.email !== user?.email;
-    const oldEmail = user?.email || "";
+    setOldEmailBeforeChange(user?.email || "");
 
     try {
       await updateProfile({
@@ -232,7 +238,7 @@ export default function ProfilePage({
 
       // Show verification dialog if email changed
       if (emailChanged && clerkUser) {
-        setOldEmailBeforeChange(oldEmail);
+        setOldEmailBeforeChange(oldEmailBeforeChange);
         // Wait longer for backend to create the email, then reload and show dialog
         setTimeout(async () => {
           try {
@@ -247,9 +253,10 @@ export default function ProfilePage({
           }
         }, 2500);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to update user:", error);
-      const errorMessage = error?.message || "Failed to update profile";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to update profile";
 
       // Check for specific email errors
       if (
@@ -301,6 +308,9 @@ export default function ProfilePage({
     setVerificationError("");
 
     try {
+      // Reload user to get latest state
+      await clerkUser.reload();
+
       // Find the unverified email address
       const unverifiedEmail = clerkUser.emailAddresses.find(
         (email) => email.verification?.status !== "verified"
@@ -316,6 +326,9 @@ export default function ProfilePage({
       await unverifiedEmail.attemptVerification({
         code: verificationCode,
       });
+
+      // Reload user again to get the verified status
+      await clerkUser.reload();
 
       // Find all emails that are NOT the one we just verified
       // These are the old emails that should be deleted
@@ -334,12 +347,16 @@ export default function ProfilePage({
 
       // Reload the page to update the profile - this will update the verified badge
       window.location.reload();
-    } catch (error: any) {
-      console.error("Failed to verify email:", error);
-      setVerificationError(
-        error?.errors?.[0]?.message ||
-          "Verification failed. Please check your code."
-      );
+    } catch (error: unknown) {
+      const errorMessage =
+        error &&
+        typeof error === "object" &&
+        "errors" in error &&
+        Array.isArray(error.errors) &&
+        error.errors[0]?.message
+          ? error.errors[0].message
+          : "Failed to verify email. Please try again.";
+      setVerificationError(errorMessage);
     } finally {
       setVerifying(false);
     }
@@ -455,12 +472,17 @@ export default function ProfilePage({
         setPendingUnlinkProvider(null);
         setShowPasswordRequiredDialog(false);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to set/update password:", error);
-      setPasswordError(
-        error?.errors?.[0]?.message ||
-          "Failed to set password. Please try again."
-      );
+      const errorMessage =
+        error &&
+        typeof error === "object" &&
+        "errors" in error &&
+        Array.isArray(error.errors) &&
+        error.errors[0]?.message
+          ? error.errors[0].message
+          : "Failed to set password. Please try again.";
+      setPasswordError(errorMessage);
     } finally {
       setSettingPassword(false);
     }
@@ -849,7 +871,18 @@ export default function ProfilePage({
                       value={formData.email}
                       onChange={handleChange}
                       aria-invalid={!!errors.email}
+                      disabled={
+                        clerkUser?.externalAccounts &&
+                        clerkUser.externalAccounts.length > 0
+                      }
                     />
+                    {clerkUser?.externalAccounts &&
+                      clerkUser.externalAccounts.length > 0 && (
+                        <p className="text-xs text-amber-400">
+                          Email cannot be changed while OAuth accounts are
+                          linked. Please unlink your OAuth providers first.
+                        </p>
+                      )}
                     {errors.email && (
                       <p className="text-sm font-medium text-destructive">
                         {errors.email}
@@ -881,6 +914,22 @@ export default function ProfilePage({
                         </Badge>
                       ) : null}
                     </div>
+                    {isOrganisator ? (
+                      <div className="space-y-2">
+                        <Label htmlFor="organisation">Organisation name</Label>
+                        <p className="text-sm text-muted-foreground">
+                          {organisation?.organizationName ||
+                            "No organisation found"}
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-xs text-muted-foreground">
+                          Verify your email to unlock all features and ensure
+                          account security.
+                        </p>
+                      </div>
+                    )}
 
                     {/* OAuth Provider Links */}
                     {clerkUser?.externalAccounts &&
@@ -1019,32 +1068,50 @@ export default function ProfilePage({
             </div>
 
             {/* Friends */}
-            <div className="space-y-2">
-              <Label>
-                Friends ({friends?.length ?? formData.friends.length})
-              </Label>
-              {formData.friends.length > 0 && friends === undefined ? (
-                <div className="flex flex-wrap gap-2">
-                  <Skeleton className="h-6 w-24" />
-                  <Skeleton className="h-6 w-28" />
-                  <Skeleton className="h-6 w-20" />
+            <div className="space-y-2 flex justify-between items-end">
+              <div className="space-y-2">
+                <Label>
+                  Friends ({friends?.length ?? formData.friends.length})
+                </Label>
+                {formData.friends.length > 0 && friends === undefined ? (
+                  <div className="flex flex-wrap gap-2">
+                    <Skeleton className="h-6 w-24" />
+                    <Skeleton className="h-6 w-28" />
+                    <Skeleton className="h-6 w-20" />
+                  </div>
+                ) : formData.friends.length > 0 && friends ? (
+                  <div className="flex flex-wrap gap-2">
+                    {friends.map((friend) => (
+                      <Badge
+                        key={friend._id}
+                        variant="outline"
+                        className="cursor-pointer hover:bg-accent"
+                        onClick={() => router.push(`/profile/${friend.slug}`)}
+                      >
+                        @{friend.username}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No friends yet
+                  </p>
+                )}
+              </div>
+              {!isEditing && isOwnProfile && isOrganisator ? (
+                <div>
+                  <Button
+                    variant="default"
+                    onClick={() => setShowActivityDialog(true)}
+                  >
+                    Add activity
+                  </Button>
+                  <DialogAddActivity
+                    showDialog={showActivityDialog}
+                    setShowDialog={setShowActivityDialog}
+                  />
                 </div>
-              ) : formData.friends.length > 0 && friends ? (
-                <div className="flex flex-wrap gap-2">
-                  {friends.map((friend) => (
-                    <Badge
-                      key={friend._id}
-                      variant="outline"
-                      className="cursor-pointer hover:bg-accent"
-                      onClick={() => router.push(`/profile/${friend.slug}`)}
-                    >
-                      @{friend.username}
-                    </Badge>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No friends yet</p>
-              )}
+              ) : null}
             </div>
           </div>
         </CardContent>
@@ -1239,9 +1306,9 @@ export default function ProfilePage({
             <DialogTitle>Cannot Unlink Google Account</DialogTitle>
             <DialogDescription>
               Google email accounts cannot be removed through the interface due
-              to Google's security policies. If you need to unlink your Google
-              account, please contact us at support@activitysearch.com for
-              assistance.
+              to Google&apos;s security policies. If you need to unlink your
+              Google account, please contact us at support@activitysearch.com
+              for assistance.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -1264,8 +1331,8 @@ export default function ProfilePage({
               Verify Your Email
             </DialogTitle>
             <DialogDescription>
-              We've sent a verification code to your new email address. Please
-              enter the code below to verify your email.
+              We&apos;ve sent a verification code to your new email address.
+              Please enter the code below to verify your email.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">

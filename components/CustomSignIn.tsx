@@ -61,7 +61,7 @@ export default function CustomSignIn() {
       await signIn.authenticateWithRedirect({
         strategy,
         redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/dashboard",
+        redirectUrlComplete: "/",
       });
     } catch (err: unknown) {
       console.error("OAuth error:", err);

@@ -46,6 +46,7 @@ export const upsertFromClerk = internalMutation({
       contact: '',
       totalExp: 0n,
       friends: [],
+      role: 'user',
     };
 
     const user = await userByExternalId(ctx, data.id);
@@ -204,6 +205,7 @@ export const updateUserProfile = action({
     }
     
     // Handle email updates - Update Clerk first, then Convex
+    let shouldUpdateEmail = true;
     if (args.email !== undefined) {
       // Check if user has OAuth accounts (Google, Microsoft, Facebook)
       const hasOAuthAccount = clerkUser.externalAccounts.some(
@@ -228,6 +230,10 @@ export const updateUserProfile = action({
               emailAddress: args.email,
               verified: false,
             });
+            
+            // DON'T update the email in the local database yet
+            // It will be updated when the email is verified via the webhook
+            shouldUpdateEmail = false;
           } catch (error: unknown) {
             const errorMessage = (error as { errors?: Array<{ message?: string }>; message?: string })?.errors?.[0]?.message || (error as { message?: string })?.message || 'Unknown error';
             
@@ -248,8 +254,13 @@ export const updateUserProfile = action({
     // Clerk avatar updates require uploading to their storage service
     // For now, we store avatars (base64 or URLs) locally
     
-    // Update local database AFTER Clerk update (including email and avatar which are stored locally)
-    await ctx.runMutation(api.users.updateUserProfileMutation, args);
+    // Update local database AFTER Clerk update (but exclude email if it's pending verification)
+    const dbUpdateArgs = { ...args };
+    if (!shouldUpdateEmail && args.email !== undefined) {
+      delete dbUpdateArgs.email;
+    }
+    
+    await ctx.runMutation(api.users.updateUserProfileMutation, dbUpdateArgs);
   },
 });
 
@@ -368,22 +379,49 @@ export const finalizeEmailChange = action({
       // Get updated user data
       let clerkUser = await clerk.users.getUser(clerkUserId);
       
-      // Set the new email as primary (even if not verified yet)
+      // Find the newly verified email to confirm it's actually verified
+      const newEmail = clerkUser.emailAddresses.find(
+        (email) => email.id === newEmailId
+      );
+      
+      if (!newEmail) {
+        throw new Error("New email address not found");
+      }
+      
+      // Check if the new email is verified
+      if (newEmail.verification?.status !== 'verified') {
+        throw new Error("New email address must be verified before it can be set as primary");
+      }
+      
+      // Set the new email as primary (now that it's verified)
       await clerk.users.updateUser(clerkUserId, {
         primaryEmailAddressID: newEmailId,
       });
       
+      // Small delay to ensure Clerk has processed the primary email change
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       // Reload user to get updated state
       clerkUser = await clerk.users.getUser(clerkUserId);
       
-      // Delete the old email (should work now that new email is primary)
-      const oldEmailAddress = clerkUser.emailAddresses.find(
-        (email) => email.emailAddress === oldEmail
+      // Delete all old email addresses that are not the new primary email
+      const oldEmails = clerkUser.emailAddresses.filter(
+        (email) => email.id !== newEmailId
       );
       
-      if (oldEmailAddress && oldEmailAddress.id !== newEmailId) {
-        await clerk.emailAddresses.deleteEmailAddress(oldEmailAddress.id);
+      for (const oldEmailAddress of oldEmails) {
+        try {
+          await clerk.emailAddresses.deleteEmailAddress(oldEmailAddress.id);
+        } catch (deleteError) {
+          // Log but don't fail if we can't delete an old email
+          console.error(`Failed to delete email ${oldEmailAddress.emailAddress}:`, deleteError);
+        }
       }
+      
+      // Update the local database with the new verified email
+      await ctx.runMutation(api.users.updateUserProfileMutation, {
+        email: newEmail.emailAddress,
+      });
     } catch (error: unknown) {
       throw new Error(error instanceof Error ? error.message : 'Unknown error');
     }

@@ -1,12 +1,12 @@
 "use client";
-
-import * as React from "react";
+import { useState } from "react";
 import { useSignUp } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { useMutation } from "convex/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -21,19 +21,25 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
+import { api } from "@/convex/_generated/api";
 
-export default function CustomSignUp() {
+export default function CustomSignUpORG() {
   const { isLoaded, signUp, setActive } = useSignUp();
-  const [email, setEmail] = React.useState("");
-  const [password, setPassword] = React.useState("");
-  const [confirmPassword, setConfirmPassword] = React.useState("");
-  const [username, setUsername] = React.useState("");
-  const [firstName, setFirstName] = React.useState("");
-  const [lastName, setLastName] = React.useState("");
-  const [verifying, setVerifying] = React.useState(false);
-  const [code, setCode] = React.useState("");
-  const [error, setError] = React.useState("");
-  const [loading, setLoading] = React.useState(false);
+  const createOrganisation = useMutation(api.organisation.createOrganisation);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [address, setAddress] = useState("");
+  const [IBAN, setIBAN] = useState("");
+  const [organizationName, setOrganizationName] = useState("");
+  const [contact, setContact] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,6 +93,54 @@ export default function CustomSignUp() {
 
       if (completeSignUp.status === "complete") {
         await setActive({ session: completeSignUp.createdSessionId });
+
+        // Wait for Clerk webhook to sync user to Convex
+        // Retry logic to wait for user to be created in Convex
+        const maxRetries = 10;
+        const retryDelay = 500; // ms
+        let retryCount = 0;
+        let orgCreated = false;
+
+        while (retryCount < maxRetries && !orgCreated) {
+          try {
+            await createOrganisation({
+              name: organizationName,
+              email,
+              address,
+              IBAN,
+              ownerExternalId: completeSignUp.createdUserId!, // Pass Clerk user ID
+            });
+            orgCreated = true;
+          } catch (orgError: any) {
+            if (
+              orgError.message?.includes("User not found") &&
+              retryCount < maxRetries - 1
+            ) {
+              // Wait and retry
+              retryCount++;
+              await new Promise((resolve) => setTimeout(resolve, retryDelay));
+            } else {
+              // Final error after retries or different error
+              console.error("Failed to create organization:", orgError);
+              setError(
+                "Account created but organization setup failed. Please contact support or try creating an organization from your profile."
+              );
+              setLoading(false);
+              // Still redirect to home after a delay
+              setTimeout(() => router.push("/"), 2000);
+              return;
+            }
+          }
+        }
+
+        if (!orgCreated) {
+          setError(
+            "Account created but organization setup is taking longer than expected. You can create it from your profile."
+          );
+          setTimeout(() => router.push("/"), 2000);
+          return;
+        }
+
         router.push("/");
       } else {
         setError("Verification incomplete. Please try again.");
@@ -295,13 +349,61 @@ export default function CustomSignUp() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Organisation email</Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="name@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="organizationName">Organization Name</Label>
+              <Input
+                id="organizationName"
+                type="text"
+                placeholder="Your Organization"
+                value={organizationName}
+                onChange={(e) => setOrganizationName(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="address">Address</Label>
+              <Input
+                id="address"
+                type="text"
+                placeholder="123 Main St, City, Country"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contact">Contact Number</Label>
+              <Input
+                id="contact"
+                type="number"
+                placeholder="+1234567890"
+                value={contact}
+                onChange={(e) => setContact(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="IBAN">IBAN</Label>
+              <Input
+                id="IBAN"
+                type="text"
+                placeholder="DE89 3704 0044 0532 0130 00"
+                value={IBAN}
+                onChange={(e) => setIBAN(e.target.value)}
                 required
                 disabled={loading}
               />
@@ -344,14 +446,6 @@ export default function CustomSignUp() {
             Already have an account?{" "}
             <Link href="/sign-in" className="text-primary hover:underline">
               Sign in
-            </Link>
-          </div>
-          <div className="text-sm text-center ">
-            <Link
-              href={"/sign-up/organisator-sign-up"}
-              className="text-blue-600 hover:underline"
-            >
-              Become an organisator
             </Link>
           </div>
         </CardFooter>
