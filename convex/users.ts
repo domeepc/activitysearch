@@ -167,7 +167,7 @@ export const updateUserProfile = action({
     exp: v.optional(v.number()),
     avatar: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<any> => {
+  handler: async (ctx, args) => {
     // Get current user to get the external ID
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
@@ -197,9 +197,9 @@ export const updateUserProfile = action({
     if (Object.keys(clerkUpdates).length > 0) {
       try {
         await clerk.users.updateUser(clerkUserId, clerkUpdates);
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("Error updating Clerk user:", error);
-        throw new Error(`Failed to update user in Clerk: ${error?.message || 'Unknown error'}`);
+        throw new Error(`Failed to update user in Clerk: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
     
@@ -228,8 +228,8 @@ export const updateUserProfile = action({
               emailAddress: args.email,
               verified: false,
             });
-          } catch (error: any) {
-            const errorMessage = error?.errors?.[0]?.message || error?.message || 'Unknown error';
+          } catch (error: unknown) {
+            const errorMessage = (error as { errors?: Array<{ message?: string }>; message?: string })?.errors?.[0]?.message || (error as { message?: string })?.message || 'Unknown error';
             
             // Handle specific error cases
             if (errorMessage.toLowerCase().includes('taken') || 
@@ -249,7 +249,7 @@ export const updateUserProfile = action({
     // For now, we store avatars (base64 or URLs) locally
     
     // Update local database AFTER Clerk update (including email and avatar which are stored locally)
-    return await ctx.runMutation(api.users.updateUserProfileMutation, args);
+    await ctx.runMutation(api.users.updateUserProfileMutation, args);
   },
 });
 
@@ -264,7 +264,7 @@ export const updateUserProfileMutation = mutation({
     exp: v.optional(v.number()),
     avatar: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<any> => {
+  handler: async (ctx, args) => {
     const user = await getCurrentUserOrThrow(ctx);
     
     const updates: {
@@ -384,8 +384,8 @@ export const finalizeEmailChange = action({
       if (oldEmailAddress && oldEmailAddress.id !== newEmailId) {
         await clerk.emailAddresses.deleteEmailAddress(oldEmailAddress.id);
       }
-    } catch (error: any) {
-      throw new Error(error?.message || 'Unknown error');
+    } catch (error: unknown) {
+      throw new Error(error instanceof Error ? error.message : 'Unknown error');
     }
   },
 });
@@ -420,8 +420,8 @@ export const unlinkOAuthProvider = action({
       
       // Delete the external account
       await clerk.users.deleteUserExternalAccount({ userId: clerkUserId, externalAccountId: externalAccount.id });
-    } catch (error: any) {
-      throw new Error(error?.message || 'Unknown error');
+    } catch (error: unknown) {
+      throw new Error(error instanceof Error ? error.message : 'Unknown error');
     }
   },
 });
@@ -443,9 +443,9 @@ export const deleteAccount = action({
     // Delete from Clerk
     try {
       await clerk.users.deleteUser(clerkUserId);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error deleting Clerk user:", error);
-      throw new Error(`Failed to delete user from Clerk: ${error?.message || 'Unknown error'}`);
+      throw new Error(`Failed to delete user from Clerk: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
     
     // Delete from local database will be handled by the deleteFromClerk webhook

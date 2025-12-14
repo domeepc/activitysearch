@@ -1,9 +1,6 @@
-import { SignIn } from '@clerk/nextjs';
-import './style.css';
+import CustomSignIn from "@/components/CustomSignIn";
+import "./style.css";
+
 export default function SignInPage() {
-  return (
-    <div className="sign_in">
-      <SignIn />
-    </div>
-  );
+  return <CustomSignIn />;
 }

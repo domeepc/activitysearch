@@ -1,4 +1,3 @@
-import { Organization } from '@clerk/backend';
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
@@ -15,6 +14,7 @@ export default defineSchema({
     avatar: v.string(),
     totalExp: v.int64(),
     friends: v.array(v.id("users")),
+    role: v.optional(v.string()),
 
   }).index('byExternalId', ['externalId']).index('byUsername', ['username']).index('bySlug', ['slug']),
   
