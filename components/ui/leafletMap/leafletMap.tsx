@@ -24,6 +24,7 @@ export interface ActivityData {
   title: string;
   description: string;
   category: string;
+  tags?: string[];
   location: {
     name: string;
     address: string;
@@ -141,7 +142,8 @@ export default function OpenStreetMapComponent({
       <MarkerClusterGroup
         chunkedLoading
         maxClusterRadius={50}
-        spiderfyOnMaxZoom={true}
+        // Disable spiderfy on max zoom to avoid spider-leg lines; prefer zoom-to-bounds
+        spiderfyOnMaxZoom={false}
         showCoverageOnHover={false}
         zoomToBoundsOnClick={true}
         iconCreateFunction={(cluster: { getChildCount: () => unknown }) => {

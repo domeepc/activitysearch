@@ -44,7 +44,7 @@ export const upsertFromClerk = internalMutation({
       avatar: data.image_url!,
       description: '',
       contact: '',
-      totalExp: 0n,
+      totalExp: BigInt(0),
       friends: [],
       role: 'user',
     };

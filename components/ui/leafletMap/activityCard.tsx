@@ -8,6 +8,7 @@ interface ActivityCardProps {
     title: string;
     description: string;
     category: string;
+    address?: string;
     price: {
       amount: number;
       currency: string;
@@ -27,34 +28,42 @@ export default function ActivityCard({ activity }: ActivityCardProps) {
         <h3 className="text-lg font-semibold">{activity.title}</h3>
         <Tag label={activity.category} />
       </div>
-      
+
       <p className="text-sm text-gray-600 mb-3 line-clamp-2">
         {activity.description}
       </p>
-      
+
       <div className="space-y-2 text-sm">
+        {activity.address && (
+          <div className="flex justify-between">
+            <span className="text-gray-500">Address:</span>
+            <span className="font-medium">{activity.address}</span>
+          </div>
+        )}
         <div className="flex justify-between">
           <span className="text-gray-500">Duration:</span>
           <span className="font-medium">{activity.duration}</span>
         </div>
-        
+
         <div className="flex justify-between">
           <span className="text-gray-500">Difficulty:</span>
           <span className="font-medium capitalize">{activity.difficulty}</span>
         </div>
-        
+
         <div className="flex justify-between">
           <span className="text-gray-500">Price:</span>
           <span className="font-semibold text-green-600">
             {activity.price.amount} {activity.price.currency}
           </span>
         </div>
-        
+
         <div className="flex items-center justify-between pt-2 border-t">
           <div className="flex items-center">
             <span className="text-yellow-500 mr-1">★</span>
             <span className="font-medium">{activity.rating}</span>
-            <span className="text-gray-500 text-xs ml-1">({activity.reviewCount})</span>
+            <span className="text-gray-500 text-xs ml-1">
+              ({activity.reviewCount})
+            </span>
           </div>
         </div>
       </div>

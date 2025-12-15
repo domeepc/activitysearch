@@ -1,6 +1,6 @@
 "use client";
 
-import { Authenticated } from "convex/react";
+import { Authenticated, useQuery } from "convex/react";
 import {
   Dialog,
   DialogClose,
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import "./home.css";
 import { ActivityData } from "@/components/ui/leafletMap/leafletMap";
 import { useEffect, useState } from "react";
+import { api } from "@/convex/_generated/api";
 import SearchAutocomplete from "@/components/ui/search-autocomplete";
 import {
   MultiSelect,
@@ -41,11 +42,10 @@ const FilterContent = ({
   onCategoryChange: (categories: string[]) => void;
   onActivitySelect: (activity: ActivityData) => void;
 }) => {
-  // Get unique categories
+  // Get unique tags from activities
   const uniqueCategories = Array.from(
-    new Set(activities.map((activity) => activity.category))
+    new Set(activities.flatMap((activity) => activity.tags ?? []))
   );
-
   return (
     <>
       <SearchAutocomplete
@@ -81,19 +81,42 @@ export default function Home() {
     null
   );
 
-  useEffect(() => {
-    const getActivityData = async () => {
-      try {
-        const response = await fetch("/data.json");
-        const data = await response.json();
-        setActivities(data.activities);
-      } catch (error) {
-        console.error("Error loading activity data:", error);
-      }
-    };
+  // Fetch activities from Convex and map to the frontend ActivityData shape
+  const activitiesFromDb = useQuery(api.activity.getActivities) as
+    | any[]
+    | undefined;
 
-    getActivityData();
-  }, []);
+  useEffect(() => {
+    if (!activitiesFromDb) return;
+
+    const mapped: ActivityData[] = activitiesFromDb.map((doc: any) => ({
+      id: String(doc._id ?? doc.id ?? ""),
+      title: doc.activityName ?? doc.title ?? "",
+      description: doc.description ?? "",
+      category: (doc.tags && doc.tags.length > 0 && doc.tags[0]) || "",
+      location: {
+        name: doc.activityName ?? doc.title ?? "",
+        address: doc.address ?? "",
+        coordinates: {
+          lat: doc.latitude ?? doc.location?.coordinates?.lat ?? 0,
+          lng: doc.longitude ?? doc.location?.coordinates?.lng ?? 0,
+        },
+      },
+      price: {
+        amount: doc.price ?? 0,
+        currency: "€",
+        type: "",
+      },
+      duration: doc.duration ? String(doc.duration) : "",
+      difficulty: doc.difficulty ?? "",
+      rating: doc.rating ?? 0,
+      reviewCount: doc.reviewCount ?? 0,
+      images: doc.images ?? [],
+      tags: doc.tags ?? [],
+    }));
+
+    setActivities(mapped);
+  }, [activitiesFromDb]);
 
   // Filter activities based on selected categories
   const filteredActivities =

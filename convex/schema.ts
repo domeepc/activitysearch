@@ -1,6 +1,5 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
-import { act } from 'react';
 
 export default defineSchema({
   users: defineTable({
@@ -45,7 +44,7 @@ export default defineSchema({
   }),
   reviews: defineTable({
     text: v.string(),
-    rating: v.float64(),
+    rating: v.optional(v.float64()),
     userId: v.id("users"),
     activityId: v.id("activities"),
   }),
@@ -75,17 +74,16 @@ export default defineSchema({
     address: v.string(),
     longitude: v.float64(),
     latitude: v.float64(),
-
     price : v.float64(),
     duration: v.int64(),
     difficulty: v.string(),
     maxParticipants: v.int64(),
     minAge: v.int64(),
     tags: v.array(v.string()),
-    rating: v.float64(),
-    reviewCount: v.int64(),
+    rating: v.optional(v.float64()),
+    reviewCount: v.optional(v.int64()),
     equipment: v.array(v.string()),
-    images: v.array(v.string()),
+    images: v.optional(v.array(v.string())),
   }),
 
 });
