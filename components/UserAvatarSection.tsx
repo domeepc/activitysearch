@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { AvatarUpload } from "@/components/ui/avatar-upload";
 import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";

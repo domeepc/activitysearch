@@ -35,6 +35,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { validateProfileField } from "@/lib/validation";
+import { extractErrorMessage } from "@/lib/errors";
 
 export default function ProfilePage({
   params,
@@ -139,31 +141,8 @@ export default function ProfilePage({
   }, [checkUsernameExists, formData.username, user?.username]);
 
   const validateField = (name: string, value: string) => {
-    const newErrors = { ...errors };
-
-    if (name === "name" && !value.trim()) {
-      newErrors.name = "Name is required";
-    } else if (name === "name") {
-      newErrors.name = "";
-    }
-
-    if (name === "lastname" && !value.trim()) {
-      newErrors.lastname = "Last name is required";
-    } else if (name === "lastname") {
-      newErrors.lastname = "";
-    }
-
-    if (name === "email") {
-      if (!value.trim()) {
-        newErrors.email = "Email is required";
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-        newErrors.email = "Please enter a valid email";
-      } else {
-        newErrors.email = "";
-      }
-    }
-
-    setErrors(newErrors);
+    const error = validateProfileField(name, value);
+    setErrors((prev) => ({ ...prev, [name]: error }));
   };
 
   const handleChange = (
@@ -249,8 +228,7 @@ export default function ProfilePage({
       }
     } catch (error: unknown) {
       console.error("Failed to update user:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to update profile";
+      const errorMessage = extractErrorMessage(error);
 
       // Check for specific email errors
       if (
@@ -342,15 +320,7 @@ export default function ProfilePage({
       // Reload the page to update the profile - this will update the verified badge
       window.location.reload();
     } catch (error: unknown) {
-      const errorMessage =
-        error &&
-        typeof error === "object" &&
-        "errors" in error &&
-        Array.isArray(error.errors) &&
-        error.errors[0]?.message
-          ? error.errors[0].message
-          : "Failed to verify email. Please try again.";
-      setVerificationError(errorMessage);
+      setVerificationError(extractErrorMessage(error));
     } finally {
       setVerifying(false);
     }
@@ -468,15 +438,7 @@ export default function ProfilePage({
       }
     } catch (error: unknown) {
       console.error("Failed to set/update password:", error);
-      const errorMessage =
-        error &&
-        typeof error === "object" &&
-        "errors" in error &&
-        Array.isArray(error.errors) &&
-        error.errors[0]?.message
-          ? error.errors[0].message
-          : "Failed to set password. Please try again.";
-      setPasswordError(errorMessage);
+      setPasswordError(extractErrorMessage(error));
     } finally {
       setSettingPassword(false);
     }
