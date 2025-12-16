@@ -58,10 +58,22 @@ export default function CustomSignIn() {
     if (!isLoaded) return;
 
     try {
+      // Store the current page URL so we can return to it after OAuth
+      if (typeof window !== "undefined") {
+        const returnUrl = window.location.pathname + window.location.search;
+        // Only store if we're not already on the sign-in page
+        if (returnUrl !== "/sign-in" && returnUrl !== "/sign-in/") {
+          sessionStorage.setItem("oauth_return_url", returnUrl);
+        } else {
+          // If on sign-in page, return to home
+          sessionStorage.setItem("oauth_return_url", "/");
+        }
+      }
+
       await signIn.authenticateWithRedirect({
         strategy,
         redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/dashboard",
+        redirectUrlComplete: "/",
       });
     } catch (err: unknown) {
       console.error("OAuth error:", err);

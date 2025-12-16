@@ -3,6 +3,7 @@ section {
   z-index: 10;
   margin: 2rem;
   justify-content: flex-start;
+  width: fit-content;
 }
 
 .filter_tab {

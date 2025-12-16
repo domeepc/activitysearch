@@ -26,10 +26,14 @@ import {
   useEffect,
   useRef,
   useState,
+  useMemo,
   type ComponentPropsWithoutRef,
   type ReactNode,
 } from "react"
 import { Badge } from "@/components/ui/badge"
+import { useQuery } from "convex/react"
+import { api } from "@/convex/_generated/api"
+import { getTagColorScheme } from "@/lib/tagColors"
 
 type MultiSelectContextType = {
   open: boolean
@@ -142,6 +146,9 @@ export function MultiSelectValue({
   const [overflowAmount, setOverflowAmount] = useState(0)
   const valueRef = useRef<HTMLDivElement>(null)
   const overflowRef = useRef<HTMLDivElement>(null)
+  
+  // Fetch all unique tags from database for color assignment
+  const databaseTags = useQuery(api.activity.getAllTags)
 
   const shouldWrap =
     overflowBehavior === "wrap" ||
@@ -214,28 +221,36 @@ export function MultiSelectValue({
     >
       {[...selectedValues]
         .filter(value => items.has(value))
-        .map(value => (
-          <Badge
-            variant="outline"
-            data-selected-item
-            data-category={value}
-            className="group flex items-center gap-1"
-            key={value}
-            onClick={
-              clickToRemove
-                ? e => {
-                    e.stopPropagation()
-                    toggleValue(value)
-                  }
-                : undefined
-            }
-          >
-            {items.get(value)}
-            {clickToRemove && (
-              <XIcon className="size-4 group-hover:text-destructive text-white" />
-            )}
-          </Badge>
-        ))}
+        .map(value => {
+          const colorScheme = getTagColorScheme(value, databaseTags)
+          return (
+            <Badge
+              variant="outline"
+              data-selected-item
+              data-category={value}
+              className="group flex items-center gap-1"
+              key={value}
+              style={{
+                backgroundColor: colorScheme.bgHex,
+                color: colorScheme.textHex,
+                borderColor: colorScheme.bgHex,
+              }}
+              onClick={
+                clickToRemove
+                  ? e => {
+                      e.stopPropagation()
+                      toggleValue(value)
+                    }
+                  : undefined
+              }
+            >
+              {items.get(value)}
+              {clickToRemove && (
+                <XIcon className="size-4 group-hover:text-destructive" style={{ color: colorScheme.textHex }} />
+              )}
+            </Badge>
+          )
+        })}
       <Badge
         style={{
           display: overflowAmount > 0 && !shouldWrap ? "block" : "none",

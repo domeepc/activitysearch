@@ -187,15 +187,16 @@ export default function SearchAutocomplete({
                   {highlightMatch(result.activity.title, searchTerm)}
                 </div>
                 <div className="text-xs text-muted-foreground truncate mt-0.5">
-                  {result.type === "location" && (
-                    <>{highlightMatch(result.matchField, searchTerm)}</>
-                  )}
-                  {result.type === "activity" && (
-                    <span className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3 inline" />
-                      {result.activity.location.name}
-                    </span>
-                  )}
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3 inline shrink-0" />
+                    {result.type === "location" &&
+                    result.matchField === result.activity.location.address
+                      ? highlightMatch(
+                          result.activity.location.address,
+                          searchTerm
+                        )
+                      : result.activity.location.address || "No address"}
+                  </span>
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5">
                   {result.activity.category} • {result.activity.price.amount}{" "}
