@@ -26,7 +26,8 @@ import { api } from "@/convex/_generated/api";
 export default function CustomSignUpORG() {
   const { isLoaded, signUp, setActive } = useSignUp();
   const createOrganisation = useMutation(api.organisation.createOrganisation);
-  const [email, setEmail] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const [organizationEmail, setOrganizationEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [username, setUsername] = useState("");
@@ -42,6 +43,55 @@ export default function CustomSignUpORG() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  // Validation functions
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validateIBAN = (iban: string): boolean => {
+    // Remove spaces and convert to uppercase
+    const cleaned = iban.replace(/\s/g, "").toUpperCase();
+    // Basic IBAN validation: should be 15-34 characters, start with 2 letters, then 2 digits, then alphanumeric
+    const ibanRegex = /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/;
+    return ibanRegex.test(cleaned);
+  };
+
+  const validateContact = (contact: string): boolean => {
+    // Remove spaces, dashes, and plus signs for validation
+    const cleaned = contact.replace(/[\s\-+]/g, "");
+    // Should contain only digits and be between 7-15 digits
+    return /^\d{7,15}$/.test(cleaned);
+  };
+
+  const validateOrganizationData = (): string | null => {
+    if (!userEmail || !validateEmail(userEmail)) {
+      return "Please enter a valid user email address";
+    }
+    if (!organizationEmail || !validateEmail(organizationEmail)) {
+      return "Please enter a valid organization email address";
+    }
+    if (userEmail === organizationEmail) {
+      return "User email and organization email must be different";
+    }
+    if (!organizationName || organizationName.trim().length < 2) {
+      return "Organization name must be at least 2 characters long";
+    }
+    if (organizationName.length > 100) {
+      return "Organization name must be less than 100 characters";
+    }
+    if (!address || address.trim().length < 5) {
+      return "Please enter a valid address (at least 5 characters)";
+    }
+    if (!IBAN || !validateIBAN(IBAN)) {
+      return "Please enter a valid IBAN (e.g., DE89 3704 0044 0532 0130 00)";
+    }
+    if (!contact || !validateContact(contact)) {
+      return "Please enter a valid contact number (7-15 digits)";
+    }
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isLoaded) return;
@@ -52,12 +102,19 @@ export default function CustomSignUpORG() {
       return;
     }
 
+    // Validate organization data
+    const validationError = validateOrganizationData();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setError("");
     setLoading(true);
 
     try {
       await signUp.create({
-        emailAddress: email,
+        emailAddress: userEmail,
         password,
         username,
         firstName,
@@ -105,15 +162,16 @@ export default function CustomSignUpORG() {
           try {
             await createOrganisation({
               name: organizationName,
-              email,
+              email: organizationEmail,
               address,
               IBAN,
               ownerExternalId: completeSignUp.createdUserId!, // Pass Clerk user ID
             });
             orgCreated = true;
-          } catch (orgError: any) {
+          } catch (orgError: unknown) {
+            const error = orgError as { message?: string };
             if (
-              orgError.message?.includes("User not found") &&
+              error.message?.includes("User not found") &&
               retryCount < maxRetries - 1
             ) {
               // Wait and retry
@@ -121,7 +179,7 @@ export default function CustomSignUpORG() {
               await new Promise((resolve) => setTimeout(resolve, retryDelay));
             } else {
               // Final error after retries or different error
-              console.error("Failed to create organization:", orgError);
+              console.error("Failed to create organization:", error);
               setError(
                 "Account created but organization setup failed. Please contact support or try creating an organization from your profile."
               );
@@ -159,6 +217,21 @@ export default function CustomSignUpORG() {
     if (!isLoaded) return;
 
     try {
+      // Store the current page URL so we can return to it after OAuth
+      if (typeof window !== "undefined") {
+        const returnUrl = window.location.pathname + window.location.search;
+        // Only store if we're not already on the sign-up page
+        if (
+          returnUrl !== "/sign-up/organisator-sign-up" &&
+          returnUrl !== "/sign-up/organisator-sign-up/"
+        ) {
+          sessionStorage.setItem("oauth_return_url", returnUrl);
+        } else {
+          // If on organization sign-up page, return to home
+          sessionStorage.setItem("oauth_return_url", "/");
+        }
+      }
+
       await signUp.authenticateWithRedirect({
         strategy,
         redirectUrl: "/sso-callback",
@@ -179,7 +252,7 @@ export default function CustomSignUpORG() {
             <CardTitle className="text-2xl font-bold">
               Verify your email
             </CardTitle>
-            <CardDescription>We sent a code to {email}</CardDescription>
+            <CardDescription>We sent a code to {userEmail}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleVerify} className="space-y-4">
@@ -349,16 +422,29 @@ export default function CustomSignUpORG() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Organisation email</Label>
+              <Label htmlFor="userEmail">Your Email</Label>
               <Input
-                id="email"
+                id="userEmail"
                 type="email"
-                placeholder="name@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your.email@example.com"
+                value={userEmail}
+                onChange={(e) => setUserEmail(e.target.value)}
                 required
                 disabled={loading}
+                className={
+                  userEmail && !validateEmail(userEmail)
+                    ? "border-destructive"
+                    : ""
+                }
               />
+              <p className="text-xs text-muted-foreground">
+                This email will be used for your account authentication
+              </p>
+              {userEmail && !validateEmail(userEmail) && (
+                <p className="text-xs text-destructive">
+                  Please enter a valid email address
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="organizationName">Organization Name</Label>
@@ -371,6 +457,40 @@ export default function CustomSignUpORG() {
                 required
                 disabled={loading}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="organizationEmail">Organization Email</Label>
+              <Input
+                id="organizationEmail"
+                type="email"
+                placeholder="organization@example.com"
+                value={organizationEmail}
+                onChange={(e) => setOrganizationEmail(e.target.value)}
+                required
+                disabled={loading}
+                className={
+                  organizationEmail &&
+                  (!validateEmail(organizationEmail) ||
+                    organizationEmail === userEmail)
+                    ? "border-destructive"
+                    : ""
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                This email will be used for organization communications
+              </p>
+              {organizationEmail && !validateEmail(organizationEmail) && (
+                <p className="text-xs text-destructive">
+                  Please enter a valid email address
+                </p>
+              )}
+              {organizationEmail &&
+                validateEmail(organizationEmail) &&
+                organizationEmail === userEmail && (
+                  <p className="text-xs text-destructive">
+                    Organization email must be different from your email
+                  </p>
+                )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="address">Address</Label>
@@ -388,13 +508,16 @@ export default function CustomSignUpORG() {
               <Label htmlFor="contact">Contact Number</Label>
               <Input
                 id="contact"
-                type="number"
+                type="tel"
                 placeholder="+1234567890"
                 value={contact}
                 onChange={(e) => setContact(e.target.value)}
                 required
                 disabled={loading}
               />
+              <p className="text-xs text-muted-foreground">
+                Enter phone number (7-15 digits, with or without country code)
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="IBAN">IBAN</Label>
@@ -406,7 +529,19 @@ export default function CustomSignUpORG() {
                 onChange={(e) => setIBAN(e.target.value)}
                 required
                 disabled={loading}
+                className={
+                  IBAN && !validateIBAN(IBAN) ? "border-destructive" : ""
+                }
               />
+              <p className="text-xs text-muted-foreground">
+                Enter IBAN in format: Country Code (2 letters) + Check Digits
+                (2) + Account Number
+              </p>
+              {IBAN && !validateIBAN(IBAN) && (
+                <p className="text-xs text-destructive">
+                  Please enter a valid IBAN format
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>

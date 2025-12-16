@@ -7,6 +7,41 @@ import "leaflet/dist/leaflet.css";
 import ActivityCard from "./activityCard";
 import { useEffect } from "react";
 
+// Add styles to make Leaflet popups invisible
+if (typeof document !== "undefined") {
+  const style = document.createElement("style");
+  style.textContent = `
+    .leaflet-popup-content-wrapper {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      pointer-events: auto !important;
+    }
+    .leaflet-popup-content {
+      margin: 0 !important;
+      pointer-events: auto !important;
+    }
+    .leaflet-popup-tip {
+      display: none !important;
+    }
+    .leaflet-popup {
+      pointer-events: none !important;
+    }
+    .leaflet-popup-pane {
+      z-index: 1000 !important;
+    }
+    button[aria-label="Close popup"] {
+      z-index: 10000 !important;
+      position: relative !important;
+    }
+  `;
+  if (!document.head.querySelector("#leaflet-popup-invisible")) {
+    style.id = "leaflet-popup-invisible";
+    document.head.appendChild(style);
+  }
+}
+
 // Fix for default marker icons in Leaflet
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)
   ._getIconUrl;
@@ -45,6 +80,19 @@ export interface ActivityData {
   images?: string[];
 }
 
+// Component to handle popup close with map access
+const PopupContent = ({ activity }: { activity: ActivityData }) => {
+  const map = useMap();
+
+  const handleClose = () => {
+    map.closePopup();
+  };
+
+  return (
+    <ActivityCard activity={activity} onClose={handleClose} isExpanded={true} />
+  );
+};
+
 const CustomMarker = ({ activity }: { activity: ActivityData }) => {
   const map = useMap();
 
@@ -76,8 +124,8 @@ const CustomMarker = ({ activity }: { activity: ActivityData }) => {
         },
       }}
     >
-      <Popup className="max-w-max shadow-lg">
-        <ActivityCard activity={activity} />
+      <Popup closeButton={false}>
+        <PopupContent activity={activity} />
       </Popup>
     </Marker>
   );

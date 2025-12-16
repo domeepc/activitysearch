@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useSignUp, useSignIn } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +27,7 @@ export default function SSOCallback() {
     setActive: setActiveSignIn,
   } = useSignIn();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [showDialog, setShowDialog] = React.useState(false);
   const [username, setUsername] = React.useState("");
@@ -34,19 +35,22 @@ export default function SSOCallback() {
   const [loading, setLoading] = React.useState(false);
   const [isSignIn, setIsSignIn] = React.useState(false);
 
+  // Get the return URL from sessionStorage or default to home
+  const getReturnUrl = React.useCallback(() => {
+    if (typeof window !== "undefined") {
+      const returnUrl = sessionStorage.getItem("oauth_return_url");
+      sessionStorage.removeItem("oauth_return_url");
+      return returnUrl || "/";
+    }
+    return "/";
+  }, []);
+
   React.useEffect(() => {
     if (!signUpLoaded || !signInLoaded) return;
 
-    // Set timeout to redirect to sign-in if taking too long
-    // const timeoutId = setTimeout(() => {
-    //   console.log("OAuth callback timeout - redirecting to sign-in");
-    //   if (!showDialog) {
-    //     router.push("/sign-in");
-    //   }
-    // }, 10000); // 10 seconds timeout
-
     const handleCallback = async () => {
       try {
+        console.log("=== OAuth Callback Debug ===");
         console.log("SignUp status:", signUp?.status);
         console.log("SignIn status:", signIn?.status);
         console.log(
@@ -55,97 +59,75 @@ export default function SSOCallback() {
         );
         console.log("SignUp missingFields:", signUp?.missingFields);
 
-        // Check for sign-in flow first
+        // Priority 1: Check for completed sign-in (existing user)
         if (signIn?.status === "complete") {
-          console.log("Sign in complete, redirecting to home");
-          // clearTimeout(timeoutId);
+          console.log("✓ Sign in complete - existing user authenticated");
           await setActiveSignIn({ session: signIn.createdSessionId! });
-          router.push("/");
+          const returnUrl = getReturnUrl();
+          router.push(returnUrl);
           return;
         }
 
-        // Check if sign-in needs additional verification (like second factor)
-        if (signIn && signIn.status === "needs_first_factor") {
-          console.log("Sign-in needs first factor verification");
-          // For OAuth, this should auto-complete, so we just wait for the status to update
-          // The OAuth callback will trigger the completion automatically
+        // Priority 2: Check for completed sign-up (new user completed registration)
+        if (signUp?.status === "complete") {
+          console.log("✓ Sign up complete - new user registered");
+          await setActiveSignUp({ session: signUp.createdSessionId! });
+          const returnUrl = getReturnUrl();
+          router.push(returnUrl);
+          return;
         }
 
-        // Handle sign-in with missing requirements
-        if (
-          signIn &&
-          signIn.firstFactorVerification?.status === "transferable"
-        ) {
-          // This means OAuth succeeded but user needs additional info
-          const user = signIn.userData;
-          console.log("Sign-in needs profile completion", user);
+        // Priority 3: Sign-up needs additional info (username)
+        if (signUp?.status === "missing_requirements") {
+          const missingFields = signUp.missingFields || [];
+          console.log("⚠ Sign-up missing fields:", missingFields);
 
-          // clearTimeout(timeoutId);
+          if (missingFields.length > 0) {
+            // Pre-fill username if available
+            if (signUp.username) setUsername(signUp.username);
+            setIsSignIn(false);
+            setShowDialog(true);
+            return;
+          } else {
+            // No missing fields, complete sign-up
+            console.log("✓ No missing fields, completing sign up");
+            await setActiveSignUp({ session: signUp.createdSessionId! });
+            const returnUrl = getReturnUrl();
+            router.push(returnUrl);
+            return;
+          }
+        }
+
+        // Priority 4: Transferable sign-in (new user from sign-in flow)
+        if (signIn?.firstFactorVerification?.status === "transferable") {
+          console.log(
+            "⚠ Transferable sign-in - new user needs account creation"
+          );
           setIsSignIn(true);
-
           setShowDialog(true);
           return;
         }
 
-        // Check if we have a sign up in progress
-        if (signUp?.status === "missing_requirements") {
-          // clearTimeout(timeoutId);
-          setIsSignIn(false);
-
-          const missingFields = signUp.missingFields || [];
-          console.log("Sign-up missing fields:", missingFields);
-
-          if (missingFields.length > 0) {
-            // Pre-fill what we can from OAuth
-            if (signUp.username) setUsername(signUp.username);
-
-            console.log("Showing dialog for missing fields");
-            setShowDialog(true);
-          } else {
-            console.log("No missing fields, completing sign up");
-            await setActiveSignUp({ session: signUp.createdSessionId! });
-            router.push("/");
-          }
-        } else if (signUp?.status === "complete") {
-          console.log("Sign up complete, redirecting to home");
-          // clearTimeout(timeoutId);
-          await setActiveSignUp({ session: signUp.createdSessionId! });
-          router.push("/");
-        } else if (signIn && signIn.status) {
-          // If sign-in exists but not complete, keep waiting
-          console.log("Sign-in flow in progress, status:", signIn.status);
-        } else if (signUp && signUp.status) {
-          // If sign-up exists but not handled above, keep waiting
-          console.log("Sign-up flow in progress, status:", signUp.status);
-        } else {
-          console.log(
-            "No active sign up or sign in flow, checking for redirectUrlComplete"
-          );
-          // Don't redirect immediately - the OAuth might be completing
-          // Give it a moment before deciding it failed
-        }
+        // Priority 5: Still processing - wait for Clerk
+        console.log("⏳ OAuth flow still processing...");
       } catch (err) {
-        console.error("OAuth callback error:", err);
-        console.error("Error type:", typeof err);
-        console.error("Error stringified:", JSON.stringify(err, null, 2));
-        // clearTimeout(timeoutId);
+        console.error("❌ OAuth callback error:", err);
         router.push("/sign-in");
       }
     };
 
     handleCallback();
-
-    // Cleanup timeout on unmount
-    // return () => clearTimeout(timeoutId);
   }, [
     signUpLoaded,
     signInLoaded,
-    signUp,
-    signIn,
+    signUp?.status,
+    signIn?.status,
+    signIn?.firstFactorVerification?.status,
+    signUp?.missingFields,
     setActiveSignUp,
     setActiveSignIn,
     router,
-    showDialog,
+    getReturnUrl,
   ]);
 
   const handleComplete = async (e: React.FormEvent) => {
@@ -180,7 +162,8 @@ export default function SSOCallback() {
             if (setActiveSignUp) {
               await setActiveSignUp({ session: newSignUp.createdSessionId! });
             }
-            router.push("/");
+            const returnUrl = getReturnUrl();
+            router.push(returnUrl);
           } else if (newSignUp.status === "missing_requirements") {
             console.log("Still missing requirements:", newSignUp.missingFields);
             setError(`Please provide: ${newSignUp.missingFields?.join(", ")}`);
@@ -213,7 +196,8 @@ export default function SSOCallback() {
         if (result.status === "complete") {
           console.log("Sign up complete, setting active session");
           await setActiveSignUp({ session: result.createdSessionId! });
-          router.push("/");
+          const returnUrl = getReturnUrl();
+          router.push(returnUrl);
         } else if (result.status === "missing_requirements") {
           console.log("Still missing requirements:", result.missingFields);
           setError(`Still missing: ${result.missingFields?.join(", ")}`);
@@ -257,13 +241,22 @@ export default function SSOCallback() {
     );
   }
 
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+      // Dialog is being closed - redirect to previous page
+      const returnUrl = getReturnUrl();
+      router.push(returnUrl);
+    }
+  };
+
   return (
-    <Dialog open={showDialog} onOpenChange={setShowDialog}>
+    <Dialog open={showDialog} onOpenChange={handleDialogClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Complete Your Profile</DialogTitle>
           <DialogDescription>
-            Please provide the following information to complete your sign up.
+            Please provide the following information to complete your{" "}
+            {isSignIn ? "sign in" : "sign up"}.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleComplete} className="space-y-4">

@@ -35,7 +35,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import DialogAddActivity from "@/components/ui/dialogAddActivity";
 
 export default function ProfilePage({
   params,
@@ -54,7 +53,6 @@ export default function ProfilePage({
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [showPasswordRequiredDialog, setShowPasswordRequiredDialog] =
     useState(false);
-  const [showActivityDialog, setShowActivityDialog] = useState(false);
   const [pendingUnlinkProvider, setPendingUnlinkProvider] = useState<
     "google" | "microsoft" | "facebook" | null
   >(null);
@@ -88,9 +86,6 @@ export default function ProfilePage({
   });
 
   const user = useQuery(api.users.getUserBySlug, { slug: resolvedParams.slug });
-  const organisation = useQuery(api.organisation.getOrganisationByOwnerId, {
-    ownerId: user?._id as Id<"users">,
-  });
   const currentUser = useQuery(api.users.current);
   const updateProfile = useAction(api.users.updateUserProfile);
   const addFriend = useMutation(api.users.addFriend);
@@ -114,7 +109,6 @@ export default function ProfilePage({
   );
 
   const isOwnProfile = currentUser?._id === user?._id;
-  const isOrganisator = currentUser?.role === "organizer";
   const isFriend = currentUser?.friends.includes(user?._id as Id<"users">);
 
   useEffect(() => {
@@ -914,23 +908,12 @@ export default function ProfilePage({
                         </Badge>
                       ) : null}
                     </div>
-                    {isOrganisator ? (
-                      <div className="space-y-2">
-                        <Label htmlFor="organisation">Organisation name</Label>
-                        <p className="text-sm text-muted-foreground">
-                          {organisation?.organizationName ||
-                            "No organisation found"}
-                        </p>
-                      </div>
-                    ) : (
-                      <div>
-                        <p className="text-xs text-muted-foreground">
-                          Verify your email to unlock all features and ensure
-                          account security.
-                        </p>
-                      </div>
-                    )}
-
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        Verify your email to unlock all features and ensure
+                        account security.
+                      </p>
+                    </div>
                     {/* OAuth Provider Links */}
                     {clerkUser?.externalAccounts &&
                       clerkUser.externalAccounts.length > 0 && (
@@ -965,7 +948,6 @@ export default function ProfilePage({
                           </div>
                         </div>
                       )}
-
                     {/* Password Section */}
                     <div className="space-y-2 pt-2">
                       <div className="flex items-center justify-between">
@@ -1098,20 +1080,6 @@ export default function ProfilePage({
                   </p>
                 )}
               </div>
-              {!isEditing && isOwnProfile && isOrganisator ? (
-                <div>
-                  <Button
-                    variant="default"
-                    onClick={() => setShowActivityDialog(true)}
-                  >
-                    Add activity
-                  </Button>
-                  <DialogAddActivity
-                    showDialog={showActivityDialog}
-                    setShowDialog={setShowActivityDialog}
-                  />
-                </div>
-              ) : null}
             </div>
           </div>
         </CardContent>

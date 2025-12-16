@@ -8,11 +8,29 @@ export const updateOrganisation = mutation({
         description: v.optional(v.string()),
         email: v.string(),
         address: v.string(),
-        contact: v.string(),
         IBAN: v.string(),
     },
     handler: async (ctx, args) => {
-        const { organisationId, ...updates } = args;
+        const { organisationId, name, email, ...rest } = args;
+
+        // Map mutation args to schema field names
+        const updates: {
+            description?: string;
+            address: string;
+            IBAN: string;
+            organizationName?: string;
+            organizationEmail?: string;
+        } = {
+            ...rest,
+        };
+
+        if (name !== undefined) {
+            updates.organizationName = name;
+        }
+
+        if (email !== undefined) {
+            updates.organizationEmail = email;
+        }
 
         await ctx.db.patch(organisationId, updates);
 
@@ -77,10 +95,13 @@ export const createOrganisation = mutation({
 export const getOrganisationByOwnerId = query({
     args: { ownerId: v.id("users") },
     handler: async (ctx, args) => {
-        const organisations = await ctx.db
+        // Collect all organisations and filter in JavaScript to check array membership
+        const allOrganisations = await ctx.db
             .query("organisations")
-            .filter((q) => q.eq(q.field("organizerIDs"), [args.ownerId]))
             .collect();
+        const organisations = allOrganisations.filter(
+            (org) => org.organizerIDs.includes(args.ownerId)
+        );
         return organisations[0] ?? null;
     },
 });

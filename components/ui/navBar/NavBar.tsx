@@ -17,6 +17,7 @@ import {
   MessageSquare,
   Settings,
   User,
+  Building2,
 } from "lucide-react";
 
 import Link from "next/link";
@@ -75,6 +76,14 @@ export default function Navbar() {
                     My account
                   </DropdownMenuItem>
                 </Link>
+                {user?.role === "organizer" && (
+                  <Link href="/my-organisation">
+                    <DropdownMenuItem>
+                      <Building2 className="icon" />
+                      My Organisation
+                    </DropdownMenuItem>
+                  </Link>
+                )}
                 <Link href="/settings">
                   <DropdownMenuItem>
                     <Settings className="icon" />

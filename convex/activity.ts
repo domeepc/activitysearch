@@ -15,6 +15,24 @@ export const getActivityById = query({
     }
 });
 
+export const getAllTags = query({
+    args: {},
+    handler: async (ctx) => {
+        const activities = await ctx.db.query("activities").collect();
+        const allTags = new Set<string>();
+        activities.forEach((activity) => {
+            if (activity.tags && Array.isArray(activity.tags)) {
+                activity.tags.forEach((tag: string) => {
+                    if (tag && typeof tag === "string") {
+                        allTags.add(tag.toLowerCase().trim());
+                    }
+                });
+            }
+        });
+        return Array.from(allTags).sort();
+    }
+});
+
 export const createActivity = mutation({
     args: {
         activityName: v.optional(v.string()),
@@ -33,7 +51,26 @@ export const createActivity = mutation({
         equipment: v.optional(v.array(v.string())),
         images: v.optional(v.array(v.string())),
     },
-    handler: async (ctx, args) => { 
+    handler: async (ctx, args) => {
+        // Check if user is authenticated and is an organizer
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) {
+            throw new Error("You must be logged in to create an activity");
+        }
+
+        const user = await ctx.db
+            .query("users")
+            .withIndex("byExternalId", (q) => q.eq("externalId", identity.subject))
+            .unique();
+
+        if (!user) {
+            throw new Error("User not found");
+        }
+
+        if (user.role !== "organizer") {
+            throw new Error("Only organizers can create activities");
+        }
+
         const doc: any = {
             activityName: args.activityName ?? "",
             longitude: args.longitude,
@@ -55,27 +92,17 @@ export const createActivity = mutation({
 
         const activityId = await ctx.db.insert("activities", doc);
 
-        // If the current user is an organiser, add this activity ID to their organisation
+        // Add this activity ID to the user's organisation
         try {
-            const identity = await ctx.auth.getUserIdentity();
-            if (identity) {
-                const user = await ctx.db
-                    .query("users")
-                    .withIndex("byExternalId", (q) => q.eq("externalId", identity.subject))
-                    .unique();
+            // Find organisation that contains this user in organizerIDs
+            const organisations = await ctx.db.query("organisations").collect();
+            const organisation = organisations.find((o: any) => Array.isArray(o.organizerIDs) && o.organizerIDs.some((id: any) => String(id) === String(user._id)));
 
-                if (user && user.role === "organizer") {
-                    // Find organisation that contains this user in organizerIDs
-                    const organisations = await ctx.db.query("organisations").collect();
-                    const organisation = organisations.find((o: any) => Array.isArray(o.organizerIDs) && o.organizerIDs.some((id: any) => String(id) === String(user._id)));
-
-                    if (organisation) {
-                        const existing = Array.isArray(organisation.activityIDs) ? organisation.activityIDs : [];
-                        await ctx.db.patch(organisation._id, {
-                            activityIDs: [...existing, activityId],
-                        });
-                    }
-                }
+            if (organisation) {
+                const existing = Array.isArray(organisation.activityIDs) ? organisation.activityIDs : [];
+                await ctx.db.patch(organisation._id, {
+                    activityIDs: [...existing, activityId],
+                });
             }
         } catch (e) {
             // Don't block activity creation if organisation update fails; log for debugging

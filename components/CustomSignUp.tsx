@@ -105,6 +105,18 @@ export default function CustomSignUp() {
     if (!isLoaded) return;
 
     try {
+      // Store the current page URL so we can return to it after OAuth
+      if (typeof window !== "undefined") {
+        const returnUrl = window.location.pathname + window.location.search;
+        // Only store if we're not already on the sign-up page
+        if (returnUrl !== "/sign-up" && returnUrl !== "/sign-up/") {
+          sessionStorage.setItem("oauth_return_url", returnUrl);
+        } else {
+          // If on sign-up page, return to home
+          sessionStorage.setItem("oauth_return_url", "/");
+        }
+      }
+
       await signUp.authenticateWithRedirect({
         strategy,
         redirectUrl: "/sso-callback",
