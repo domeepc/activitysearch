@@ -3,8 +3,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Upload, X, AlertCircle } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Upload, X, AlertCircle, Image as ImageIcon } from "lucide-react";
 import {
   AddressAutocomplete,
   AddressCoordinates,
@@ -37,6 +37,7 @@ interface ActivityFormSectionsProps {
   onDifficultyChange: (values: string[]) => void;
   onImageSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemoveImage: (idx: number) => void;
+  error?: string;
 }
 
 export function BasicInformationSection({
@@ -165,7 +166,7 @@ export function ActivityDetailsSection({
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="price">
-            Price (HRK) <span className="text-destructive">*</span>
+            Price (EUR) <span className="text-destructive">*</span>
           </Label>
           <Input
             id="price"
@@ -360,9 +361,10 @@ export function ImagesSection({
   formData,
   onImageSelect,
   onRemoveImage,
+  error,
 }: Pick<
   ActivityFormSectionsProps,
-  "formData" | "onImageSelect" | "onRemoveImage"
+  "formData" | "onImageSelect" | "onRemoveImage" | "error"
 >) {
   return (
     <div className="space-y-4">
@@ -391,23 +393,51 @@ export function ImagesSection({
           >
             <Upload className="size-4 mr-2" /> Upload Images
           </Button>
+          <p className="text-xs text-muted-foreground">
+            Maximum file size: 1MB per image
+          </p>
+          {error && (
+            <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 border border-destructive/20">
+              <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+              <p className="text-sm text-destructive">{error}</p>
+            </div>
+          )}
           {formData.images.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
               {formData.images.map((src, idx) => (
-                <div key={idx} className="relative">
-                  <Avatar className="size-16 sm:size-20">
-                    <AvatarImage src={src} alt={`Upload ${idx + 1}`} />
-                    <AvatarFallback>IMG</AvatarFallback>
-                  </Avatar>
-                  <button
-                    type="button"
-                    onClick={() => onRemoveImage(idx)}
-                    className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 hover:bg-destructive/90 transition-colors"
-                    aria-label={`Remove image ${idx + 1}`}
-                  >
-                    <X className="size-3" />
-                  </button>
-                </div>
+                <Card
+                  key={idx}
+                  className="relative overflow-hidden group w-fit h-fit pt-0 pb-0"
+                >
+                  <CardContent className="p-0">
+                    <div className="relative aspect-square">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={src}
+                        alt={`Upload ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                      <button
+                        type="button"
+                        onClick={() => onRemoveImage(idx)}
+                        className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1.5 hover:bg-destructive/90 transition-colors opacity-0 group-hover:opacity-100 shadow-lg"
+                        aria-label={`Remove image ${idx + 1}`}
+                      >
+                        <X className="size-4" />
+                      </button>
+                      <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/60 to-transparent p-2">
+                        <div className="flex items-center gap-1.5 text-white text-xs">
+                          <ImageIcon className="size-3" />
+                          <span>Image {idx + 1}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}

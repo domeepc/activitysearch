@@ -9,10 +9,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import React, { Dispatch, useCallback, useState } from "react";
-import { Button } from "./button";
+import { Button } from "@/components/ui/button";
 import { api } from "@/convex/_generated/api";
 import { useMutation } from "convex/react";
-import { AddressCoordinates } from "./address-autocomplete";
+import { AddressCoordinates } from "@/components/ui/address-autocomplete";
 import {
   ActivityFormData,
   FormErrors,
@@ -28,7 +28,7 @@ import {
 import { validateActivityField } from "@/lib/validation";
 import { geocodeAddress } from "@/lib/geocoding";
 
-export default function DialogAddActivity({
+export default function DialogAddActivityMobile({
   showDialog,
   setShowDialog,
 }: {
@@ -100,13 +100,8 @@ export default function DialogAddActivity({
 
   // Handle difficulty selection (only allow one selection)
   const handleDifficultyChange = (values: string[]) => {
-    // Only allow one difficulty to be selected at a time
-    // If a new value is added and we already have one, replace it
-    // If a value is removed (toggle off), clear the selection
     let newValues: string[] = [];
     if (values.length > 0) {
-      // If multiple values, take the last one (most recently selected)
-      // If only one value, use it
       newValues = [values[values.length - 1]];
     }
     setSelectedDifficulty(newValues);
@@ -126,34 +121,30 @@ export default function DialogAddActivity({
     const invalidFiles: string[] = [];
     
     arr.forEach((file) => {
-      // Check file type
       if (!file.type.startsWith("image/")) {
         invalidFiles.push(`${file.name} is not an image file`);
         return;
       }
       
-      // Check file size
       if (file.size > MAX_FILE_SIZE) {
         invalidFiles.push(`${file.name} exceeds 1MB limit (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
         return;
       }
       
-      // Process valid file
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData((prev) => ({
           ...prev,
           images: [...prev.images, reader.result as string],
         }));
-        setImageError(""); // Clear error on successful upload
+        setImageError("");
       };
       reader.readAsDataURL(file);
     });
     
-    // Show error if any files were invalid
     if (invalidFiles.length > 0) {
       setImageError(invalidFiles.join(", "));
-      setTimeout(() => setImageError(""), 5000); // Clear error after 5 seconds
+      setTimeout(() => setImageError(""), 5000);
     }
     
     e.currentTarget.value = "";
@@ -189,7 +180,6 @@ export default function DialogAddActivity({
   // Handle form submission
   const handleSubmit = async () => {
     if (!validateForm()) {
-      // Scroll to first error
       const firstErrorField = Object.keys(errors).find(
         (key) => errors[key as keyof FormErrors]
       );
@@ -203,7 +193,6 @@ export default function DialogAddActivity({
     setIsSubmitting(true);
 
     try {
-      // Ensure we have coordinates
       let coords = formData.coordinates;
       if (!coords && formData.address.trim()) {
         setIsGeocoding(true);
@@ -295,18 +284,17 @@ export default function DialogAddActivity({
   };
 
   return (
-    <div className="hidden md:block">
+    <div className="md:hidden">
       <Dialog open={showDialog} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Add New Activity</DialogTitle>
-          <DialogDescription>
-            Fill in all required fields to create a new activity. Fields marked
-            with * are required.
+        <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-y-auto p-4">
+        <DialogHeader className="space-y-2 pb-4">
+          <DialogTitle className="text-xl">Add New Activity</DialogTitle>
+          <DialogDescription className="text-sm">
+            Fill in all required fields. Fields marked with * are required.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-6 py-4">
+        <div className="grid gap-4 py-2">
           <BasicInformationSection
             formData={formData}
             errors={errors}
@@ -342,20 +330,21 @@ export default function DialogAddActivity({
               setErrors((prev) => ({ ...prev, [field]: error }));
             }}
           />
-              <ImagesSection
-                formData={formData}
-                onImageSelect={handleImageSelect}
-                onRemoveImage={removeImage}
-                error={imageError}
-              />
+          <ImagesSection
+            formData={formData}
+            onImageSelect={handleImageSelect}
+            onRemoveImage={removeImage}
+            error={imageError}
+          />
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col gap-2 pt-4 sm:flex-row">
           <Button
             type="button"
             variant="outline"
             onClick={() => setShowDialog(false)}
             disabled={isSubmitting}
+            className="w-full rounded-full sm:w-auto"
           >
             Cancel
           </Button>
@@ -363,6 +352,7 @@ export default function DialogAddActivity({
             type="button"
             onClick={handleSubmit}
             disabled={!isFormValid()}
+            className="w-full rounded-full sm:w-auto"
           >
             {isSubmitting ? "Creating..." : "Create Activity"}
           </Button>
@@ -372,3 +362,4 @@ export default function DialogAddActivity({
     </div>
   );
 }
+

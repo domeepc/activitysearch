@@ -6,6 +6,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import ActivityCard from "./activityCard";
 import { useEffect } from "react";
+import { ActivityData } from "@/lib/types/activity";
 
 // Add styles to make Leaflet popups invisible
 if (typeof document !== "undefined") {
@@ -53,32 +54,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl:
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
-
-export interface ActivityData {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  tags?: string[];
-  location: {
-    name: string;
-    address: string;
-    coordinates: {
-      lat: number;
-      lng: number;
-    };
-  };
-  price: {
-    amount: number;
-    currency: string;
-    type: string;
-  };
-  duration: string;
-  difficulty: string;
-  rating: number;
-  reviewCount: number;
-  images?: string[];
-}
 
 // Component to handle popup close with map access
 const PopupContent = ({ activity }: { activity: ActivityData }) => {
