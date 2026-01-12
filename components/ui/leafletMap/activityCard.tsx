@@ -120,35 +120,35 @@ export default function ActivityCard({
     <Card
       className={`${cardWidth} relative border-0 shadow-none transition-all duration-200  pointer-events-auto`}
     >
+      <button
+        className="absolute! top-2 right-2 z-50 bg-white w-8 h-8 flex justify-center items-center rounded-full p-1.5 hover:bg-gray-100 shadow-md focus:outline-none transition-colors pointer-events-auto cursor-pointer"
+        onClick={handleClosePopup}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+        onMouseUp={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+        onTouchStart={(e) => {
+          e.stopPropagation();
+        }}
+        aria-label="Close popup"
+        tabIndex={0}
+        type="button"
+      >
+        <svg width={16} height={16} viewBox="0 0 20 20" fill="none">
+          <path
+            d="M6 6l8 8M14 6l-8 8"
+            stroke="#333"
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+        </svg>
+      </button>
       {images.length > 0 && (
         <>
-          <button
-            className="absolute! top-2 right-2 z-50 bg-white w-8 h-8 flex justify-center items-center rounded-full p-1.5 hover:bg-gray-100 shadow-md focus:outline-none transition-colors pointer-events-auto cursor-pointer"
-            onClick={handleClosePopup}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-            }}
-            onMouseUp={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-            }}
-            onTouchStart={(e) => {
-              e.stopPropagation();
-            }}
-            aria-label="Close popup"
-            tabIndex={0}
-            type="button"
-          >
-            <svg width={16} height={16} viewBox="0 0 20 20" fill="none">
-              <path
-                d="M6 6l8 8M14 6l-8 8"
-                stroke="#333"
-                strokeWidth={2}
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
           <div className="z-0 w-full h-48 overflow-hidden rounded-t-xl -mt-6 mb-0 relative">
             <Carousel setApi={setCarouselApi} className="w-full h-full">
               <CarouselContent className="h-full ml-0!">
@@ -172,35 +172,7 @@ export default function ActivityCard({
           </div>
         </>
       )}
-      {images.length === 0 && (
-        <button
-          className="absolute z-50 top-2 right-2 bg-white w-8 h-8 flex justify-center items-center rounded-full p-1.5 hover:bg-gray-100 shadow-md focus:outline-none transition-colors pointer-events-auto cursor-pointer"
-          onClick={handleClosePopup}
-          onMouseDown={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-          }}
-          onMouseUp={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-          }}
-          onTouchStart={(e) => {
-            e.stopPropagation();
-          }}
-          aria-label="Close popup"
-          tabIndex={0}
-          type="button"
-        >
-          <svg width={16} height={16} viewBox="0 0 20 20" fill="none">
-            <path
-              d="M6 6l8 8M14 6l-8 8"
-              stroke="#333"
-              strokeWidth={2}
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
-      )}
+
       <CardHeader className="px-4 pt-1 pb-3">
         <CardTitle className="text-base leading-tight line-clamp-2">
           {activity.title}

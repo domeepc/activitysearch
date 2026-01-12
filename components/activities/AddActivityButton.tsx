@@ -2,9 +2,9 @@
 
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { ButtonProps } from "@/components/ui/button";
 
-interface AddActivityButtonProps extends Omit<ButtonProps, "onClick"> {
+interface AddActivityButtonProps
+  extends Omit<React.ComponentProps<typeof Button>, "onClick"> {
   onClick: () => void;
 }
 
@@ -28,4 +28,3 @@ export default function AddActivityButton({
     </Button>
   );
 }
-

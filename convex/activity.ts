@@ -15,6 +15,24 @@ export const getActivityById = query({
     }
 });
 
+export const getActivitiesByIds = query({
+    args: { activityIds: v.array(v.id("activities")) },
+    handler: async (ctx, { activityIds }) => {
+        if (activityIds.length === 0) {
+            return [];
+        }
+        // Fetch all activities by their IDs
+        const activities = await Promise.all(
+            activityIds.map(async (id) => {
+                const activity = await ctx.db.get(id);
+                return activity;
+            })
+        );
+        // Filter out any null results (in case an activity was deleted)
+        return activities.filter((activity) => activity !== null);
+    }
+});
+
 export const getAllTags = query({
     args: {},
     handler: async (ctx) => {

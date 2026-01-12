@@ -37,7 +37,7 @@ export function mapActivityFromDb(
     duration: doc.duration ? String(doc.duration) : "",
     difficulty: doc.difficulty ?? "",
     rating: doc.rating ?? 0,
-    reviewCount: doc.reviewCount ?? 0,
+    reviewCount: Number(doc.reviewCount ?? 0),
     images: doc.images ?? [],
     tags: tags,
   };

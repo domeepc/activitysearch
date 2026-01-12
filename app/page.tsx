@@ -29,6 +29,7 @@ export default function Home() {
   );
   const [isMobileDialogOpen, setIsMobileDialogOpen] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showAddDialogMobile, setShowDialogMobile] = useState(false);
 
   // Custom hooks
   const { activities } = useActivities();
@@ -87,8 +88,8 @@ export default function Home() {
         setShowDialog={setShowAddDialog}
       />
       <DialogAddActivityMobile
-        showDialog={showAddDialog}
-        setShowDialog={setShowAddDialog}
+        showDialog={showAddDialogMobile}
+        setShowDialog={setShowDialogMobile}
       />
        
       <div className="map_tab">
