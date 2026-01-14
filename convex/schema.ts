@@ -1,5 +1,5 @@
-import { defineSchema, defineTable } from 'convex/server';
-import { v } from 'convex/values';
+import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
 
 export default defineSchema({
   users: defineTable({
@@ -15,32 +15,33 @@ export default defineSchema({
     totalExp: v.int64(),
     friends: v.array(v.id("users")),
     role: v.optional(v.string()),
-
-  }).index('byExternalId', ['externalId']).index('byUsername', ['username']).index('bySlug', ['slug']),
+  })
+    .index("byExternalId", ["externalId"])
+    .index("byUsername", ["username"])
+    .index("bySlug", ["slug"]),
 
   organisations: defineTable({
-    organizationName: v.string(),
-    organizationEmail: v.string(),
+    organisationName: v.string(),
+    organisationEmail: v.string(),
     address: v.string(),
     longitude: v.float64(),
     latitude: v.float64(),
     description: v.string(),
     IBAN: v.string(),
-    organizerIDs: v.array(v.id("users")),
+    organisersIDs: v.array(v.id("users")),
     activityIDs: v.array(v.id("activities")),
   }),
 
-  team: defineTable({
+  teams: defineTable({
     teamName: v.string(),
     teamDescription: v.string(),
     teammates: v.array(v.id("users")),
   }),
   payments: defineTable({
     userId: v.id("users"),
-    organizationId: v.id("organizations"),
+    organisationId: v.id("organisations"),
     totalAmount: v.float64(),
     paymentStatus: v.boolean(),
-
   }),
   reviews: defineTable({
     text: v.string(),
@@ -59,14 +60,12 @@ export default defineSchema({
     userCount: v.int64(),
     activityId: v.id("activities"),
     teamIds: v.array(v.id("teams")),
-
   }),
   messages: defineTable({
     text: v.string(),
     senderId: v.id("users"),
     receiverId: v.id("users"),
     teamId: v.id("teams"),
-
   }),
   activities: defineTable({
     activityName: v.string(),
@@ -74,7 +73,7 @@ export default defineSchema({
     address: v.string(),
     longitude: v.float64(),
     latitude: v.float64(),
-    price : v.float64(),
+    price: v.float64(),
     duration: v.int64(),
     difficulty: v.string(),
     maxParticipants: v.int64(),
@@ -85,5 +84,4 @@ export default defineSchema({
     equipment: v.array(v.string()),
     images: v.optional(v.array(v.string())),
   }),
-
 });

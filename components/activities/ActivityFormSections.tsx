@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -411,11 +412,11 @@ export function ImagesSection({
                 >
                   <CardContent className="p-0">
                     <div className="relative aspect-square">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
+                      <Image
                         src={src}
                         alt={`Upload ${idx + 1}`}
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
                         onError={(e) => {
                           e.currentTarget.style.display = "none";
                         }}

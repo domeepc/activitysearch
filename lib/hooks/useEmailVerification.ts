@@ -2,9 +2,23 @@ import { useState, useEffect, useRef } from "react";
 import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import { extractErrorMessage } from "@/lib/errors";
 
+/**
+ * Helper function to find unverified email address from Clerk user
+ * Uses a flexible type that works with Clerk's EmailAddressResource
+ */
+function findUnverifiedEmail<
+  T extends { verification?: { status: string | null } | null }
+>(emailAddresses: T[]): T | undefined {
+  return emailAddresses.find(
+    (emailAddr) => emailAddr.verification?.status !== "verified"
+  );
+}
+
 export function useEmailVerification(email: string) {
+  const router = useRouter();
   const { user: clerkUser } = useUser();
   const finalizeEmailChange = useAction(api.users.finalizeEmailChange);
   const verificationEmailSentRef = useRef(false);
@@ -14,6 +28,7 @@ export function useEmailVerification(email: string) {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [autoSendCooldown, setAutoSendCooldown] = useState(0);
   const [showDialog, setShowDialog] = useState(false);
+  const [verificationComplete, setVerificationComplete] = useState(false);
 
   // Cooldown timer for resend button
   useEffect(() => {
@@ -47,25 +62,50 @@ export function useEmailVerification(email: string) {
 
       const sendVerificationEmail = async () => {
         try {
+          // Reload user to get latest email addresses
           await clerkUser.reload();
-          const unverifiedEmail = clerkUser.emailAddresses.find(
-            (emailAddr) => emailAddr.verification?.status !== "verified"
+
+          // First, try to find the email that matches the current email address
+          let targetEmail = clerkUser.emailAddresses.find(
+            (emailAddr) => emailAddr.emailAddress === email
           );
 
-          if (unverifiedEmail) {
-            await unverifiedEmail.prepareVerification({
-              strategy: "email_code",
-            });
-            setAutoSendCooldown(300); // 5 minutes cooldown for auto-send
-          } else {
-            setVerificationError(
-              "No unverified email address found. Please try again."
+          // If target email not found, look for any unverified email as fallback
+          if (!targetEmail) {
+            console.warn(
+              `Email ${email} not found, looking for any unverified email`
             );
+            const unverifiedEmail = findUnverifiedEmail(
+              clerkUser.emailAddresses
+            );
+            if (unverifiedEmail) {
+              targetEmail = unverifiedEmail;
+            } else {
+              setVerificationError(
+                `Email address ${email} not found in your account. Please check your email or try resending.`
+              );
+              return;
+            }
           }
+
+          // Check if email is already verified
+          if (targetEmail.verification?.status === "verified") {
+            setVerificationError("");
+            return; // Email is already verified, no need to send
+          }
+
+          // Try to prepare verification for the target email
+          await targetEmail.prepareVerification({
+            strategy: "email_code",
+          });
+
+          setVerificationError(""); // Clear any previous errors
+          setAutoSendCooldown(300); // 5 minutes cooldown for auto-send
         } catch (error) {
           console.error("Failed to send verification email:", error);
+          const errorMessage = extractErrorMessage(error);
           setVerificationError(
-            "Failed to send verification email. Please try resending."
+            `Failed to send verification email: ${errorMessage}. Please try resending.`
           );
         }
       };
@@ -77,7 +117,7 @@ export function useEmailVerification(email: string) {
     if (!showDialog) {
       verificationEmailSentRef.current = false;
     }
-  }, [showDialog, clerkUser, autoSendCooldown]);
+  }, [showDialog, clerkUser, autoSendCooldown, email]);
 
   const handleVerifyEmail = async () => {
     if (!clerkUser) return;
@@ -90,9 +130,7 @@ export function useEmailVerification(email: string) {
       await clerkUser.reload();
 
       // Find the unverified email address
-      const unverifiedEmail = clerkUser.emailAddresses.find(
-        (emailAddr) => emailAddr.verification?.status !== "verified"
-      );
+      const unverifiedEmail = findUnverifiedEmail(clerkUser.emailAddresses);
 
       if (!unverifiedEmail) {
         setVerificationError("No email address to verify");
@@ -120,13 +158,22 @@ export function useEmailVerification(email: string) {
         oldEmail: emailsToDelete[0] || "", // Take the first old email
       });
 
+      // Reload user one more time to ensure verification status is updated
+      await clerkUser.reload();
+
       setShowDialog(false);
       setVerificationCode("");
 
-      // Wait a bit for Convex to sync, then reload the page to update the profile
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      // Mark verification as complete to trigger status re-evaluation
+      setVerificationComplete(true);
+
+      // Wait a bit for Convex and Clerk to sync, then refresh the page
+      // This ensures the verification status is updated before the badge is re-rendered
+      setTimeout(async () => {
+        // Reload user one more time to ensure we have the latest verification status
+        await clerkUser.reload();
+        router.refresh();
+      }, 1500);
     } catch (error: unknown) {
       setVerificationError(extractErrorMessage(error));
     } finally {
@@ -139,21 +186,43 @@ export function useEmailVerification(email: string) {
 
     try {
       await clerkUser.reload();
-      const unverifiedEmail = clerkUser.emailAddresses.find(
-        (emailAddr) => emailAddr.verification?.status !== "verified"
+
+      // First, try to find the email that matches the current email address
+      let targetEmail = clerkUser.emailAddresses.find(
+        (emailAddr) => emailAddr.emailAddress === email
       );
 
-      if (unverifiedEmail) {
-        await unverifiedEmail.prepareVerification({ strategy: "email_code" });
-        setVerificationError("");
-        setResendCooldown(60); // 60 second cooldown
-      } else {
-        setVerificationError("No unverified email found");
+      // If target email not found, look for any unverified email as fallback
+      if (!targetEmail) {
+        console.warn(
+          `Email ${email} not found, looking for any unverified email`
+        );
+        const unverifiedEmail = findUnverifiedEmail(clerkUser.emailAddresses);
+        if (unverifiedEmail) {
+          targetEmail = unverifiedEmail;
+        } else {
+          setVerificationError(
+            `Email address ${email} not found in your account.`
+          );
+          return;
+        }
       }
+
+      // Check if email is already verified
+      if (targetEmail.verification?.status === "verified") {
+        setVerificationError("");
+        return; // Email is already verified
+      }
+
+      // Try to prepare verification for the target email
+      await targetEmail.prepareVerification({ strategy: "email_code" });
+      setVerificationError("");
+      setResendCooldown(60); // 60 second cooldown
     } catch (error) {
       console.error("Failed to resend verification email:", error);
+      const errorMessage = extractErrorMessage(error);
       setVerificationError(
-        "Failed to resend verification email. Please try again."
+        `Failed to resend verification email: ${errorMessage}. Please try again.`
       );
     }
   };
@@ -171,6 +240,21 @@ export function useEmailVerification(email: string) {
     return currentEmail.verification.status === "verified" && isPrimary;
   };
 
+  // Force re-evaluation of verification status when verification completes
+  // This ensures the badge updates immediately after verification
+  // The verificationComplete flag is included in the dependency to trigger re-render
+  useEffect(() => {
+    if (verificationComplete) {
+      // The router.refresh() will handle the page refresh,
+      // but we also want to ensure the status is re-evaluated
+      // Reset the flag after a short delay
+      const timer = setTimeout(() => {
+        setVerificationComplete(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [verificationComplete]);
+
   return {
     verificationCode,
     setVerificationCode,
@@ -184,4 +268,3 @@ export function useEmailVerification(email: string) {
     getEmailVerificationStatus,
   };
 }
-

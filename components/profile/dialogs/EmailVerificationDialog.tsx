@@ -17,6 +17,11 @@ import {
 } from "@/components/ui/input-otp";
 import { Mail } from "lucide-react";
 
+/**
+ * EmailVerificationDialog for profile settings
+ * This is a modal dialog component used in profile settings for email verification.
+ * For sign-up flow email verification, see: components/auth/EmailVerificationDialog.tsx
+ */
 interface EmailVerificationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -49,8 +54,8 @@ export function EmailVerificationDialog({
             Verify Your Email
           </DialogTitle>
           <DialogDescription>
-            We&apos;ve sent a verification code to your new email address. Please
-            enter the code below to verify your email.
+            We&apos;ve sent a verification code to your new email address.
+            Please enter the code below to verify your email.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
@@ -109,4 +114,3 @@ export function EmailVerificationDialog({
     </Dialog>
   );
 }
-

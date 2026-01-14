@@ -1,8 +1,7 @@
+import Image from "next/image";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import Tag from "../ui/leafletMap/tag";
 import { getTagColorScheme } from "@/lib/tagColors";
 import { Badge } from "../ui/badge";
-import { databaseTags } from "@/lib/databaseTags";
 import { api as convexApi } from "@/convex/_generated/api";
 import { useQuery } from "convex/react";
 
@@ -47,11 +46,14 @@ export default function ActivityCardInList(props: ActivityCardProps) {
         <CardHeader className="text-2xl font-bold p-0">
           <div className="w-full">
             {props.activity.images && props.activity.images.length > 0 ? (
-              <img
-                src={props.activity.images[0]}
-                alt={props.activity.title}
-                className="w-full h-48 object-cover rounded-md mb-0"
-              />
+              <div className="relative w-full h-48 rounded-md mb-0 overflow-hidden">
+                <Image
+                  src={props.activity.images[0]}
+                  alt={props.activity.title}
+                  fill
+                  className="object-cover"
+                />
+              </div>
             ) : (
               <div className="w-full h-48 bg-gray-200 flex items-center justify-center rounded-md mb-0">
                 <span className="text-gray-500">No Image Available</span>

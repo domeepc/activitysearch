@@ -5,6 +5,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   Card,
   CardContent,
@@ -154,16 +155,17 @@ export default function ActivityPage({
                       className="h-full pl-0 pr-2 basis-1/2 md:basis-1/3"
                     >
                       <div className="relative w-full h-full rounded-lg overflow-hidden">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
+                        <Image
                           src={image}
                           alt={`${displayActivity.title} - Image ${index + 1}`}
-                          className="w-full h-full object-cover"
+                          fill
+                          className="object-cover"
                           draggable={false}
                           onDragStart={(e) => e.preventDefault()}
                           onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                            const parent = e.currentTarget.parentElement;
+                            const target = e.currentTarget;
+                            target.style.display = "none";
+                            const parent = target.parentElement;
                             if (
                               parent &&
                               !parent.querySelector(".error-message")
@@ -375,10 +377,11 @@ export default function ActivityPage({
                       key={index}
                       className="relative w-full h-48 overflow-hidden rounded-lg"
                     >
-                      <img
+                      <Image
                         src={image}
                         alt={`${displayActivity.title} - Image ${index + 2}`}
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
                         onError={(e) => {
                           e.currentTarget.style.display = "none";
                         }}

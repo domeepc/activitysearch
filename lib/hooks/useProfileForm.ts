@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { useRouter } from "next/navigation";
 import { validateProfileField } from "@/lib/validation";
 import { extractErrorMessage } from "@/lib/errors";
 import type { ProfileFormData, ProfileErrors } from "@/lib/types/profile";
@@ -23,6 +24,7 @@ interface UseProfileFormProps {
 }
 
 export function useProfileForm({ user, isEditing }: UseProfileFormProps) {
+  const router = useRouter();
   const [formData, setFormData] = useState<ProfileFormData>({
     avatar: "",
     name: "",
@@ -176,7 +178,7 @@ export function useProfileForm({ user, isEditing }: UseProfileFormProps) {
 
       // Refresh if username changed (slug might have changed)
       if (formData.username !== user?.username) {
-        setTimeout(() => window.location.reload(), 500);
+        setTimeout(() => router.refresh(), 500);
       }
 
       return { success: true, emailChanged, newEmail: emailChanged ? formData.email : undefined };

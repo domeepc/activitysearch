@@ -121,6 +121,44 @@ export function validateActivityField(
 }
 
 /**
+ * Validates password strength
+ * @param password - Password to validate
+ * @returns Error message if invalid, undefined if valid
+ */
+export function validatePassword(password: string): string | undefined {
+  if (!password) {
+    return "Password is required";
+  }
+  
+  if (password.length < 8) {
+    return "Password must be at least 8 characters long";
+  }
+  
+  return undefined;
+}
+
+/**
+ * Validates password confirmation matches password
+ * @param password - Original password
+ * @param confirmPassword - Confirmation password
+ * @returns Error message if invalid, undefined if valid
+ */
+export function validatePasswordConfirmation(
+  password: string,
+  confirmPassword: string
+): string | undefined {
+  if (!confirmPassword) {
+    return "Please confirm your password";
+  }
+  
+  if (password !== confirmPassword) {
+    return "Passwords do not match";
+  }
+  
+  return undefined;
+}
+
+/**
  * Profile form field validation
  */
 export function validateProfileField(

@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { validateOrganizationField } from "@/lib/validation";
+import { validateOrganizationField, validateEmail } from "@/lib/validation";
 import { extractErrorMessage } from "@/lib/errors";
 import ActivityListSection from "@/components/organisation/activityListSection";
 
@@ -112,7 +112,7 @@ export default function MyOrganisationPage() {
 
     if (!formData.email.trim()) {
       newErrors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    } else if (!validateEmail(formData.email)) {
       newErrors.email = "Please enter a valid email";
     }
 
@@ -149,8 +149,9 @@ export default function MyOrganisationPage() {
       setErrors({ name: "", email: "", address: "", IBAN: "" });
     } catch (error: unknown) {
       console.error("Failed to update organization:", error);
-      extractErrorMessage(error);
-      // You could set a general error state here if needed
+      const errorMessage = extractErrorMessage(error);
+      // Could set a general error state here if needed
+      console.error("Error message:", errorMessage);
     }
   };
 
@@ -408,9 +409,7 @@ export default function MyOrganisationPage() {
           </div>
         </CardContent>
       </Card>
-      <ActivityListSection
-        activityIDs={organisation.activityIDs || []}
-      />
+      <ActivityListSection activityIDs={organisation.activityIDs || []} />
     </div>
   );
 }

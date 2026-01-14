@@ -117,7 +117,7 @@ export default function ProfileSettingsPage({
       }
       // Refresh if username changed (slug might have changed)
       if (formData.username !== user?.username) {
-        setTimeout(() => window.location.reload(), 500);
+        setTimeout(() => router.refresh(), 500);
         return;
       }
       // Reload to show updated data

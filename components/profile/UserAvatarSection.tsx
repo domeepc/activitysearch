@@ -3,6 +3,7 @@
 import { AvatarUpload } from "@/components/ui/avatar-upload";
 import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { useRouter } from "next/navigation";
 
 interface UserAvatarSectionProps {
   currentAvatar?: string;
@@ -15,6 +16,7 @@ export function UserAvatarSection({
   userName,
   disabled = false,
 }: UserAvatarSectionProps) {
+  const router = useRouter();
   const updateProfile = useAction(api.users.updateUserProfile);
 
   const handleAvatarChange = async (file: File) => {
@@ -32,8 +34,8 @@ export function UserAvatarSection({
       // For now, we'll use the base64 directly (not recommended for production)
       await updateProfile({ avatar: base64 });
 
-      // Optionally refresh the page or refetch user data
-      window.location.reload();
+      // Refresh the page to show updated avatar
+      router.refresh();
     } catch (error) {
       console.error("Failed to update avatar:", error);
       throw error;
@@ -59,4 +61,3 @@ function fileToBase64(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
-

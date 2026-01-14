@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useQuery } from "convex/react";
 import { api as convexApi } from "@/convex/_generated/api";
 import { useEffect, useState, useRef } from "react";
@@ -155,11 +156,11 @@ export default function ActivityCard({
                 {images.map((image, index) => (
                   <CarouselItem key={index} className="h-full pl-0 basis-full">
                     <div className="relative w-full h-full">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
+                      <Image
                         src={image}
                         alt={`${activity.title} - Image ${index + 1}`}
-                        className="w-full h-full object-cover z-0 relative"
+                        fill
+                        className="object-cover z-0"
                         onError={(e) => {
                           e.currentTarget.style.display = "none";
                         }}

@@ -2,10 +2,13 @@ import { useState } from "react";
 import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import { extractErrorMessage } from "@/lib/errors";
+import { validatePassword, validatePasswordConfirmation } from "@/lib/validation";
 import type { OAuthProvider } from "@/lib/types/profile";
 
 export function usePasswordManagement() {
+  const router = useRouter();
   const { user: clerkUser } = useUser();
   const unlinkOAuthProvider = useAction(api.users.unlinkOAuthProvider);
   const [newPassword, setNewPassword] = useState("");
@@ -22,18 +25,16 @@ export function usePasswordManagement() {
   const handleSetPassword = async () => {
     setPasswordError("");
 
-    if (!newPassword || !confirmPassword) {
-      setPasswordError("Please fill in all fields");
+    // Validate password using centralized validation functions
+    const passwordError = validatePassword(newPassword);
+    if (passwordError) {
+      setPasswordError(passwordError);
       return;
     }
 
-    if (newPassword.length < 8) {
-      setPasswordError("Password must be at least 8 characters long");
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setPasswordError("Passwords do not match");
+    const confirmPasswordError = validatePasswordConfirmation(newPassword, confirmPassword);
+    if (confirmPasswordError) {
+      setPasswordError(confirmPasswordError);
       return;
     }
 
@@ -73,7 +74,7 @@ export function usePasswordManagement() {
         try {
           await unlinkOAuthProvider({ provider: pendingUnlinkProvider });
           await clerkUser?.reload();
-          setTimeout(() => window.location.reload(), 500);
+          setTimeout(() => router.refresh(), 500);
         } catch (error) {
           console.error(`Failed to unlink ${pendingUnlinkProvider}:`, error);
         }
