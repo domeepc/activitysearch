@@ -7,7 +7,6 @@ import { Id } from "@/convex/_generated/dataModel";
 import { MessageBubble } from "./MessageBubble";
 import { ChatHeader } from "./ChatHeader";
 import { ChatInput } from "./ChatInput";
-import { useUpdatePresence } from "@/lib/hooks/usePresence";
 
 interface ChatViewProps {
   type: "individual" | "team";
@@ -50,7 +49,6 @@ export function ChatView({
   const markTeamConversationAsRead = useMutation(
     api.teams.markTeamConversationAsRead
   );
-  const { updatePresence } = useUpdatePresence();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -88,9 +86,6 @@ export function ChatView({
 
   const handleSend = async (text: string) => {
     try {
-      // Update presence when sending a message to show user is active
-      updatePresence("online");
-      
       if (type === "individual" && individualUserId) {
         await sendMessage({
           receiverId: individualUserId,

@@ -19,10 +19,7 @@ export function usePresence(userId: string | undefined) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Ensure userId is a string for consistent matching
-    const userIdString = userId ? String(userId) : undefined;
-    
-    if (!client || !userIdString || !isConnected) {
+    if (!client || !userId || !isConnected) {
       setIsLoading(false);
       return;
     }
@@ -30,89 +27,50 @@ export function usePresence(userId: string | undefined) {
     const channel = client.channels.get(PRESENCE_CHANNEL);
     let mounted = true;
 
-    // Attach to channel first (required for presence operations)
-    channel.attach((err: any) => {
+    // Subscribe to presence events for this user
+    const handlePresenceMessage = (message: any) => {
+      if (!mounted || message.clientId !== userId) return;
+
+      if (message.action === "enter" || message.action === "update") {
+        const data = message.data as PresenceData;
+        setPresence(data);
+        setIsLoading(false);
+      } else if (message.action === "leave") {
+        setPresence({
+          userId,
+          status: "offline",
+          lastSeen: Date.now(),
+        });
+        setIsLoading(false);
+      }
+    };
+
+    // Get current presence state
+    channel.presence.get({ clientId: userId }, (err, members) => {
       if (err || !mounted) {
         setIsLoading(false);
         return;
       }
 
-      // Subscribe to presence events for this user
-      const handlePresenceMessage = (message: any) => {
-        if (!mounted) return;
-        
-        // Ensure both IDs are strings for comparison
-        const messageClientId = String(message.clientId || "");
-        
-        // Debug: log all presence messages to see what we're receiving
-        console.log(`[usePresence] Presence message for tracking userId: ${userIdString}`, {
-          messageClientId,
-          trackingUserId: userIdString,
-          match: messageClientId === userIdString,
-          action: message.action,
-          data: message.data,
+      const member = members?.find((m) => m.clientId === userId);
+      if (member && member.data) {
+        setPresence(member.data as PresenceData);
+      } else {
+        setPresence({
+          userId,
+          status: "offline",
+          lastSeen: Date.now(),
         });
-
-        // Only process messages for the user we're tracking
-        if (messageClientId !== userIdString) return;
-
-        if (message.action === "enter" || message.action === "update") {
-          const data = message.data as PresenceData;
-          console.log(`[usePresence] Setting presence for ${userIdString}:`, data);
-          setPresence(data);
-          setIsLoading(false);
-        } else if (message.action === "leave") {
-          console.log(`[usePresence] User ${userIdString} left presence`);
-          setPresence({
-            userId: userIdString,
-            status: "offline",
-            lastSeen: Date.now(),
-          });
-          setIsLoading(false);
-        }
-      };
-
-      // Get current presence state
-      channel.presence.get((err: any, members: any) => {
-        if (err || !mounted) {
-          setIsLoading(false);
-          return;
-        }
-
-        console.log(`[usePresence] Getting presence for userId: ${userIdString}`, {
-          totalMembers: members?.length || 0,
-          memberClientIds: members?.map((m: any) => String(m.clientId || "")) || [],
-          lookingFor: userIdString,
-        });
-
-        // Compare as strings to ensure matching
-        const member = members?.find((m: any) => String(m.clientId || "") === userIdString);
-        if (member && member.data) {
-          console.log(`[usePresence] Found presence for ${userIdString}:`, member.data);
-          setPresence(member.data as PresenceData);
-        } else {
-          console.log(`[usePresence] No presence found for ${userIdString}, setting offline`);
-          setPresence({
-            userId: userIdString,
-            status: "offline",
-            lastSeen: Date.now(),
-          });
-        }
-        setIsLoading(false);
-      });
-
-      // Subscribe to presence updates
-      channel.presence.subscribe(handlePresenceMessage);
-
-      return () => {
-        if (mounted) {
-          channel.presence.unsubscribe(handlePresenceMessage);
-        }
-      };
+      }
+      setIsLoading(false);
     });
+
+    // Subscribe to presence updates
+    channel.presence.subscribe(handlePresenceMessage);
 
     return () => {
       mounted = false;
+      channel.presence.unsubscribe(handlePresenceMessage);
     };
   }, [client, userId, isConnected]);
 
@@ -136,81 +94,68 @@ export function usePresenceList(userIds: string[]) {
     let mounted = true;
     const userIdSet = new Set(userIds);
 
-    // Attach to channel first (required for presence operations)
-    channel.attach((err: any) => {
-      if (err || !mounted) {
-        setIsLoading(false);
-        return;
-      }
-
-      const updatePresences = () => {
-        channel.presence.get((err: any, members: any) => {
-          if (err || !mounted) {
-            setIsLoading(false);
-            return;
-          }
-
-          const newPresences = new Map<string, PresenceData>();
-          
-          // Initialize all requested users as offline
-          userIds.forEach((userId) => {
-            newPresences.set(userId, {
-              userId,
-              status: "offline",
-              lastSeen: Date.now(),
-            });
-          });
-
-          // Update with actual presence data
-          members?.forEach((member: any) => {
-            if (userIdSet.has(member.clientId) && member.data) {
-              newPresences.set(member.clientId, member.data as PresenceData);
-            }
-          });
-
-          setPresences(newPresences);
+    const updatePresences = () => {
+      channel.presence.get((err, members) => {
+        if (err || !mounted) {
           setIsLoading(false);
+          return;
+        }
+
+        const newPresences = new Map<string, PresenceData>();
+
+        // Initialize all requested users as offline
+        userIds.forEach((userId) => {
+          newPresences.set(userId, {
+            userId,
+            status: "offline",
+            lastSeen: Date.now(),
+          });
         });
-      };
 
-      // Initial fetch
-      updatePresences();
+        // Update with actual presence data
+        members?.forEach((member) => {
+          if (userIdSet.has(member.clientId) && member.data) {
+            newPresences.set(member.clientId, member.data as PresenceData);
+          }
+        });
 
-      // Subscribe to presence updates
-      const handlePresenceMessage = (message: any) => {
-        if (!mounted || !userIdSet.has(message.clientId)) return;
+        setPresences(newPresences);
+        setIsLoading(false);
+      });
+    };
 
-        if (message.action === "enter" || message.action === "update") {
-          const data = message.data as PresenceData;
-          setPresences((prev) => {
-            const next = new Map(prev);
-            next.set(message.clientId, data);
-            return next;
+    // Initial fetch
+    updatePresences();
+
+    // Subscribe to presence updates
+    const handlePresenceMessage = (message: any) => {
+      if (!mounted || !userIdSet.has(message.clientId)) return;
+
+      if (message.action === "enter" || message.action === "update") {
+        const data = message.data as PresenceData;
+        setPresences((prev) => {
+          const next = new Map(prev);
+          next.set(message.clientId, data);
+          return next;
+        });
+      } else if (message.action === "leave") {
+        setPresences((prev) => {
+          const next = new Map(prev);
+          next.set(message.clientId, {
+            userId: message.clientId,
+            status: "offline",
+            lastSeen: Date.now(),
           });
-        } else if (message.action === "leave") {
-          setPresences((prev) => {
-            const next = new Map(prev);
-            next.set(message.clientId, {
-              userId: message.clientId,
-              status: "offline",
-              lastSeen: Date.now(),
-            });
-            return next;
-          });
-        }
-      };
+          return next;
+        });
+      }
+    };
 
-      channel.presence.subscribe(handlePresenceMessage);
-
-      return () => {
-        if (mounted) {
-          channel.presence.unsubscribe(handlePresenceMessage);
-        }
-      };
-    });
+    channel.presence.subscribe(handlePresenceMessage);
 
     return () => {
       mounted = false;
+      channel.presence.unsubscribe(handlePresenceMessage);
     };
   }, [client, userIds.join(","), isConnected]);
 
@@ -218,90 +163,64 @@ export function usePresenceList(userIds: string[]) {
 }
 
 export function useUpdatePresence() {
-  const { client, isConnected, userId: currentUserId } = usePresenceContext();
+  const { client, isConnected, userId } = usePresenceContext();
 
-  // Update presence for the current user (sender)
   const updatePresence = useCallback(
-    (status: PresenceStatus = "online", targetUserId?: string) => {
-      // Use targetUserId if provided, otherwise use current user's ID
-      const userIdToUpdate = targetUserId || currentUserId;
-      
-      if (!client || !isConnected || !userIdToUpdate) {
-        console.warn(`[updatePresence] Cannot update: client=${!!client}, connected=${isConnected}, userId=${userIdToUpdate}`);
-        return;
-      }
-
-      // Only allow updating presence for the current user (security)
-      // The current user's Ably clientId must match the userId being updated
-      if (userIdToUpdate !== currentUserId) {
-        console.warn(`[updatePresence] Cannot update presence for different user. Current: ${currentUserId}, Target: ${userIdToUpdate}`);
+    (status: PresenceStatus = "online") => {
+      if (!client || !isConnected || !userId) {
         return;
       }
 
       const channel = client.channels.get(PRESENCE_CHANNEL);
-      
-      console.log(`[updatePresence] Entering presence for userId: ${userIdToUpdate}`, {
+      const presenceData: PresenceData = {
+        userId,
         status,
-        currentUserId,
-        targetUserId,
-        clientConnectionId: client.connection.id,
-        channelState: channel.state,
+        lastSeen: Date.now(),
+      };
+
+      // Enter or update presence using promise
+      channel.presence.enter(presenceData).catch((err) => {
+        console.error("Failed to update presence:", err);
       });
-      
-      // Ensure channel is attached before entering presence
-      if (channel.state === "attached") {
-        const presenceData: PresenceData = {
-          userId: userIdToUpdate,
-          status,
-          lastSeen: Date.now(),
-        };
-
-        // Enter or update presence using promise
-        channel.presence.enter(presenceData)
-          .then(() => {
-            console.log(`[updatePresence] Successfully entered presence for ${userIdToUpdate}`);
-          })
-          .catch((err: any) => {
-            console.error(`[updatePresence] Failed to update presence for ${userIdToUpdate}:`, err);
-          });
-      } else {
-        // Attach channel first, then enter presence
-        channel.attach((err: any) => {
-          if (err) {
-            console.error("Failed to attach channel for presence update:", err);
-            return;
-          }
-
-          const presenceData: PresenceData = {
-            userId: userIdToUpdate,
-            status,
-            lastSeen: Date.now(),
-          };
-
-          channel.presence.enter(presenceData)
-            .then(() => {
-              console.log(`[updatePresence] Successfully entered presence for ${userIdToUpdate} after attach`);
-            })
-            .catch((err: any) => {
-              console.error(`[updatePresence] Failed to update presence for ${userIdToUpdate}:`, err);
-            });
-        });
-      }
     },
-    [client, isConnected, currentUserId]
+    [client, isConnected, userId]
   );
 
   const leavePresence = useCallback(() => {
-    if (!client || !isConnected || !currentUserId) {
+    if (!client || !userId) {
+      return;
+    }
+
+    // Check if connection is still open
+    const connectionState = client.connection.state;
+    if (connectionState === "closed" || connectionState === "failed") {
+      // Connection already closed, nothing to do
       return;
     }
 
     const channel = client.channels.get(PRESENCE_CHANNEL);
+    const channelState = channel.state;
+    
+    // Only try to leave if channel is attached (presence operations require attached channel)
+    if (channelState !== "attached") {
+      // Channel not attached, can't leave presence
+      return;
+    }
+
     // Leave presence without data (Ably will automatically remove the client)
-    channel.presence.leave().catch((err: any) => {
-      console.error("Failed to leave presence:", err);
+    channel.presence.leave().catch((err) => {
+      // Ignore errors if connection/channel is already closed or in incompatible state
+      const errorMsg = err?.message || String(err);
+      if (errorMsg && 
+          !errorMsg.includes("Connection closed") && 
+          !errorMsg.includes("closed") &&
+          !errorMsg.includes("incompatible state") &&
+          !errorMsg.includes("detaching") &&
+          !errorMsg.includes("detached")) {
+        console.error("Failed to leave presence:", err);
+      }
     });
-  }, [client, isConnected, currentUserId]);
+  }, [client, userId]);
 
   return { updatePresence, leavePresence };
 }
