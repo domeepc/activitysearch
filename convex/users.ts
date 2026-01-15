@@ -204,8 +204,90 @@ export const getUserBySlug = query({
 export const getUsersByIds = query({
   args: { userIds: v.array(v.id("users")) },
   handler: async (ctx, { userIds }) => {
-    const users = await Promise.all(userIds.map((id) => ctx.db.get(id)));
-    return users.filter((user) => user !== null);
+    const currentUser = await getCurrentUserOrThrow(ctx);
+    const blocked = currentUser.blocked || [];
+
+    // Filter out blocked users
+    const filteredUserIds = userIds.filter((id) => !blocked.includes(id));
+
+    const users = await Promise.all(
+      filteredUserIds.map((id) => ctx.db.get(id))
+    );
+
+    return users.filter((u): u is NonNullable<typeof u> => u !== null);
+  },
+});
+
+export const getBlockedUsers = query({
+  args: {},
+  handler: async (ctx) => {
+    const currentUser = await getCurrentUserOrThrow(ctx);
+    const blocked = currentUser.blocked || [];
+
+    if (blocked.length === 0) {
+      return [];
+    }
+
+    const users = await Promise.all(blocked.map((id) => ctx.db.get(id)));
+
+    return users.filter((u): u is NonNullable<typeof u> => u !== null);
+  },
+});
+
+export const unblockUser = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const currentUser = await getCurrentUserOrThrow(ctx);
+
+    const blocked = currentUser.blocked || [];
+    if (!blocked.includes(userId)) {
+      throw new Error("User is not blocked");
+    }
+
+    // Remove from blocked list
+    await ctx.db.patch(currentUser._id, {
+      blocked: blocked.filter((id) => id !== userId),
+    });
+
+    return { success: true };
+  },
+});
+
+export const searchUsers = query({
+  args: { query: v.string() },
+  handler: async (ctx, { query }) => {
+    const currentUser = await getCurrentUser(ctx);
+    if (!currentUser) return [];
+
+    const searchTerm = query.toLowerCase().trim();
+    if (searchTerm.length < 2) return [];
+
+    const blocked = currentUser.blocked || [];
+
+    // Get all users and filter by search term
+    // Note: We include blocked users in search results but mark them as blocked
+    // This allows users to see they've blocked someone and potentially unblock them
+    const allUsers = await ctx.db.query("users").collect();
+
+    return allUsers
+      .filter((user) => {
+        if (user._id === currentUser._id) return false;
+        // Filter out organisers - only show regular users
+        if (user.role === "organiser") return false;
+        const name = `${user.name} ${user.lastname}`.toLowerCase();
+        const username = user.username.toLowerCase();
+        return name.includes(searchTerm) || username.includes(searchTerm);
+      })
+      .slice(0, 20) // Limit to 20 results
+      .map((user) => ({
+        _id: user._id,
+        name: user.name,
+        lastname: user.lastname,
+        username: user.username,
+        slug: user.slug,
+        avatar: user.avatar,
+        isBlocked: blocked.includes(user._id),
+      }));
   },
 });
 
@@ -407,6 +489,23 @@ export const addFriend = mutation({
       throw new Error("Cannot add yourself as a friend");
     }
 
+    // Check if user is blocked
+    const blocked = user.blocked || [];
+    if (blocked.includes(friendId)) {
+      throw new Error(
+        "Cannot add a blocked user as a friend. Unblock them first."
+      );
+    }
+
+    // Check if the other user has blocked you
+    const otherUser = await ctx.db.get(friendId);
+    if (otherUser) {
+      const otherUserBlocked = otherUser.blocked || [];
+      if (otherUserBlocked.includes(user._id)) {
+        throw new Error("This user has blocked you");
+      }
+    }
+
     // Add friend to current user's friends list
     await ctx.db.patch(user._id, {
       friends: [...user.friends, friendId],
@@ -421,6 +520,44 @@ export const addFriend = mutation({
     }
 
     return await ctx.db.get(user._id);
+  },
+});
+
+export const blockUser = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const currentUser = await getCurrentUserOrThrow(ctx);
+
+    if (currentUser._id === userId) {
+      throw new Error("Cannot block yourself");
+    }
+
+    const blocked = currentUser.blocked || [];
+    if (blocked.includes(userId)) {
+      throw new Error("User is already blocked");
+    }
+
+    // Remove from friends if they are friends
+    const friends = currentUser.friends.filter((id) => id !== userId);
+
+    // Add to blocked list
+    await ctx.db.patch(currentUser._id, {
+      blocked: [...blocked, userId],
+      friends,
+    });
+
+    // Also remove current user from the blocked user's friends list
+    const blockedUser = await ctx.db.get(userId);
+    if (blockedUser) {
+      const blockedUserFriends = blockedUser.friends.filter(
+        (id) => id !== currentUser._id
+      );
+      await ctx.db.patch(userId, {
+        friends: blockedUserFriends,
+      });
+    }
+
+    return { success: true };
   },
 });
 

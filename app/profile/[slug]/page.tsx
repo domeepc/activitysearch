@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProfileView } from "@/components/profile/ProfileView";
 import { RemoveFriendDialog } from "@/components/profile/dialogs/RemoveFriendDialog";
+import { ConfirmDialog } from "@/components/chat/ConfirmDialog";
 import { useState } from "react";
 
 export default function ProfilePage({
@@ -16,6 +17,7 @@ export default function ProfilePage({
 }) {
   const resolvedParams = use(params);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
+  const [showBlockDialog, setShowBlockDialog] = useState(false);
 
   const user = useQuery(api.users.getUserBySlug, {
     slug: resolvedParams.slug,
@@ -23,11 +25,17 @@ export default function ProfilePage({
   const currentUser = useQuery(api.users.current);
   const addFriend = useMutation(api.users.addFriend);
   const removeFriend = useMutation(api.users.removeFriend);
+  const blockUser = useMutation(api.users.blockUser);
+  const unblockUser = useMutation(api.users.unblockUser);
   const friends = useQuery(
     api.users.getUsersByIds,
     user?.friends && user.friends.length > 0
       ? { userIds: user.friends }
       : "skip"
+  );
+  const blockedUsers = useQuery(
+    api.users.getBlockedUsers,
+    currentUser?._id === user?._id ? {} : "skip"
   );
 
   // Redirect to sign-in if not authenticated or user not found
@@ -53,6 +61,31 @@ export default function ProfilePage({
       setShowRemoveDialog(false);
     } catch (error) {
       console.error("Failed to remove friend:", error);
+    }
+  };
+
+  const handleBlock = async () => {
+    if (!user?._id) return;
+    try {
+      await blockUser({ userId: user._id });
+      setShowBlockDialog(false);
+    } catch (error) {
+      console.error("Failed to block user:", error);
+      alert(
+        error instanceof Error ? error.message : "Failed to block user"
+      );
+    }
+  };
+
+  const handleUnblock = async () => {
+    if (!user?._id) return;
+    try {
+      await unblockUser({ userId: user._id });
+    } catch (error) {
+      console.error("Failed to unblock user:", error);
+      alert(
+        error instanceof Error ? error.message : "Failed to unblock user"
+      );
     }
   };
 
@@ -108,6 +141,16 @@ export default function ProfilePage({
         isLoading={false}
         onAddFriend={handleAddFriend}
         onRemoveFriend={() => setShowRemoveDialog(true)}
+        onBlock={() => setShowBlockDialog(true)}
+        onUnblock={handleUnblock}
+        blockedUsers={blockedUsers?.map((u) => ({
+          _id: u._id,
+          name: u.name,
+          lastname: u.lastname,
+          username: u.username,
+          slug: u.slug,
+          avatar: u.avatar,
+        }))}
       />
 
       <RemoveFriendDialog
@@ -116,6 +159,16 @@ export default function ProfilePage({
         onConfirm={handleRemoveFriend}
         friendName={user.name}
         friendLastname={user.lastname}
+      />
+
+      <ConfirmDialog
+        open={showBlockDialog}
+        onOpenChange={setShowBlockDialog}
+        title="Block User"
+        description={`Are you sure you want to block ${user.name} ${user.lastname}? They will be removed from your friends list and you won't be able to message each other.`}
+        confirmText="Block"
+        variant="destructive"
+        onConfirm={handleBlock}
       />
     </div>
   );

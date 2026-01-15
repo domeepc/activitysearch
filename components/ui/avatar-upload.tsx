@@ -12,7 +12,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "./dialog";
-import { Label } from "./label";
 import { Camera, Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -35,31 +34,57 @@ export function AvatarUpload({
   const [preview, setPreview] = React.useState<string | null>(null);
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [isUploading, setIsUploading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type.startsWith("image/")) {
-      setSelectedFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      setError("Please select an image file.");
+      return;
     }
+
+    // Validate file size (max 750KB to account for base64 encoding overhead)
+    // Base64 encoding adds ~33% overhead, so 750KB becomes ~1MB when encoded
+    // This ensures we stay under Convex's 1MB document size limit
+    const MAX_FILE_SIZE = 750 * 1024; // 750KB in bytes
+    if (file.size > MAX_FILE_SIZE) {
+      const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+      setError(`File is too large (${fileSizeMB}MB)`);
+      return;
+    }
+
+    // Clear any previous errors
+    setError(null);
+    setSelectedFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleUpload = async () => {
     if (!selectedFile) return;
 
     setIsUploading(true);
+    setError(null);
     try {
       await onAvatarChange(selectedFile);
       setOpen(false);
       setPreview(null);
       setSelectedFile(null);
+      setError(null);
     } catch (error) {
       console.error("Failed to upload avatar:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to upload avatar. Please try again.";
+      setError(errorMessage);
     } finally {
       setIsUploading(false);
     }
@@ -68,6 +93,7 @@ export function AvatarUpload({
   const handleCancel = () => {
     setPreview(null);
     setSelectedFile(null);
+    setError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -102,11 +128,15 @@ export function AvatarUpload({
           )}
         </button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent
+        className="sm:max-w-md"
+        onOpenAutoFocus={() => setError(null)}
+      >
         <DialogHeader>
           <DialogTitle>Change Avatar</DialogTitle>
           <DialogDescription>
-            Upload a new profile picture. Recommended size: 400x400px.
+            Upload a new profile picture. Recommended size: 400x400px. Maximum
+            file size: 750KB.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col items-center gap-4 py-4">
@@ -151,6 +181,7 @@ export function AvatarUpload({
           {selectedFile && (
             <p className="text-sm text-muted-foreground">{selectedFile.name}</p>
           )}
+          {error && <p className="text-sm text-destructive mt-2">{error}</p>}
         </div>
         <DialogFooter>
           <Button
