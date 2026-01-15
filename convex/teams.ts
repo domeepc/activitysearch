@@ -272,6 +272,7 @@ export const getTeamMessages = query({
         isFromCurrentUser: msg.senderId === currentUser._id,
         readBy: msg.readBy || [],
         status,
+        encrypted: msg.encrypted || false,
       };
     });
 
@@ -291,9 +292,10 @@ export const getTeamMessages = query({
 export const sendTeamMessage = mutation({
   args: {
     teamId: v.id("teams"),
-    text: v.string(),
+    text: v.optional(v.string()),
+    encryptedText: v.optional(v.string()),
   },
-  handler: async (ctx, { teamId, text }) => {
+  handler: async (ctx, { teamId, text, encryptedText }) => {
     const currentUser = await getCurrentUserOrThrow(ctx);
 
     // Verify user is part of the team
@@ -306,13 +308,21 @@ export const sendTeamMessage = mutation({
       throw new Error("You are not a member of this team");
     }
 
+    // Validate message - must have either text or encryptedText
+    const messageText = encryptedText || text;
+    if (!messageText || !messageText.trim()) {
+      throw new Error("Message cannot be empty");
+    }
+
     const timestamp = Date.now();
+    const isEncrypted = !!encryptedText;
 
     await ctx.db.insert("groupMessages", {
       teamId,
       senderId: currentUser._id,
-      text,
+      text: messageText.trim(),
       timestamp,
+      encrypted: isEncrypted ? true : undefined,
     });
 
     return { success: true };
@@ -571,6 +581,7 @@ export const getTeamMessagesBySlug = query({
         isFromCurrentUser: msg.senderId === currentUser._id,
         readBy: msg.readBy || [],
         status,
+        encrypted: msg.encrypted || false,
       };
     });
 
@@ -624,6 +635,44 @@ export const markTeamConversationAsRead = mutation({
         }
       }
     }
+
+    return { success: true };
+  },
+});
+
+export const migrateTeamMessageToEncrypted = mutation({
+  args: {
+    messageId: v.id("groupMessages"),
+    encryptedText: v.string(),
+  },
+  handler: async (ctx, { messageId, encryptedText }) => {
+    const currentUser = await getCurrentUserOrThrow(ctx);
+    const message = await ctx.db.get(messageId);
+
+    if (!message) {
+      throw new Error("Message not found");
+    }
+
+    // Verify user is part of the team
+    const team = await ctx.db.get(message.teamId);
+    if (!team) {
+      throw new Error("Team not found");
+    }
+
+    if (!team.teammates.includes(currentUser._id)) {
+      throw new Error("You are not a member of this team");
+    }
+
+    // Only migrate if not already encrypted
+    if (message.encrypted) {
+      return { success: true, alreadyEncrypted: true };
+    }
+
+    // Update message with encrypted text
+    await ctx.db.patch(messageId, {
+      text: encryptedText,
+      encrypted: true,
+    });
 
     return { success: true };
   },

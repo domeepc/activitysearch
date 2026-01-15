@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Id } from "@/convex/_generated/dataModel";
 import { usePresence } from "@/lib/hooks/usePresence";
 
@@ -14,15 +15,29 @@ interface StatusDotProps {
   className?: string;
 }
 
-export function StatusDot({ userId, lastActive, className = "" }: StatusDotProps) {
+export function StatusDot({
+  userId,
+  lastActive,
+  className = "",
+}: StatusDotProps) {
   // Use Ably presence if userId is provided, otherwise fallback to lastActive
   const { presence } = usePresence(userId?.toString());
-  
+  const [now, setNow] = useState(() => Date.now());
+
+  // Update current time periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 30000); // Update every 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Determine if user is active
   const isActive = presence
     ? presence.status === "online"
     : lastActive
-    ? Date.now() - lastActive < 2 * 60 * 1000
+    ? now - lastActive < 2 * 60 * 1000
     : false;
 
   return (
@@ -37,22 +52,31 @@ export function StatusDot({ userId, lastActive, className = "" }: StatusDotProps
 export function ActiveStatus({ userId, lastActive }: ActiveStatusProps) {
   // Use Ably presence for real-time status
   const { presence } = usePresence(userId.toString());
-  
+  const [now, setNow] = useState(() => Date.now());
+
+  // Update current time periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 30000); // Update every 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Determine if user is active (use Ably presence or fallback to lastActive)
   const isActive = presence
     ? presence.status === "online"
     : lastActive
-    ? Date.now() - lastActive < 2 * 60 * 1000
+    ? now - lastActive < 2 * 60 * 1000
     : false;
-  
+
   // Use presence lastSeen or fallback to lastActive
   const lastSeenTimestamp = presence?.lastSeen || lastActive;
 
   // Format last active time
   const formatLastActive = (timestamp?: number) => {
     if (!timestamp) return "Never";
-    
-    const now = Date.now();
+
     const diff = now - timestamp;
     const seconds = Math.floor(diff / 1000);
     const minutes = Math.floor(seconds / 60);
@@ -63,7 +87,7 @@ export function ActiveStatus({ userId, lastActive }: ActiveStatusProps) {
     if (minutes < 60) return `${minutes}m ago`;
     if (hours < 24) return `${hours}h ago`;
     if (days < 7) return `${days}d ago`;
-    
+
     return new Date(timestamp).toLocaleDateString();
   };
 

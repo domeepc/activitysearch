@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import {
@@ -123,8 +123,8 @@ export function TeamInviteDialog({
             <Label>Select Friends to Invite</Label>
             {availableFriends.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                All your friends are already in this team, or you don't have
-                any friends yet.
+                All your friends are already in this team, or you don&apos;t
+                have any friends yet.
               </p>
             ) : (
               <div className="max-h-60 overflow-y-auto border rounded-md p-2 space-y-2">
@@ -163,10 +163,7 @@ export function TeamInviteDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            onClick={handleInvite}
-            disabled={selectedFriends.size === 0}
-          >
+          <Button onClick={handleInvite} disabled={selectedFriends.size === 0}>
             Invite {selectedFriends.size > 0 && `(${selectedFriends.size})`}
           </Button>
         </DialogFooter>

@@ -27,7 +27,7 @@ export function ChatInput({ onSend, disabled = false }: ChatInputProps) {
   };
 
   return (
-    <div className="border-t p-4 shrink-0 bg-background">
+    <div className="border-t border-gray-300 p-4 shrink-0 bg-background">
       <div className="flex gap-2">
         <Textarea
           value={messageText}

@@ -1,12 +1,21 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useRef,
+  startTransition,
+  ReactNode,
+} from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { getAblyClient } from "@/lib/presence/ablyClient";
+import { Realtime } from "ably";
 
 interface PresenceContextType {
-  client: any; // Ably.Realtime type
+  client: Realtime | null;
   isConnected: boolean;
   userId: string | undefined;
 }
@@ -27,43 +36,63 @@ interface PresenceProviderProps {
 
 export function PresenceProvider({ children }: PresenceProviderProps) {
   const currentUser = useQuery(api.users.current);
-  const [client, setClient] = useState<any>(null);
+  const [client, setClient] = useState<Realtime | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const userId = currentUser?._id;
+  const prevUserIdRef = useRef(userId);
 
   useEffect(() => {
-    if (!userId) {
-      setClient(null);
-      setIsConnected(false);
+    // Reset state only when userId changes from valid to null
+    if (!userId && prevUserIdRef.current) {
+      startTransition(() => {
+        setClient(null);
+        setIsConnected(false);
+      });
+      prevUserIdRef.current = userId;
       return;
     }
 
+    if (!userId) {
+      prevUserIdRef.current = userId;
+      return;
+    }
+
+    prevUserIdRef.current = userId;
     let mounted = true;
+    let cleanupClient: (() => void) | undefined;
 
     // Initialize Ably client asynchronously
     getAblyClient(userId.toString()).then((ablyClient) => {
       if (!mounted || !ablyClient) {
-        setClient(null);
-        setIsConnected(false);
+        startTransition(() => {
+          setClient(null);
+          setIsConnected(false);
+        });
         return;
       }
 
       // Set up connection event handlers
       const handleConnected = () => {
         if (mounted) {
-          setIsConnected(true);
+          startTransition(() => {
+            setIsConnected(true);
+          });
         }
       };
 
       const handleDisconnected = () => {
         if (mounted) {
-          setIsConnected(false);
+          startTransition(() => {
+            setIsConnected(false);
+          });
         }
       };
 
       const handleClosed = () => {
         if (mounted) {
-          setIsConnected(false);
+          startTransition(() => {
+            setIsConnected(false);
+          });
         }
       };
 
@@ -73,12 +102,18 @@ export function PresenceProvider({ children }: PresenceProviderProps) {
 
       // Check if already connected
       if (ablyClient.connection.state === "connected") {
-        setIsConnected(true);
+        startTransition(() => {
+          setIsConnected(true);
+        });
       }
 
       setClient(ablyClient);
 
-      return () => {
+      cleanupClient = () => {
+        startTransition(() => {
+          setClient(null);
+          setIsConnected(false);
+        });
         ablyClient.connection.off("connected", handleConnected);
         ablyClient.connection.off("disconnected", handleDisconnected);
         ablyClient.connection.off("closed", handleClosed);
@@ -87,11 +122,14 @@ export function PresenceProvider({ children }: PresenceProviderProps) {
 
     return () => {
       mounted = false;
+      cleanupClient?.();
     };
   }, [userId]);
 
   return (
-    <PresenceContext.Provider value={{ client, isConnected, userId: userId?.toString() }}>
+    <PresenceContext.Provider
+      value={{ client, isConnected, userId: userId?.toString() }}
+    >
       {children}
     </PresenceContext.Provider>
   );

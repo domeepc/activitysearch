@@ -2,7 +2,7 @@
 
 import { useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ChatView } from "@/components/chat/ChatView";
 
@@ -19,9 +19,6 @@ export default function IndividualChatPage({
   const messagesData = useQuery(api.messages.getMessagesByConversationSlug, {
     slug,
   });
-  const markConversationAsRead = useMutation(
-    api.messages.markConversationAsRead
-  );
 
   // Redirect to chat list if conversation not found (e.g., friend was removed)
   useEffect(() => {
@@ -29,26 +26,6 @@ export default function IndividualChatPage({
       router.push("/chat");
     }
   }, [messagesData, router]);
-
-  // Mark messages as read when viewing
-  useEffect(() => {
-    const otherUserId = messagesData?.otherUser?._id;
-    if (!otherUserId || !messagesData.messages.length) {
-      return;
-    }
-
-    const markAsRead = async () => {
-      try {
-        await markConversationAsRead({
-          otherUserId,
-        });
-      } catch (error) {
-        console.error("Failed to mark messages as read:", error);
-      }
-    };
-
-    markAsRead();
-  }, [messagesData?.otherUser?._id, messagesData?.messages.length, markConversationAsRead]);
 
   if (messagesData === undefined) {
     return (
@@ -79,6 +56,7 @@ export default function IndividualChatPage({
       | "delivered"
       | "read"
       | undefined,
+    encrypted: msg.encrypted || false,
   }));
 
   return (

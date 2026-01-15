@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { useMutation } from "convex/react";
+import { useEffect, useRef, useState, useMemo } from "react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { MessageBubble } from "./MessageBubble";
 import { ChatHeader } from "./ChatHeader";
 import { ChatInput } from "./ChatInput";
 import { useUpdatePresence } from "@/lib/hooks/usePresence";
+import { useEncryptionWithUser } from "@/lib/hooks/useEncryption";
+import { Lock } from "lucide-react";
 
 interface ChatViewProps {
   type: "individual" | "team";
@@ -21,6 +23,7 @@ interface ChatViewProps {
     senderName?: string;
     senderAvatar?: string;
     status?: "sent" | "delivered" | "read";
+    encrypted?: boolean;
   }>;
   otherUser?: {
     name: string;
@@ -50,7 +53,134 @@ export function ChatView({
   const markTeamConversationAsRead = useMutation(
     api.teams.markTeamConversationAsRead
   );
+  const migrateMessageToEncrypted = useMutation(
+    api.messages.migrateMessageToEncrypted
+  );
+  const migrateTeamMessageToEncrypted = useMutation(
+    api.teams.migrateTeamMessageToEncrypted
+  );
   const { updatePresence } = useUpdatePresence();
+
+  // Get current user for encryption
+  const currentUser = useQuery(api.users.current);
+  const currentUserId = currentUser?._id;
+
+  // Initialize encryption
+  const {
+    encryptMessage,
+    decryptMessage,
+    isEncryptionReady,
+    isEncryptionAvailable,
+    encryptionError,
+  } = useEncryptionWithUser({
+    currentUserId,
+    otherUserId: individualUserId,
+    teamId,
+  });
+
+  // Decrypt messages
+  const [decryptedMessages, setDecryptedMessages] = useState<
+    Array<{
+      _id: string;
+      text: string;
+      timestamp: number;
+      isFromCurrentUser: boolean;
+      senderName?: string;
+      senderAvatar?: string;
+      status?: "sent" | "delivered" | "read";
+      decryptionError?: boolean;
+    }>
+  >([]);
+
+  // Decrypt messages when they change and migrate unencrypted messages
+  useEffect(() => {
+    const decryptAllMessages = async () => {
+      if (!isEncryptionReady && isEncryptionAvailable) {
+        // Encryption not ready yet, show encrypted placeholder
+        setDecryptedMessages(
+          messages.map((msg) => ({
+            ...msg,
+            text: msg.encrypted ? "Decrypting..." : msg.text,
+          }))
+        );
+        return;
+      }
+
+      const decrypted = await Promise.all(
+        messages.map(async (msg) => {
+          if (msg.encrypted && isEncryptionAvailable) {
+            try {
+              const decryptedText = await decryptMessage(msg.text, true);
+              return {
+                ...msg,
+                text: decryptedText,
+                decryptionError: false,
+              };
+            } catch (error) {
+              console.error("Failed to decrypt message:", error);
+              return {
+                ...msg,
+                text: "Unable to decrypt this message",
+                decryptionError: true,
+              };
+            }
+          } else {
+            // Message is not encrypted - migrate it if encryption is available
+            if (isEncryptionAvailable && isEncryptionReady && !msg.encrypted) {
+              try {
+                // Encrypt the message
+                const encryptedText = await encryptMessage(msg.text);
+
+                // Migrate to encrypted in background (don't wait for it)
+                if (type === "individual" && individualUserId) {
+                  migrateMessageToEncrypted({
+                    messageId: msg._id as Id<"messages">,
+                    encryptedText,
+                  }).catch((error) => {
+                    console.error("Failed to migrate message:", error);
+                  });
+                } else if (type === "team" && teamId) {
+                  migrateTeamMessageToEncrypted({
+                    messageId: msg._id as Id<"groupMessages">,
+                    encryptedText,
+                  }).catch((error) => {
+                    console.error("Failed to migrate team message:", error);
+                  });
+                }
+              } catch (error) {
+                console.error(
+                  "Failed to encrypt message for migration:",
+                  error
+                );
+                // Continue with unencrypted text
+              }
+            }
+
+            return {
+              ...msg,
+              text: msg.text,
+              decryptionError: false,
+            };
+          }
+        })
+      );
+
+      setDecryptedMessages(decrypted);
+    };
+
+    decryptAllMessages();
+  }, [
+    messages,
+    isEncryptionReady,
+    isEncryptionAvailable,
+    decryptMessage,
+    encryptMessage,
+    type,
+    individualUserId,
+    teamId,
+    migrateMessageToEncrypted,
+    migrateTeamMessageToEncrypted,
+  ]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -91,15 +221,28 @@ export function ChatView({
 
   const handleSend = async (text: string) => {
     try {
+      // Encrypt message if encryption is available and ready
+      const messageText = text;
+      let encryptedText: string | undefined;
+
+      if (isEncryptionAvailable && isEncryptionReady) {
+        try {
+          encryptedText = await encryptMessage(text);
+        } catch (error) {
+          console.error("Failed to encrypt message:", error);
+          // Fallback to unencrypted if encryption fails
+        }
+      }
+
       if (type === "individual" && individualUserId) {
         await sendMessage({
           receiverId: individualUserId,
-          text,
+          ...(encryptedText ? { encryptedText } : { text: messageText }),
         });
       } else if (type === "team" && teamId) {
         await sendTeamMessage({
           teamId,
-          text,
+          ...(encryptedText ? { encryptedText } : { text: messageText }),
         });
       }
       // Update presence when message is sent
@@ -125,14 +268,22 @@ export function ChatView({
       />
 
       {/* Messages - Scrollable */}
-      <div className="flex-1 overflow-y-auto p-4 min-h-0 bg-gray-200">
+      <div className="flex-1 overflow-y-auto p-4 min-h-0 bg-gray-200 relative">
+        {/* E2E Encryption Indicator */}
+        {isEncryptionAvailable && (
+          <div className="cursor-default select-none absolute bottom-8 left-1/2 transform -translate-x-1/2 flex items-center gap-1.5 text-xs text-muted-foreground/60 bg-background/80 px-2 py-1 rounded-full backdrop-blur-sm">
+            <Lock className="h-3 w-3" />
+            <span>End-to-end encrypted</span>
+          </div>
+        )}
+
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full text-muted-foreground">
             <p>No messages yet. Start the conversation!</p>
           </div>
         ) : (
           <div>
-            {messages.map((message, index) => (
+            {decryptedMessages.map((message, index) => (
               <MessageBubble
                 key={message._id}
                 text={message.text}
@@ -143,8 +294,9 @@ export function ChatView({
                 showSenderName={type === "team"}
                 status={message.status}
                 previousTimestamp={
-                  index > 0 ? messages[index - 1].timestamp : undefined
+                  index > 0 ? decryptedMessages[index - 1].timestamp : undefined
                 }
+                decryptionError={message.decryptionError}
               />
             ))}
             <div ref={messagesEndRef} />

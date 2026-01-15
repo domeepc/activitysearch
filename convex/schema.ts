@@ -82,6 +82,7 @@ export default defineSchema({
     receiverId: v.id("users"),
     timestamp: v.number(),
     readBy: v.optional(v.array(v.id("users"))),
+    encrypted: v.optional(v.boolean()),
   })
     .index("byConversation", ["senderId", "receiverId"])
     .index("byReceiver", ["receiverId"]),
@@ -91,6 +92,7 @@ export default defineSchema({
     teamId: v.id("teams"),
     timestamp: v.number(),
     readBy: v.optional(v.array(v.id("users"))),
+    encrypted: v.optional(v.boolean()),
   }).index("byTeam", ["teamId"]),
   activities: defineTable({
     activityName: v.string(),

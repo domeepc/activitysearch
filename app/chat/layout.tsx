@@ -75,11 +75,13 @@ export default function ChatLayout({
 
   const chatInfo = getCurrentChatInfo();
 
-  const handleSelectIndividual = (slug: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
+  const handleSelectIndividual = (_slug: string) => {
     // Navigation will be handled by ConversationList using router
   };
 
-  const handleSelectTeam = (slug: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
+  const handleSelectTeam = (_slug: string) => {
     // Navigation will be handled by ConversationList using router
   };
 
@@ -107,9 +109,18 @@ export default function ChatLayout({
     );
   }
 
+  // On mobile: show list only when on /chat, show chat view only when in a conversation
+  // On desktop: always show side-by-side layout
+  const isOnChatListPage = pathname === "/chat";
+
   return (
-    <div className="flex h-[calc(100vh-64px)] overflow-hidden">
-      <div className="w-80 shrink-0 overflow-hidden flex flex-col">
+    <div className="flex h-[calc(100vh-72px)] md:h-[calc(100vh-80px)] overflow-hidden">
+      {/* Conversation List - Desktop: always visible, Mobile: only on /chat */}
+      <div
+        className={`${
+          isOnChatListPage ? "block" : "hidden"
+        } md:block w-full md:w-80 shrink-0 overflow-hidden flex flex-col`}
+      >
         <ConversationList
           currentChatType={chatInfo.type}
           currentChatSlug={chatInfo.slug}
@@ -120,7 +131,12 @@ export default function ChatLayout({
           onInviteToTeam={handleInviteToTeam}
         />
       </div>
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      {/* Chat View - Desktop: always visible, Mobile: only when in conversation */}
+      <div
+        className={`${
+          !isOnChatListPage ? "block" : "hidden"
+        } md:block flex-1 flex flex-col min-h-0 overflow-hidden`}
+      >
         {children}
       </div>
       <CreateTeamDialog

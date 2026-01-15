@@ -2,7 +2,7 @@
 
 import { useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ChatView } from "@/components/chat/ChatView";
 
@@ -18,9 +18,6 @@ export default function TeamChatPage({
   const messagesData = useQuery(api.teams.getTeamMessagesBySlug, {
     slug,
   });
-  const markTeamConversationAsRead = useMutation(
-    api.teams.markTeamConversationAsRead
-  );
 
   // Redirect to chat list if team not found or user is no longer a member
   useEffect(() => {
@@ -28,25 +25,6 @@ export default function TeamChatPage({
       router.push("/chat");
     }
   }, [messagesData, router]);
-
-  // Mark messages as read when viewing
-  useEffect(() => {
-    const markAsRead = async () => {
-      if (messagesData?.team) {
-        try {
-          await markTeamConversationAsRead({
-            teamId: messagesData.team._id,
-          });
-        } catch (error) {
-          console.error("Failed to mark messages as read:", error);
-        }
-      }
-    };
-
-    if (messagesData && messagesData.messages.length > 0) {
-      markAsRead();
-    }
-  }, [messagesData, markTeamConversationAsRead]);
 
   if (messagesData === undefined) {
     return (
@@ -77,6 +55,7 @@ export default function TeamChatPage({
       : undefined,
     senderAvatar: msg.sender?.avatar,
     status: msg.status,
+    encrypted: msg.encrypted || false,
   }));
 
   return (

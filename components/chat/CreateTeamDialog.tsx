@@ -100,6 +100,7 @@ export function CreateTeamDialog({
             <Label htmlFor="teamDescription">Description (optional)</Label>
             <Textarea
               id="teamDescription"
+              className="resize-none"
               value={teamDescription}
               onChange={(e) => setTeamDescription(e.target.value)}
               placeholder="Enter team description"
@@ -109,10 +110,13 @@ export function CreateTeamDialog({
           <div className="space-y-2">
             <Label>Select Friends</Label>
             {friends === undefined ? (
-              <p className="text-sm text-muted-foreground">Loading friends...</p>
+              <p className="text-sm text-muted-foreground">
+                Loading friends...
+              </p>
             ) : friends.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                You don't have any friends yet. Add friends to create a team.
+                You don&apos;t have any friends yet. Add friends to create a
+                team.
               </p>
             ) : (
               <div className="max-h-60 overflow-y-auto border rounded-md p-2 space-y-2">

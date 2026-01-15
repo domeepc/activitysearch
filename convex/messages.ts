@@ -15,9 +15,10 @@ function generateSecureHash(): string {
 export const sendMessage = mutation({
   args: {
     receiverId: v.id("users"),
-    text: v.string(),
+    text: v.optional(v.string()),
+    encryptedText: v.optional(v.string()),
   },
-  handler: async (ctx, { receiverId, text }) => {
+  handler: async (ctx, { receiverId, text, encryptedText }) => {
     const sender = await getCurrentUserOrThrow(ctx);
 
     if (sender._id === receiverId) {
@@ -40,12 +41,14 @@ export const sendMessage = mutation({
       throw new Error("You have been blocked by this user");
     }
 
-    // Validate message text
-    if (!text.trim()) {
+    // Validate message - must have either text or encryptedText
+    const messageText = encryptedText || text;
+    if (!messageText || !messageText.trim()) {
       throw new Error("Message cannot be empty");
     }
 
     const timestamp = Date.now();
+    const isEncrypted = !!encryptedText;
 
     // Ensure conversation exists with secure hash slug
     const userIds = [sender._id, receiverId].sort((a, b) => a.localeCompare(b));
@@ -89,8 +92,9 @@ export const sendMessage = mutation({
     await ctx.db.insert("messages", {
       senderId: sender._id,
       receiverId,
-      text: text.trim(),
+      text: messageText.trim(),
       timestamp,
+      encrypted: isEncrypted ? true : undefined,
     });
 
     return { success: true, conversationSlug };
@@ -104,21 +108,11 @@ export const getConversations = query({
     const blocked = currentUser.blocked || [];
     const friends = currentUser.friends || [];
 
-    // Get all messages where current user is receiver (using index)
-    const receivedMessages = await ctx.db
-      .query("messages")
-      .withIndex("byReceiver", (q) => q.eq("receiverId", currentUser._id))
-      .collect();
+    // Filter out blocked users from friends list
+    const validFriends = friends.filter((friendId) => !blocked.includes(friendId));
 
-    // Get messages where current user is sender (no index available, must use filter)
-    // Note: This could be optimized with a senderId index in the schema
-    const sentMessages = await ctx.db
-      .query("messages")
-      .filter((q) => q.eq(q.field("senderId"), currentUser._id))
-      .collect();
-
-    // Process messages efficiently: track only the last message per conversation
-    const conversationPartners = new Set<string>();
+    // Use the byConversation index to efficiently get the last message per friend
+    // This is more efficient than fetching all messages
     const lastMessages: Map<
       string,
       {
@@ -129,40 +123,46 @@ export const getConversations = query({
       }
     > = new Map();
 
-    // Process all messages once, keeping only the most recent per conversation
-    for (const msg of [...sentMessages, ...receivedMessages]) {
-      const partnerId =
-        msg.senderId === currentUser._id ? msg.receiverId : msg.senderId;
+    // For each friend, get messages in both directions and find the most recent
+    for (const friendId of validFriends) {
+      // Get messages sent by current user to friend
+      const sentToFriend = await ctx.db
+        .query("messages")
+        .withIndex("byConversation", (q) =>
+          q.eq("senderId", currentUser._id).eq("receiverId", friendId)
+        )
+        .collect();
 
-      // Skip blocked users early to avoid unnecessary processing
-      if (blocked.includes(partnerId)) {
-        continue;
-      }
+      // Get messages received from friend
+      const receivedFromFriend = await ctx.db
+        .query("messages")
+        .withIndex("byConversation", (q) =>
+          q.eq("senderId", friendId).eq("receiverId", currentUser._id)
+        )
+        .collect();
 
-      // Skip non-friends (only show conversations with friends)
-      if (!friends.includes(partnerId)) {
-        continue;
-      }
+      // Find the most recent message in this conversation
+      const allMessages = [...sentToFriend, ...receivedFromFriend];
+      if (allMessages.length > 0) {
+        const lastMessage = allMessages.reduce((latest, msg) =>
+          msg.timestamp > latest.timestamp ? msg : latest
+        );
 
-      const partnerIdStr = partnerId.toString();
-      conversationPartners.add(partnerIdStr);
-
-      // Update last message if this one is more recent
-      const existing = lastMessages.get(partnerIdStr);
-      if (!existing || existing.timestamp < msg.timestamp) {
-        lastMessages.set(partnerIdStr, {
-          text: msg.text,
-          timestamp: msg.timestamp,
-          senderId: msg.senderId,
-          readBy: msg.readBy,
+        lastMessages.set(friendId.toString(), {
+          text: lastMessage.text,
+          timestamp: lastMessage.timestamp,
+          senderId: lastMessage.senderId,
+          readBy: lastMessage.readBy,
         });
       }
     }
 
-    // Batch fetch all partner users at once
-    const partnerIds = Array.from(conversationPartners).map(
+    // Get partner IDs that have messages (conversations)
+    const partnerIds = Array.from(lastMessages.keys()).map(
       (idStr) => idStr as typeof currentUser._id
     );
+
+    // Batch fetch all partner users at once
     const partners = await Promise.all(
       partnerIds.map((id) => ctx.db.get(id))
     );
@@ -190,7 +190,7 @@ export const getConversations = query({
       conversationMap.set(otherUserId.toString(), conv.slug);
     }
 
-    // Build conversations array
+    // Build conversations array - only include friends with messages
     const conversations = partnerIds
       .map((partnerId) => {
         const partner = partnerMap.get(partnerId.toString());
@@ -289,6 +289,7 @@ export const getMessages = query({
           isFromCurrentUser: msg.senderId === currentUser._id,
           readBy: msg.readBy || [],
           status,
+          encrypted: msg.encrypted || false,
         };
       }),
       otherUser: {
@@ -421,6 +422,7 @@ export const getMessagesByConversationSlug = query({
           isFromCurrentUser: msg.senderId === currentUser._id,
           readBy: msg.readBy || [],
           status,
+          encrypted: msg.encrypted || false,
         };
       }),
       otherUser: {
@@ -517,6 +519,42 @@ export const markConversationAsRead = mutation({
         });
       }
     }
+
+    return { success: true };
+  },
+});
+
+export const migrateMessageToEncrypted = mutation({
+  args: {
+    messageId: v.id("messages"),
+    encryptedText: v.string(),
+  },
+  handler: async (ctx, { messageId, encryptedText }) => {
+    const currentUser = await getCurrentUserOrThrow(ctx);
+    const message = await ctx.db.get(messageId);
+
+    if (!message) {
+      throw new Error("Message not found");
+    }
+
+    // Verify user has access to this message
+    const isSender = message.senderId === currentUser._id;
+    const isReceiver = message.receiverId === currentUser._id;
+
+    if (!isSender && !isReceiver) {
+      throw new Error("You do not have access to this message");
+    }
+
+    // Only migrate if not already encrypted
+    if (message.encrypted) {
+      return { success: true, alreadyEncrypted: true };
+    }
+
+    // Update message with encrypted text
+    await ctx.db.patch(messageId, {
+      text: encryptedText,
+      encrypted: true,
+    });
 
     return { success: true };
   },

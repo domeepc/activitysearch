@@ -5,7 +5,6 @@ import { useQuery, useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { usePresenceList } from "@/lib/hooks/usePresence";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +30,7 @@ import {
   Ban,
   LogOut,
   Trash2,
+  UserRoundPlus,
 } from "lucide-react";
 
 interface ConversationListProps {
@@ -114,16 +114,6 @@ export function ConversationList({
       ? { userIds: currentUser.friends }
       : "skip"
   );
-
-  // Get presence for all users in conversations and friends list
-  const allUserIds = useMemo(() => {
-    const userIds = new Set<string>();
-    conversations?.forEach((conv) => userIds.add(conv.userId.toString()));
-    allFriends?.forEach((friend) => userIds.add(friend._id.toString()));
-    return Array.from(userIds);
-  }, [conversations, allFriends]);
-
-  const { presences } = usePresenceList(allUserIds);
 
   // Friends without conversations
   const friendsWithoutConversations = useMemo(() => {
@@ -229,7 +219,7 @@ export function ConversationList({
   const organiserCount = filteredOrganisersList.length;
 
   return (
-    <div className="flex flex-col h-full py-4 border-r overflow-hidden bg-white">
+    <div className="flex flex-col h-full py-4 border-r-0 md:border-r border-t border-gray-300 overflow-hidden bg-white">
       {/* Search Bar */}
       <div className="px-4 mb-4">
         <div className="relative">
@@ -248,25 +238,27 @@ export function ConversationList({
       <div className="flex-1 overflow-y-auto px-4">
         {/* Friends Section */}
         <div className="mb-4">
-          <div className="mb-4 bg-cyan-100 p-2 rounded-lg text-sm font-semibold text-foreground flex items-center justify-between">
-            <span>Friends {friendCount}</span>
-            {onAddFriend && filteredFriendsList.length > 0 && (
-              <button
-                onClick={onAddFriend}
-                className="h-6 w-6 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors shrink-0"
-                title="Add friend"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-            )}
-          </div>
+          {(!searchQuery.trim() || filteredFriendsList.length > 0) && (
+            <div className="mb-4 bg-cyan-100 p-2 rounded-lg text-sm font-semibold text-foreground flex items-center justify-between">
+              <span>Friends {!searchQuery.trim() && friendCount}</span>
+              {!searchQuery.trim() &&
+                onAddFriend &&
+                filteredFriendsList.length > 0 && (
+                  <button
+                    onClick={onAddFriend}
+                    className="h-6 w-6 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors shrink-0"
+                    title="Add friend"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                )}
+            </div>
+          )}
           {filteredFriendsList.length > 0 && (
             <>
               {filteredFriendsList.map((friend) => {
                 const conversationSlug = friend.conversationSlug;
-                const isSelected =
-                  currentChatType === "individual" &&
-                  currentChatSlug === conversationSlug;
+                const isSelected = currentChatSlug === conversationSlug;
                 return (
                   <div
                     key={friend._id.toString()}
@@ -291,7 +283,7 @@ export function ConversationList({
                     }}
                     className={cn(
                       "w-full px-4 py-2 bg-gray-200 cursor-pointer mb-4 hover:bg-blue-200 transition-colors text-left flex items-center gap-3 rounded-lg",
-                      isSelected && "bg-blue-200"
+                      isSelected && "bg-blue-100 border-2 border-blue-500"
                     )}
                   >
                     <div className="relative shrink-0">
@@ -333,8 +325,8 @@ export function ConversationList({
                             asChild
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <button className="h-6 w-6 flex items-center justify-center rounded hover:bg-gray-300">
-                              <MoreVertical className="h-4 w-4" />
+                            <button className="h-6 w-6 flex items-center justify-center rounded transition-colors hover:bg-blue-300 cursor-pointer">
+                              <MoreVertical className="h-4 w-4 " />
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
@@ -378,23 +370,25 @@ export function ConversationList({
             </>
           )}
 
-          {/* Add Friend Button - Only show if no friends */}
-          {filteredFriendsList.length === 0 && onAddFriend && (
-            <div className="mt-4 py-2 mb-4">
-              <Button
-                onClick={onAddFriend}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white"
-                size="sm"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="h-5 w-5 rounded-full bg-white/20 flex items-center justify-center">
-                    <Plus className="h-3 w-3" />
+          {/* Add Friend Button - Only show if no friends and not searching */}
+          {filteredFriendsList.length === 0 &&
+            onAddFriend &&
+            !searchQuery.trim() && (
+              <div className="mt-4 py-2 mb-4">
+                <Button
+                  onClick={onAddFriend}
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+                  size="sm"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="h-5 w-5 rounded-full bg-white/20 flex items-center justify-center">
+                      <Plus className="h-3 w-3" />
+                    </div>
+                    <span>Add friend</span>
                   </div>
-                  <span>Add friend</span>
-                </div>
-              </Button>
-            </div>
-          )}
+                </Button>
+              </div>
+            )}
         </div>
 
         {/* Organisers Section */}
@@ -402,7 +396,7 @@ export function ConversationList({
           {filteredOrganisersList.length > 0 && (
             <>
               <div className="mb-4 text-sm font-semibold text-foreground flex items-center justify-between mt-4">
-                <span>Organisers {organiserCount}</span>
+                <span>Organisers {!searchQuery.trim() && organiserCount}</span>
               </div>
               {filteredOrganisersList.map((organiser) => {
                 const conversationSlug = organiser.conversationSlug;
@@ -432,8 +426,8 @@ export function ConversationList({
                       onSelectIndividual(slug);
                     }}
                     className={cn(
-                      "w-full px-4 py-2 bg-gray-200 hover:bg-blue-200 transition-colors text-left flex items-center gap-3 rounded-lg",
-                      isSelected && "bg-blue-200"
+                      "w-full px-4 py-2 bg-gray-200 hover:bg-blue-200 transition-colors text-left flex items-center gap-3 rounded-lg cursor-pointer mb-4",
+                      isSelected && "bg-blue-300 border-2 border-blue-500"
                     )}
                   >
                     <div className="relative shrink-0">
@@ -478,8 +472,8 @@ export function ConversationList({
                             asChild
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <button className="h-6 w-6 flex items-center justify-center rounded hover:bg-gray-300">
-                              <MoreVertical className="h-4 w-4" />
+                            <button className="h-6 w-6 flex items-center justify-center rounded transition-colors hover:bg-blue-300 cursor-pointer">
+                              <MoreVertical className="h-4 w-4 " />
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
@@ -525,23 +519,28 @@ export function ConversationList({
         </div>
         {/* Teams Section */}
         <div className="mb-4">
-          <div className="mb-4 bg-cyan-100 p-2 rounded-lg text-sm font-semibold text-foreground flex items-center justify-between">
-            <span>Teams</span>
-            {filteredTeams && filteredTeams.length > 0 && onCreateTeam && (
-              <button
-                onClick={onCreateTeam}
-                className="h-6 w-6 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors shrink-0"
-                title="Create team"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-            )}
-          </div>
+          {(!searchQuery.trim() ||
+            (filteredTeams && filteredTeams.length > 0)) && (
+            <div className="mb-4 bg-cyan-100 p-2 rounded-lg text-sm font-semibold text-foreground flex items-center justify-between">
+              <span>Teams</span>
+              {!searchQuery.trim() &&
+                filteredTeams &&
+                filteredTeams.length > 0 &&
+                onCreateTeam && (
+                  <button
+                    onClick={onCreateTeam}
+                    className="h-6 w-6 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors shrink-0"
+                    title="Create team"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                )}
+            </div>
+          )}
           {filteredTeams && filteredTeams.length > 0 && (
             <>
               {filteredTeams.map((team) => {
-                const isSelected =
-                  currentChatType === "team" && currentChatSlug === team.slug;
+                const isSelected = currentChatSlug === team.slug;
                 return (
                   <div
                     key={team._id.toString()}
@@ -551,7 +550,7 @@ export function ConversationList({
                     }}
                     className={cn(
                       "w-full px-4 py-2 mb-4 bg-gray-200 hover:bg-blue-200 transition-colors flex items-center gap-3 rounded-lg cursor-pointer",
-                      isSelected && "bg-blue-200"
+                      isSelected && "bg-blue-100 border-2 border-blue-500"
                     )}
                   >
                     <div className="relative shrink-0">
@@ -595,10 +594,10 @@ export function ConversationList({
                               e.stopPropagation();
                               onInviteToTeam(team.slug);
                             }}
-                            className="h-8 w-8 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors shrink-0"
+                            className="h-6 w-6 cursor-pointer rounded text-blue-600 hover:bg-blue-300  flex items-center justify-center transition-colors shrink-0"
                             title="Invite friends"
                           >
-                            <Plus className="h-4 w-4" />
+                            <UserRoundPlus className="h-4 w-4" />
                           </button>
                         )}
                         <DropdownMenu>
@@ -606,7 +605,7 @@ export function ConversationList({
                             asChild
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <button className="h-6 w-6 flex items-center justify-center rounded hover:bg-gray-300">
+                            <button className="h-6 w-6 flex items-center justify-center rounded transition-colors hover:bg-blue-300 cursor-pointer">
                               <MoreVertical className="h-4 w-4" />
                             </button>
                           </DropdownMenuTrigger>
@@ -696,27 +695,32 @@ export function ConversationList({
               })}
             </>
           )}
-          {(!filteredTeams || filteredTeams.length === 0) && onCreateTeam && (
-            <div className="mt-4 py-2">
-              <Button
-                onClick={onCreateTeam}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white"
-                size="sm"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="h-5 w-5 rounded-full bg-white/20 flex items-center justify-center">
-                    <Users className="h-3 w-3" />
+          {(!filteredTeams || filteredTeams.length === 0) &&
+            onCreateTeam &&
+            !searchQuery.trim() && (
+              <div className="mt-4 py-2">
+                <Button
+                  onClick={onCreateTeam}
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+                  size="sm"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="h-5 w-5 rounded-full bg-white/20 flex items-center justify-center">
+                      <Users className="h-3 w-3" />
+                    </div>
+                    <span>Create team</span>
                   </div>
-                  <span>Create team</span>
-                </div>
-              </Button>
-            </div>
-          )}
+                </Button>
+              </div>
+            )}
         </div>
         {/* Empty State */}
         {conversations === undefined ||
         teams === undefined ||
-        allFriends === undefined ? (
+        currentUser === undefined ||
+        (currentUser?.friends &&
+          currentUser.friends.length > 0 &&
+          allFriends === undefined) ? (
           <div className="p-4 text-center text-muted-foreground">
             Loading...
           </div>

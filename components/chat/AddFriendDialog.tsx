@@ -50,15 +50,17 @@ export function AddFriendDialog({
       : "skip"
   );
 
-  const friendIds = new Set(friends?.map((f) => f._id.toString()) || []);
+  // Memoize friendIds to prevent unnecessary re-renders
+  const friendIds = useMemo(
+    () => new Set(friends?.map((f) => f._id.toString()) || []),
+    [friends]
+  );
 
   // Filter out users who are already friends
   // Keep blocked users in the list but mark them as blocked (isBlocked comes from searchResults)
   const availableUsers = useMemo(() => {
     if (!searchResults) return [];
-    return searchResults.filter(
-      (user) => !friendIds.has(user._id.toString())
-    );
+    return searchResults.filter((user) => !friendIds.has(user._id.toString()));
   }, [searchResults, friendIds]);
 
   const handleAddFriend = async (userId: Id<"users">) => {
@@ -69,9 +71,7 @@ export function AddFriendDialog({
       onSuccess?.();
     } catch (error) {
       console.error("Failed to add friend:", error);
-      alert(
-        error instanceof Error ? error.message : "Failed to add friend"
-      );
+      alert(error instanceof Error ? error.message : "Failed to add friend");
     }
   };
 
