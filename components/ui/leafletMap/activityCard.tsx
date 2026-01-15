@@ -15,8 +15,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Star, MapPin, Clock, DollarSign, Users } from "lucide-react";
+import { Star, MapPin, Clock, DollarSign, Users, Calendar } from "lucide-react";
 import { getTagColorScheme, getDifficultyColorScheme } from "@/lib/tagColors";
+import { ReservationDialog } from "@/components/activities/ReservationDialog";
+import { useMyTeamsAsCreator } from "@/lib/hooks/useReservations";
+import { Id } from "@/convex/_generated/dataModel";
 import {
   Carousel,
   CarouselContent,
@@ -68,6 +71,10 @@ export default function ActivityCard({
 
   // Fetch all unique tags from database for color assignment
   const databaseTags = useQuery(convexApi.activity.getAllTags);
+  
+  // Check if user has teams as creator
+  const { hasTeams } = useMyTeamsAsCreator();
+  const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false);
 
   // Carousel auto-rotation
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
@@ -275,15 +282,37 @@ export default function ActivityCard({
 
         <Separator className="my-2" />
 
-        {/* Visit Button */}
-        <Button
-          onClick={handleVisitPage}
-          className="w-full h-8 text-xs"
-          variant="default"
-        >
-          Visit Activity Page
-        </Button>
+        {/* Visit Button and Reservation Button */}
+        <div className="flex gap-2">
+          <Button
+            onClick={handleVisitPage}
+            className="flex-1 h-8 text-xs"
+            variant="default"
+          >
+            Visit Activity Page
+          </Button>
+          {hasTeams && (
+            <Button
+              onClick={() => setIsReservationDialogOpen(true)}
+              className="h-8 w-8 p-0"
+              variant="outline"
+              size="icon"
+              aria-label="Reserve activity"
+            >
+              <Calendar className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </CardContent>
+      
+      {/* Reservation Dialog */}
+      {hasTeams && (
+        <ReservationDialog
+          activityId={activity.id as Id<"activities">}
+          open={isReservationDialogOpen}
+          onOpenChange={setIsReservationDialogOpen}
+        />
+      )}
     </Card>
   );
 }

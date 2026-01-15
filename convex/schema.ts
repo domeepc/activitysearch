@@ -63,10 +63,14 @@ export default defineSchema({
   }),
   reservations: defineTable({
     date: v.string(),
+    time: v.string(),
     userCount: v.int64(),
     activityId: v.id("activities"),
     teamIds: v.array(v.id("teams")),
-  }),
+    createdBy: v.id("users"),
+  })
+    .index("byActivity", ["activityId"])
+    .index("byDateTime", ["activityId", "date", "time"]),
   conversations: defineTable({
     user1Id: v.id("users"),
     user2Id: v.id("users"),
@@ -110,5 +114,6 @@ export default defineSchema({
     reviewCount: v.optional(v.int64()),
     equipment: v.array(v.string()),
     images: v.optional(v.array(v.string())),
+    availableTimeSlots: v.optional(v.array(v.string())),
   }),
 });
