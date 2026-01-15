@@ -7,6 +7,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { MessageBubble } from "./MessageBubble";
 import { ChatHeader } from "./ChatHeader";
 import { ChatInput } from "./ChatInput";
+import { useUpdatePresence } from "@/lib/hooks/usePresence";
 
 interface ChatViewProps {
   type: "individual" | "team";
@@ -49,6 +50,7 @@ export function ChatView({
   const markTeamConversationAsRead = useMutation(
     api.teams.markTeamConversationAsRead
   );
+  const { updatePresence } = useUpdatePresence();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -67,6 +69,8 @@ export function ChatView({
         } else if (type === "team" && teamId) {
           await markTeamConversationAsRead({ teamId });
         }
+        // Update presence when messages are read
+        updatePresence("online");
       } catch (error) {
         console.error("Failed to mark messages as read:", error);
       }
@@ -82,6 +86,7 @@ export function ChatView({
     messages.length,
     markConversationAsRead,
     markTeamConversationAsRead,
+    updatePresence,
   ]);
 
   const handleSend = async (text: string) => {
@@ -97,6 +102,8 @@ export function ChatView({
           text,
         });
       }
+      // Update presence when message is sent
+      updatePresence("online");
     } catch (error) {
       console.error("Failed to send message:", error);
     }
