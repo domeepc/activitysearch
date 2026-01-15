@@ -103,18 +103,20 @@ export const getConversations = query({
     const currentUser = await getCurrentUserOrThrow(ctx);
     const blocked = currentUser.blocked || [];
 
-    // Get all messages where current user is sender or receiver
-    const sentMessages = await ctx.db
+    // Get all messages where current user is receiver (using index)
+    const receivedMessages = await ctx.db
       .query("messages")
       .withIndex("byReceiver", (q) => q.eq("receiverId", currentUser._id))
       .collect();
 
-    const receivedMessages = await ctx.db
+    // Get messages where current user is sender (no index available, must use filter)
+    // Note: This could be optimized with a senderId index in the schema
+    const sentMessages = await ctx.db
       .query("messages")
       .filter((q) => q.eq(q.field("senderId"), currentUser._id))
       .collect();
 
-    // Combine and get unique conversation partners
+    // Process messages efficiently: track only the last message per conversation
     const conversationPartners = new Set<string>();
     const lastMessages: Map<
       string,
@@ -126,21 +128,22 @@ export const getConversations = query({
       }
     > = new Map();
 
+    // Process all messages once, keeping only the most recent per conversation
     for (const msg of [...sentMessages, ...receivedMessages]) {
       const partnerId =
         msg.senderId === currentUser._id ? msg.receiverId : msg.senderId;
 
-      // Skip blocked users
+      // Skip blocked users early to avoid unnecessary processing
       if (blocked.includes(partnerId)) {
         continue;
       }
 
       const partnerIdStr = partnerId.toString();
+      conversationPartners.add(partnerIdStr);
 
-      if (
-        !lastMessages.has(partnerIdStr) ||
-        lastMessages.get(partnerIdStr)!.timestamp < msg.timestamp
-      ) {
+      // Update last message if this one is more recent
+      const existing = lastMessages.get(partnerIdStr);
+      if (!existing || existing.timestamp < msg.timestamp) {
         lastMessages.set(partnerIdStr, {
           text: msg.text,
           timestamp: msg.timestamp,
@@ -148,17 +151,46 @@ export const getConversations = query({
           readBy: msg.readBy,
         });
       }
-      conversationPartners.add(partnerIdStr);
     }
 
-    // Get user details for each conversation partner
-    const conversations = await Promise.all(
-      Array.from(conversationPartners).map(async (partnerIdStr) => {
-        // Convert back to Id type
-        const partnerId = partnerIdStr as typeof currentUser._id;
-        const partner = await ctx.db.get(partnerId);
+    // Batch fetch all partner users at once
+    const partnerIds = Array.from(conversationPartners).map(
+      (idStr) => idStr as typeof currentUser._id
+    );
+    const partners = await Promise.all(
+      partnerIds.map((id) => ctx.db.get(id))
+    );
+    const partnerMap = new Map(
+      partners
+        .filter((p): p is NonNullable<typeof p> => p !== null)
+        .map((p) => [p._id.toString(), p])
+    );
+
+    // Batch fetch all conversations for current user
+    const allUserConversations = await ctx.db
+      .query("conversations")
+      .withIndex("byUser1", (q) => q.eq("user1Id", currentUser._id))
+      .collect();
+    const user2Conversations = await ctx.db
+      .query("conversations")
+      .withIndex("byUser2", (q) => q.eq("user2Id", currentUser._id))
+      .collect();
+    
+    // Create a map of conversation slugs by partner ID
+    const conversationMap = new Map<string, string>();
+    for (const conv of [...allUserConversations, ...user2Conversations]) {
+      const otherUserId =
+        conv.user1Id === currentUser._id ? conv.user2Id : conv.user1Id;
+      conversationMap.set(otherUserId.toString(), conv.slug);
+    }
+
+    // Build conversations array
+    const conversations = partnerIds
+      .map((partnerId) => {
+        const partner = partnerMap.get(partnerId.toString());
         if (!partner) return null;
 
+        const partnerIdStr = partnerId.toString();
         const lastMessage = lastMessages.get(partnerIdStr);
 
         // Determine read status
@@ -174,40 +206,25 @@ export const getConversations = query({
           }
         }
 
-        // Get conversation slug
-        const userIds = [currentUser._id, partner._id].sort((a, b) =>
-          a.localeCompare(b)
-        );
-        const allConversations = await ctx.db
-          .query("conversations")
-          .withIndex("byUser1", (q) => q.eq("user1Id", userIds[0]))
-          .collect();
-
-        const conversation = allConversations.find(
-          (c) => c.user2Id === userIds[1]
-        );
-
         return {
           userId: partner._id,
           name: partner.name,
           lastname: partner.lastname,
           username: partner.username,
           slug: partner.slug,
-          conversationSlug: conversation?.slug || null,
+          conversationSlug: conversationMap.get(partnerIdStr) || null,
           avatar: partner.avatar,
           role: partner.role,
           lastMessage: lastMessage?.text || "",
           lastMessageTime: lastMessage?.timestamp || 0,
-          lastActive: partner.lastActive,
+          lastActive: partner.lastActive, // Kept for fallback if Ably is unavailable
           lastMessageReadStatus,
         };
       })
-    );
+      .filter((c): c is NonNullable<typeof c> => c !== null);
 
-    // Filter out nulls and sort by last message time
-    return conversations
-      .filter((c): c is NonNullable<typeof c> => c !== null)
-      .sort((a, b) => b.lastMessageTime - a.lastMessageTime);
+    // Sort by last message time
+    return conversations.sort((a, b) => b.lastMessageTime - a.lastMessageTime);
   },
 });
 
@@ -218,7 +235,7 @@ export const getMessages = query({
   handler: async (ctx, { otherUserId }) => {
     const currentUser = await getCurrentUserOrThrow(ctx);
 
-    // Get other user details
+    // Get other user details (only fetch once)
     const otherUser = await ctx.db.get(otherUserId);
     if (!otherUser) {
       throw new Error("User not found");
@@ -227,24 +244,18 @@ export const getMessages = query({
     // Note: We allow viewing historical messages even if blocked
     // New messages are prevented by the sendMessage mutation
 
-    // Get all messages between current user and other user
+    // Get all messages between current user and other user using the conversation index
     const sentMessages = await ctx.db
       .query("messages")
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("senderId"), currentUser._id),
-          q.eq(q.field("receiverId"), otherUserId)
-        )
+      .withIndex("byConversation", (q) =>
+        q.eq("senderId", currentUser._id).eq("receiverId", otherUserId)
       )
       .collect();
 
     const receivedMessages = await ctx.db
       .query("messages")
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("senderId"), otherUserId),
-          q.eq(q.field("receiverId"), currentUser._id)
-        )
+      .withIndex("byConversation", (q) =>
+        q.eq("senderId", otherUserId).eq("receiverId", currentUser._id)
       )
       .collect();
 
@@ -252,13 +263,6 @@ export const getMessages = query({
     const allMessages = [...sentMessages, ...receivedMessages].sort(
       (a, b) => a.timestamp - b.timestamp
     );
-
-    // Get other user details (already fetched above for blocking check)
-    // Re-fetch to ensure we have the latest data
-    const otherUserData = await ctx.db.get(otherUserId);
-    if (!otherUserData) {
-      throw new Error("User not found");
-    }
 
     return {
       messages: allMessages.map((msg) => {
@@ -282,12 +286,12 @@ export const getMessages = query({
         };
       }),
       otherUser: {
-        _id: otherUserData._id,
-        name: otherUserData.name,
-        lastname: otherUserData.lastname,
-        username: otherUserData.username,
-        avatar: otherUserData.avatar,
-        lastActive: otherUserData.lastActive,
+        _id: otherUser._id,
+        name: otherUser.name,
+        lastname: otherUser.lastname,
+        username: otherUser.username,
+        avatar: otherUser.avatar,
+        lastActive: otherUser.lastActive, // Kept for fallback if Ably is unavailable
       },
     };
   },
@@ -352,6 +356,7 @@ export const getMessagesByConversationSlug = query({
         ? conversation.user2Id
         : conversation.user1Id;
 
+    // Get other user details (only fetch once)
     const friend = await ctx.db.get(otherUserId);
     if (!friend) {
       throw new Error("User not found");
@@ -360,24 +365,18 @@ export const getMessagesByConversationSlug = query({
     // Note: We allow viewing historical messages even if blocked
     // New messages are prevented by the sendMessage mutation
 
-    // Get all messages between current user and other user
+    // Get all messages between current user and other user using the conversation index
     const sentMessages = await ctx.db
       .query("messages")
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("senderId"), currentUser._id),
-          q.eq(q.field("receiverId"), otherUserId)
-        )
+      .withIndex("byConversation", (q) =>
+        q.eq("senderId", currentUser._id).eq("receiverId", otherUserId)
       )
       .collect();
 
     const receivedMessages = await ctx.db
       .query("messages")
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("senderId"), otherUserId),
-          q.eq(q.field("receiverId"), currentUser._id)
-        )
+      .withIndex("byConversation", (q) =>
+        q.eq("senderId", otherUserId).eq("receiverId", currentUser._id)
       )
       .collect();
 
@@ -422,7 +421,7 @@ export const getMessagesByConversationSlug = query({
         lastname: friend.lastname,
         username: friend.username,
         avatar: friend.avatar,
-        lastActive: friend.lastActive,
+        lastActive: friend.lastActive, // Kept for fallback if Ably is unavailable
         slug: friend.slug,
       },
       conversationSlug: conversation.slug,

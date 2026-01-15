@@ -99,11 +99,12 @@ export const createOrganisation = mutation({
 export const getOrganisationByOwnerId = query({
   args: { ownerId: v.id("users") },
   handler: async (ctx, args) => {
-    // Collect all organisations and filter in JavaScript to check array membership
+    // Collect all organisations and find the first match
+    // Note: Without an index on array fields, we must query all and filter in memory
     const allOrganisations = await ctx.db.query("organisations").collect();
-    const organisations = allOrganisations.filter((org) =>
+    const organisation = allOrganisations.find((org) =>
       org.organisersIDs.includes(args.ownerId)
     );
-    return organisations[0] ?? null;
+    return organisation ?? null;
   },
 });

@@ -5,6 +5,7 @@ import { useQuery, useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { usePresenceList } from "@/lib/hooks/usePresence";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,8 +80,11 @@ export function ConversationList({
 
   const router = useRouter();
   const conversations = useQuery(api.messages.getConversations);
-  const teams = useQuery(api.teams.getMyTeams);
   const currentUser = useQuery(api.users.current);
+
+  // Teams query - Convex automatically updates when data changes
+  // No need to manually manage fetching state as Convex handles reactivity
+  const teams = useQuery(api.teams.getMyTeams);
 
   const removeFriend = useMutation(api.users.removeFriend);
   const blockUser = useMutation(api.users.blockUser);
@@ -90,13 +94,35 @@ export function ConversationList({
     api.messages.createConversationSlug
   );
 
+  // Create stable friends array key to prevent unnecessary refetches
+  // Only refetch when the actual friend IDs change (not just array reference)
+  const friendsKey = useMemo(() => {
+    const friends = currentUser?.friends;
+    if (!friends || friends.length === 0) {
+      return null;
+    }
+    // Create a stable string key from sorted friend IDs
+    return [...friends].sort((a, b) => a.localeCompare(b)).join(",");
+  }, [currentUser?.friends]);
+
   // Get all friends (including those without conversations)
+  // Only refetch when friends array actually changes (using stable key)
   const allFriends = useQuery(
     api.users.getUsersByIds,
-    currentUser?.friends && currentUser.friends.length > 0
+    friendsKey && currentUser?.friends
       ? { userIds: currentUser.friends }
       : "skip"
   );
+
+  // Get presence for all users in conversations and friends list
+  const allUserIds = useMemo(() => {
+    const userIds = new Set<string>();
+    conversations?.forEach((conv) => userIds.add(conv.userId.toString()));
+    allFriends?.forEach((friend) => userIds.add(friend._id.toString()));
+    return Array.from(userIds);
+  }, [conversations, allFriends]);
+
+  const { presences } = usePresenceList(allUserIds);
 
   // Friends without conversations
   const friendsWithoutConversations = useMemo(() => {
@@ -275,7 +301,7 @@ export function ConversationList({
                           {friend.lastname[0]}
                         </AvatarFallback>
                       </Avatar>
-                      <StatusDot lastActive={friend.lastActive} />
+                      <StatusDot userId={friend._id} lastActive={friend.lastActive} />
                     </div>
                     <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
                       <div className="flex-1 min-w-0">
@@ -417,7 +443,7 @@ export function ConversationList({
                           {organiser.lastname[0]}
                         </AvatarFallback>
                       </Avatar>
-                      <StatusDot lastActive={organiser.lastActive} />
+                      <StatusDot userId={organiser._id} lastActive={organiser.lastActive} />
                     </div>
                     <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
                       <div className="flex-1 min-w-0">
@@ -718,6 +744,7 @@ export function ConversationList({
             variant="destructive"
             onConfirm={async () => {
               await leaveTeam({ teamId: selectedTeam._id });
+              // Teams will automatically update via Convex reactivity
               router.push("/chat");
             }}
           />
@@ -730,6 +757,7 @@ export function ConversationList({
             variant="destructive"
             onConfirm={async () => {
               await deleteTeam({ teamId: selectedTeam._id });
+              // Teams will automatically update via Convex reactivity
               router.push("/chat");
             }}
           />

@@ -1,20 +1,27 @@
 "use client";
 
 import { Id } from "@/convex/_generated/dataModel";
+import { usePresence } from "@/lib/hooks/usePresence";
 
 interface ActiveStatusProps {
   userId: Id<"users">;
-  lastActive?: number;
+  lastActive?: number; // Fallback for historical data
 }
 
 interface StatusDotProps {
-  lastActive?: number;
+  userId?: Id<"users">;
+  lastActive?: number; // Fallback for historical data
   className?: string;
 }
 
-export function StatusDot({ lastActive, className = "" }: StatusDotProps) {
-  // Consider user active if lastActive is within last 2 minutes
-  const isActive = lastActive
+export function StatusDot({ userId, lastActive, className = "" }: StatusDotProps) {
+  // Use Ably presence if userId is provided, otherwise fallback to lastActive
+  const { presence } = usePresence(userId?.toString());
+  
+  // Determine if user is active
+  const isActive = presence
+    ? presence.status === "online"
+    : lastActive
     ? Date.now() - lastActive < 2 * 60 * 1000
     : false;
 
@@ -28,10 +35,18 @@ export function StatusDot({ lastActive, className = "" }: StatusDotProps) {
 }
 
 export function ActiveStatus({ userId, lastActive }: ActiveStatusProps) {
-  // Consider user active if lastActive is within last 2 minutes
-  const isActive = lastActive
+  // Use Ably presence for real-time status
+  const { presence } = usePresence(userId.toString());
+  
+  // Determine if user is active (use Ably presence or fallback to lastActive)
+  const isActive = presence
+    ? presence.status === "online"
+    : lastActive
     ? Date.now() - lastActive < 2 * 60 * 1000
     : false;
+  
+  // Use presence lastSeen or fallback to lastActive
+  const lastSeenTimestamp = presence?.lastSeen || lastActive;
 
   // Format last active time
   const formatLastActive = (timestamp?: number) => {
@@ -64,7 +79,7 @@ export function ActiveStatus({ userId, lastActive }: ActiveStatusProps) {
   return (
     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
       <div className="h-2 w-2 rounded-full bg-gray-400" />
-      <span>Last active {formatLastActive(lastActive)}</span>
+      <span>Last active {formatLastActive(lastSeenTimestamp)}</span>
     </div>
   );
 }

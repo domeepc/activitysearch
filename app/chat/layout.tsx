@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ConversationList } from "@/components/chat/ConversationList";
 import { CreateTeamDialog } from "@/components/chat/CreateTeamDialog";
 import { TeamInviteDialog } from "@/components/chat/TeamInviteDialog";
 import { AddFriendDialog } from "@/components/chat/AddFriendDialog";
 import { usePathname } from "next/navigation";
+import { useUpdatePresence } from "@/lib/hooks/usePresence";
+import { usePresenceContext } from "@/components/PresenceProvider";
 
 export default function ChatLayout({
   children,
@@ -21,34 +23,33 @@ export default function ChatLayout({
   const pathname = usePathname();
 
   const currentUser = useQuery(api.users.current);
-  const updateLastActive = useMutation(api.presence.updateLastActive);
+  const { userId } = usePresenceContext();
+  const { updatePresence, leavePresence } = useUpdatePresence();
 
-  // Update last active periodically
+  // Update presence using Ably instead of Convex mutations
   useEffect(() => {
-    if (!currentUser) return;
+    if (!userId || !currentUser) return;
 
-    // Update immediately
-    updateLastActive();
+    // Enter presence channel as online when component mounts
+    updatePresence("online");
 
-    // Update every 30 seconds
-    const interval = setInterval(() => {
-      updateLastActive();
-    }, 30000);
-
-    // Update on visibility change
+    // Update presence on visibility change
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        updateLastActive();
+        updatePresence("online");
+      } else {
+        updatePresence("away");
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      clearInterval(interval);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      // Leave presence when component unmounts
+      leavePresence();
     };
-  }, [currentUser, updateLastActive]);
+  }, [userId, currentUser, updatePresence, leavePresence]);
 
   // Determine current chat type and slug from pathname
   const getCurrentChatInfo = () => {
@@ -84,6 +85,8 @@ export default function ChatLayout({
 
   const handleCreateTeamSuccess = () => {
     setShowCreateTeam(false);
+    // Teams will be refetched automatically by Convex when data changes
+    // No need to manually trigger refetch
   };
 
   const handleInviteSuccess = () => {

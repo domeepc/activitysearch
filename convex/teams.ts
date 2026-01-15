@@ -62,9 +62,40 @@ export const getMyTeams = query({
     const currentUser = await getCurrentUserOrThrow(ctx);
 
     // Get all teams where current user is a teammate
+    // Note: Without an index on array fields, we must query all and filter
     const allTeams = await ctx.db.query("teams").collect();
     const myTeams = allTeams.filter((team) =>
       team.teammates.includes(currentUser._id)
+    );
+
+    // Early return if no teams
+    if (myTeams.length === 0) {
+      return [];
+    }
+
+    // Collect all unique teammate IDs across all teams
+    const allTeammateIds = new Set<string>();
+    for (const team of myTeams) {
+      for (const teammateId of team.teammates) {
+        allTeammateIds.add(teammateId.toString());
+      }
+    }
+
+    // Batch fetch all teammates at once (only if there are teammates)
+    if (allTeammateIds.size === 0) {
+      return [];
+    }
+
+    const teammateIdsArray = Array.from(allTeammateIds).map(
+      (id) => id as typeof currentUser._id
+    );
+    const allTeammates = await Promise.all(
+      teammateIdsArray.map((id) => ctx.db.get(id))
+    );
+    const teammateMap = new Map(
+      allTeammates
+        .filter((t): t is NonNullable<typeof t> => t !== null)
+        .map((t) => [t._id.toString(), t])
     );
 
     // Get last message for each team
@@ -76,10 +107,10 @@ export const getMyTeams = query({
           .order("desc")
           .first();
 
-        // Get teammate details
-        const teammates = await Promise.all(
-          team.teammates.map((id) => ctx.db.get(id))
-        );
+        // Get teammate details from the pre-fetched map
+        const teammates = team.teammates
+          .map((id) => teammateMap.get(id.toString()))
+          .filter((t): t is NonNullable<typeof t> => t !== null);
 
         // Determine read status for last message
         let lastMessageReadStatus: "sent" | "delivered" | "read" | null = null;
@@ -124,9 +155,7 @@ export const getMyTeams = query({
           slug: teamSlug,
           icon: team.icon,
           admins: team.admins || [],
-          teammates: teammates.filter(
-            (t): t is NonNullable<typeof t> => t !== null
-          ),
+          teammates,
           createdBy: team.createdBy,
           lastMessage: lastMessage
             ? {
@@ -173,61 +202,78 @@ export const getTeamMessages = query({
       .order("asc")
       .collect();
 
-    // Get sender details for each message
-    const messagesWithSenders = await Promise.all(
-      messages.map(async (msg) => {
-        const sender = await ctx.db.get(msg.senderId);
+    // Collect all unique sender IDs
+    const senderIds = new Set<string>();
+    for (const msg of messages) {
+      senderIds.add(msg.senderId.toString());
+    }
 
-        // Determine status for messages sent by current user
-        let status: "sent" | "delivered" | "read" | null = null;
-        if (msg.senderId === currentUser._id) {
-          const readBy = msg.readBy || [];
-          // Get teammates excluding the sender
-          const otherTeammates = team.teammates.filter(
-            (id) => id !== currentUser._id
-          );
+    // Batch fetch all senders at once
+    const senderIdsArray = Array.from(senderIds).map(
+      (id) => id as typeof currentUser._id
+    );
+    const allSenders = await Promise.all(
+      senderIdsArray.map((id) => ctx.db.get(id))
+    );
+    const senderMap = new Map(
+      allSenders
+        .filter((s): s is NonNullable<typeof s> => s !== null)
+        .map((s) => [s._id.toString(), s])
+    );
 
-          if (otherTeammates.length === 0) {
-            // No other teammates, consider it read
+    // Build messages with sender details
+    const messagesWithSenders = messages.map((msg) => {
+      const sender = senderMap.get(msg.senderId.toString());
+
+      // Determine status for messages sent by current user
+      let status: "sent" | "delivered" | "read" | null = null;
+      if (msg.senderId === currentUser._id) {
+        const readBy = msg.readBy || [];
+        // Get teammates excluding the sender
+        const otherTeammates = team.teammates.filter(
+          (id) => id !== currentUser._id
+        );
+
+        if (otherTeammates.length === 0) {
+          // No other teammates, consider it read
+          status = "read";
+        } else {
+          const readCount = otherTeammates.filter((id) =>
+            readBy.includes(id)
+          ).length;
+
+          if (readCount === otherTeammates.length) {
+            // All teammates have read it
             status = "read";
+          } else if (readCount > 0) {
+            // Some teammates have read it
+            status = "delivered";
           } else {
-            const readCount = otherTeammates.filter((id) =>
-              readBy.includes(id)
-            ).length;
-
-            if (readCount === otherTeammates.length) {
-              // All teammates have read it
-              status = "read";
-            } else if (readCount > 0) {
-              // Some teammates have read it
-              status = "delivered";
-            } else {
-              // No teammates have read it yet
-              status = "sent";
-            }
+            // No teammates have read it yet
+            status = "sent";
           }
         }
+      }
 
-        return {
-          _id: msg._id,
-          text: msg.text,
-          senderId: msg.senderId,
-          timestamp: msg.timestamp,
-          sender: sender
-            ? {
-                _id: sender._id,
-                name: sender.name,
-                lastname: sender.lastname,
-                username: sender.username,
-                avatar: sender.avatar,
-              }
-            : null,
-          isFromCurrentUser: msg.senderId === currentUser._id,
-          readBy: msg.readBy || [],
-          status,
-        };
-      })
-    );
+      return {
+        _id: msg._id,
+        text: msg.text,
+        senderId: msg.senderId,
+        timestamp: msg.timestamp,
+        sender: sender
+          ? {
+              _id: sender._id,
+              name: sender.name,
+              lastname: sender.lastname,
+              username: sender.username,
+              avatar: sender.avatar,
+            }
+          : null,
+        isFromCurrentUser: msg.senderId === currentUser._id,
+        readBy: msg.readBy || [],
+        status,
+      };
+    });
 
     return {
       team: {
@@ -403,7 +449,7 @@ export const getTeamBySlug = query({
       throw new Error("You are not a member of this team");
     }
 
-    // Get teammate details
+    // Batch fetch all teammate details at once
     const teammates = await Promise.all(
       team.teammates.map((id) => ctx.db.get(id))
     );
@@ -451,61 +497,78 @@ export const getTeamMessagesBySlug = query({
       .order("asc")
       .collect();
 
-    // Get sender details for each message
-    const messagesWithSenders = await Promise.all(
-      messages.map(async (msg) => {
-        const sender = await ctx.db.get(msg.senderId);
+    // Collect all unique sender IDs
+    const senderIds = new Set<string>();
+    for (const msg of messages) {
+      senderIds.add(msg.senderId.toString());
+    }
 
-        // Determine status for messages sent by current user
-        let status: "sent" | "delivered" | "read" | null = null;
-        if (msg.senderId === currentUser._id) {
-          const readBy = msg.readBy || [];
-          // Get teammates excluding the sender
-          const otherTeammates = team.teammates.filter(
-            (id) => id !== currentUser._id
-          );
+    // Batch fetch all senders at once
+    const senderIdsArray = Array.from(senderIds).map(
+      (id) => id as typeof currentUser._id
+    );
+    const allSenders = await Promise.all(
+      senderIdsArray.map((id) => ctx.db.get(id))
+    );
+    const senderMap = new Map(
+      allSenders
+        .filter((s): s is NonNullable<typeof s> => s !== null)
+        .map((s) => [s._id.toString(), s])
+    );
 
-          if (otherTeammates.length === 0) {
-            // No other teammates, consider it read
+    // Build messages with sender details
+    const messagesWithSenders = messages.map((msg) => {
+      const sender = senderMap.get(msg.senderId.toString());
+
+      // Determine status for messages sent by current user
+      let status: "sent" | "delivered" | "read" | null = null;
+      if (msg.senderId === currentUser._id) {
+        const readBy = msg.readBy || [];
+        // Get teammates excluding the sender
+        const otherTeammates = team.teammates.filter(
+          (id) => id !== currentUser._id
+        );
+
+        if (otherTeammates.length === 0) {
+          // No other teammates, consider it read
+          status = "read";
+        } else {
+          const readCount = otherTeammates.filter((id) =>
+            readBy.includes(id)
+          ).length;
+
+          if (readCount === otherTeammates.length) {
+            // All teammates have read it
             status = "read";
+          } else if (readCount > 0) {
+            // Some teammates have read it
+            status = "delivered";
           } else {
-            const readCount = otherTeammates.filter((id) =>
-              readBy.includes(id)
-            ).length;
-
-            if (readCount === otherTeammates.length) {
-              // All teammates have read it
-              status = "read";
-            } else if (readCount > 0) {
-              // Some teammates have read it
-              status = "delivered";
-            } else {
-              // No teammates have read it yet
-              status = "sent";
-            }
+            // No teammates have read it yet
+            status = "sent";
           }
         }
+      }
 
-        return {
-          _id: msg._id,
-          text: msg.text,
-          senderId: msg.senderId,
-          timestamp: msg.timestamp,
-          sender: sender
-            ? {
-                _id: sender._id,
-                name: sender.name,
-                lastname: sender.lastname,
-                username: sender.username,
-                avatar: sender.avatar,
-              }
-            : null,
-          isFromCurrentUser: msg.senderId === currentUser._id,
-          readBy: msg.readBy || [],
-          status,
-        };
-      })
-    );
+      return {
+        _id: msg._id,
+        text: msg.text,
+        senderId: msg.senderId,
+        timestamp: msg.timestamp,
+        sender: sender
+          ? {
+              _id: sender._id,
+              name: sender.name,
+              lastname: sender.lastname,
+              username: sender.username,
+              avatar: sender.avatar,
+            }
+          : null,
+        isFromCurrentUser: msg.senderId === currentUser._id,
+        readBy: msg.readBy || [],
+        status,
+      };
+    });
 
     return {
       team: {

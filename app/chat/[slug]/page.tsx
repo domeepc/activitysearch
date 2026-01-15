@@ -23,22 +23,23 @@ export default function IndividualChatPage({
 
   // Mark messages as read when viewing
   useEffect(() => {
+    const otherUserId = messagesData?.otherUser?._id;
+    if (!otherUserId || !messagesData.messages.length) {
+      return;
+    }
+
     const markAsRead = async () => {
-      if (messagesData?.otherUser) {
-        try {
-          await markConversationAsRead({
-            otherUserId: messagesData.otherUser._id,
-          });
-        } catch (error) {
-          console.error("Failed to mark messages as read:", error);
-        }
+      try {
+        await markConversationAsRead({
+          otherUserId,
+        });
+      } catch (error) {
+        console.error("Failed to mark messages as read:", error);
       }
     };
 
-    if (messagesData && messagesData.messages.length > 0) {
-      markAsRead();
-    }
-  }, [messagesData, markConversationAsRead]);
+    markAsRead();
+  }, [messagesData?.otherUser?._id, messagesData?.messages.length, markConversationAsRead]);
 
   if (messagesData === undefined) {
     return (
