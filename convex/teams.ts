@@ -483,11 +483,15 @@ export const getTeamMessagesBySlug = query({
       .first();
 
     if (!team) {
-      throw new Error("Team not found");
+      // Team may have been deleted
+      // Return null to allow frontend to handle gracefully
+      return null;
     }
 
     if (!team.teammates.includes(currentUser._id)) {
-      throw new Error("You are not a member of this team");
+      // User may have been removed from team
+      // Return null to allow frontend to handle gracefully
+      return null;
     }
 
     // Get all messages for this team

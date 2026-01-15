@@ -90,6 +90,7 @@ export function ConversationList({
   const blockUser = useMutation(api.users.blockUser);
   const leaveTeam = useMutation(api.teams.leaveTeam);
   const deleteTeam = useMutation(api.teams.deleteTeam);
+  const removeFromTeam = useMutation(api.teams.removeFromTeam);
   const createConversationSlug = useMutation(
     api.messages.createConversationSlug
   );
@@ -289,7 +290,7 @@ export function ConversationList({
                       onSelectIndividual(slug);
                     }}
                     className={cn(
-                      "w-full px-4 py-2 bg-gray-200 cursor-pointer hover:bg-blue-200 transition-colors text-left flex items-center gap-3 rounded-lg",
+                      "w-full px-4 py-2 bg-gray-200 cursor-pointer mb-4 hover:bg-blue-200 transition-colors text-left flex items-center gap-3 rounded-lg",
                       isSelected && "bg-blue-200"
                     )}
                   >
@@ -301,7 +302,10 @@ export function ConversationList({
                           {friend.lastname[0]}
                         </AvatarFallback>
                       </Avatar>
-                      <StatusDot userId={friend._id} lastActive={friend.lastActive} />
+                      <StatusDot
+                        userId={friend._id}
+                        lastActive={friend.lastActive}
+                      />
                     </div>
                     <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
                       <div className="flex-1 min-w-0">
@@ -443,7 +447,10 @@ export function ConversationList({
                           {organiser.lastname[0]}
                         </AvatarFallback>
                       </Avatar>
-                      <StatusDot userId={organiser._id} lastActive={organiser.lastActive} />
+                      <StatusDot
+                        userId={organiser._id}
+                        lastActive={organiser.lastActive}
+                      />
                     </div>
                     <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
                       <div className="flex-1 min-w-0">
@@ -543,7 +550,7 @@ export function ConversationList({
                       onSelectTeam(team.slug);
                     }}
                     className={cn(
-                      "w-full px-4 py-2 bg-gray-200 hover:bg-blue-200 transition-colors flex items-center gap-3 rounded-lg cursor-pointer",
+                      "w-full px-4 py-2 mb-4 bg-gray-200 hover:bg-blue-200 transition-colors flex items-center gap-3 rounded-lg cursor-pointer",
                       isSelected && "bg-blue-200"
                     )}
                   >
@@ -730,10 +737,15 @@ export function ConversationList({
             open={showTeamMembers}
             onOpenChange={setShowTeamMembers}
             teamName={selectedTeam.teamName}
+            teamId={selectedTeam._id}
             teammates={selectedTeam.teammates}
             admins={selectedTeam.admins}
             createdBy={selectedTeam.createdBy}
             currentUserId={currentUser?._id || ("" as Id<"users">)}
+            onKickMember={async (teamId, userId) => {
+              await removeFromTeam({ teamId, userId });
+              setShowTeamMembers(false);
+            }}
           />
           <ConfirmDialog
             open={showLeaveTeam}

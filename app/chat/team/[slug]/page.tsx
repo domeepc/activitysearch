@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, use } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ChatView } from "@/components/chat/ChatView";
@@ -12,6 +13,7 @@ export default function TeamChatPage({
 }) {
   const resolvedParams = use(params);
   const slug = resolvedParams.slug;
+  const router = useRouter();
 
   const messagesData = useQuery(api.teams.getTeamMessagesBySlug, {
     slug,
@@ -19,6 +21,13 @@ export default function TeamChatPage({
   const markTeamConversationAsRead = useMutation(
     api.teams.markTeamConversationAsRead
   );
+
+  // Redirect to chat list if team not found or user is no longer a member
+  useEffect(() => {
+    if (messagesData === null) {
+      router.push("/chat");
+    }
+  }, [messagesData, router]);
 
   // Mark messages as read when viewing
   useEffect(() => {
@@ -52,9 +61,7 @@ export default function TeamChatPage({
       <div className="flex items-center justify-center h-full text-muted-foreground">
         <div className="text-center">
           <p className="text-lg mb-2">Team not found</p>
-          <p className="text-sm">
-            You may not be a member of this team.
-          </p>
+          <p className="text-sm">Redirecting...</p>
         </div>
       </div>
     );
