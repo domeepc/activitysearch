@@ -617,6 +617,46 @@ export const blockUser = mutation({
       });
     }
 
+    // Delete conversation between the two users
+    // Conversations are stored with sorted user IDs (user1Id < user2Id)
+    const userIds = [currentUser._id, userId].sort((a, b) => a.localeCompare(b));
+    const user1Id = userIds[0];
+    const user2Id = userIds[1];
+
+    // Find conversation using byUser1 index
+    const allConversations = await ctx.db
+      .query("conversations")
+      .withIndex("byUser1", (q) => q.eq("user1Id", user1Id))
+      .collect();
+
+    const conversation = allConversations.find((c) => c.user2Id === user2Id);
+
+    // Delete conversation if it exists
+    if (conversation) {
+      await ctx.db.delete(conversation._id);
+    }
+
+    // Delete all messages between the two users
+    // Get messages where currentUser is sender and userId is receiver
+    const sentMessages = await ctx.db
+      .query("messages")
+      .withIndex("byConversation", (q) =>
+        q.eq("senderId", currentUser._id).eq("receiverId", userId)
+      )
+      .collect();
+
+    // Get messages where userId is sender and currentUser is receiver
+    const receivedMessages = await ctx.db
+      .query("messages")
+      .withIndex("byConversation", (q) =>
+        q.eq("senderId", userId).eq("receiverId", currentUser._id)
+      )
+      .collect();
+
+    // Delete all messages
+    const allMessages = [...sentMessages, ...receivedMessages];
+    await Promise.all(allMessages.map((msg) => ctx.db.delete(msg._id)));
+
     return { success: true };
   },
 });
@@ -638,6 +678,46 @@ export const removeFriend = mutation({
         friends: friend.friends.filter((id) => id !== user._id),
       });
     }
+
+    // Delete conversation between the two users
+    // Conversations are stored with sorted user IDs (user1Id < user2Id)
+    const userIds = [user._id, friendId].sort((a, b) => a.localeCompare(b));
+    const user1Id = userIds[0];
+    const user2Id = userIds[1];
+
+    // Find conversation using byUser1 index
+    const allConversations = await ctx.db
+      .query("conversations")
+      .withIndex("byUser1", (q) => q.eq("user1Id", user1Id))
+      .collect();
+
+    const conversation = allConversations.find((c) => c.user2Id === user2Id);
+
+    // Delete conversation if it exists
+    if (conversation) {
+      await ctx.db.delete(conversation._id);
+    }
+
+    // Delete all messages between the two users
+    // Get messages where user is sender and friendId is receiver
+    const sentMessages = await ctx.db
+      .query("messages")
+      .withIndex("byConversation", (q) =>
+        q.eq("senderId", user._id).eq("receiverId", friendId)
+      )
+      .collect();
+
+    // Get messages where friendId is sender and user is receiver
+    const receivedMessages = await ctx.db
+      .query("messages")
+      .withIndex("byConversation", (q) =>
+        q.eq("senderId", friendId).eq("receiverId", user._id)
+      )
+      .collect();
+
+    // Delete all messages
+    const allMessages = [...sentMessages, ...receivedMessages];
+    await Promise.all(allMessages.map((msg) => ctx.db.delete(msg._id)));
 
     return await ctx.db.get(user._id);
   },

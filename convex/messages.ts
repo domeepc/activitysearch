@@ -102,6 +102,7 @@ export const getConversations = query({
   handler: async (ctx) => {
     const currentUser = await getCurrentUserOrThrow(ctx);
     const blocked = currentUser.blocked || [];
+    const friends = currentUser.friends || [];
 
     // Get all messages where current user is receiver (using index)
     const receivedMessages = await ctx.db
@@ -135,6 +136,11 @@ export const getConversations = query({
 
       // Skip blocked users early to avoid unnecessary processing
       if (blocked.includes(partnerId)) {
+        continue;
+      }
+
+      // Skip non-friends (only show conversations with friends)
+      if (!friends.includes(partnerId)) {
         continue;
       }
 
@@ -340,7 +346,9 @@ export const getMessagesByConversationSlug = query({
       .first();
 
     if (!conversation) {
-      throw new Error("Conversation not found");
+      // Conversation may have been deleted (e.g., when friend was removed)
+      // Return null to allow frontend to handle gracefully
+      return null;
     }
 
     // Verify current user is part of this conversation

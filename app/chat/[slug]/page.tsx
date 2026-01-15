@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, use } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ChatView } from "@/components/chat/ChatView";
@@ -12,6 +13,7 @@ export default function IndividualChatPage({
 }) {
   const resolvedParams = use(params);
   const slug = resolvedParams.slug;
+  const router = useRouter();
 
   // Use secure hash conversation slug
   const messagesData = useQuery(api.messages.getMessagesByConversationSlug, {
@@ -20,6 +22,13 @@ export default function IndividualChatPage({
   const markConversationAsRead = useMutation(
     api.messages.markConversationAsRead
   );
+
+  // Redirect to chat list if conversation not found (e.g., friend was removed)
+  useEffect(() => {
+    if (messagesData === null) {
+      router.push("/chat");
+    }
+  }, [messagesData, router]);
 
   // Mark messages as read when viewing
   useEffect(() => {
@@ -54,9 +63,7 @@ export default function IndividualChatPage({
       <div className="flex items-center justify-center h-full text-muted-foreground">
         <div className="text-center">
           <p className="text-lg mb-2">Conversation not found</p>
-          <p className="text-sm">
-            You may not have access to this conversation.
-          </p>
+          <p className="text-sm">Redirecting...</p>
         </div>
       </div>
     );
