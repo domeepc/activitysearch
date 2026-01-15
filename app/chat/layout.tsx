@@ -23,15 +23,47 @@ export default function ChatLayout({
   const pathname = usePathname();
 
   const currentUser = useQuery(api.users.current);
-  const { userId } = usePresenceContext();
+  const { userId, isConnected } = usePresenceContext();
   const { updatePresence, leavePresence } = useUpdatePresence();
 
   // Update presence using Ably instead of Convex mutations
   useEffect(() => {
     if (!userId || !currentUser) return;
 
-    // Enter presence channel as online when component mounts
-    updatePresence("online");
+    // Wait for connection before entering presence
+    const enterPresence = () => {
+      if (isConnected) {
+        console.log(`ChatLayout: Entering presence for ${userId}`);
+        updatePresence("online");
+      } else {
+        // Retry after a short delay (max 10 attempts = 2 seconds)
+        let attempts = 0;
+        const maxAttempts = 10;
+        const checkConnection = setInterval(() => {
+          attempts++;
+          if (isConnected || attempts >= maxAttempts) {
+            clearInterval(checkConnection);
+            if (isConnected) {
+              console.log(`ChatLayout: Entering presence for ${userId} after ${attempts} attempts`);
+              updatePresence("online");
+            } else {
+              console.warn(`ChatLayout: Failed to connect Ably after ${maxAttempts} attempts`);
+            }
+          }
+        }, 200);
+        return () => clearInterval(checkConnection);
+      }
+    };
+
+    // Start trying to enter presence
+    const cleanup = enterPresence();
+
+    // Periodic heartbeat to keep presence alive (every 20 seconds to stay within 30 second window)
+    const heartbeatInterval = setInterval(() => {
+      if (isConnected && document.visibilityState === "visible") {
+        updatePresence("online");
+      }
+    }, 20 * 1000); // 20 seconds
 
     // Update presence on visibility change
     const handleVisibilityChange = () => {
@@ -45,11 +77,15 @@ export default function ChatLayout({
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
+      if (cleanup) cleanup();
+      clearInterval(heartbeatInterval);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      // Leave presence when component unmounts
-      leavePresence();
+      // Leave presence when component unmounts (with a small delay to avoid race conditions)
+      setTimeout(() => {
+        leavePresence();
+      }, 100);
     };
-  }, [userId, currentUser, updatePresence, leavePresence]);
+  }, [userId, currentUser, isConnected, updatePresence, leavePresence]);
 
   // Determine current chat type and slug from pathname
   const getCurrentChatInfo = () => {
