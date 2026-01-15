@@ -13,6 +13,31 @@ export interface PresenceData {
 
 const PRESENCE_CHANNEL = "presence:users";
 
+// Helper function to ensure channel is attached
+async function ensureChannelAttached(channel: any): Promise<void> {
+  if (channel.state === "attached") {
+    return;
+  }
+
+  return new Promise((resolve, reject) => {
+    // If already attaching, wait for it
+    if (channel.state === "attaching") {
+      channel.once("attached", () => resolve());
+      channel.once("failed", (err: any) => reject(err));
+      return;
+    }
+
+    // Attach the channel
+    channel.attach((err: any) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
 export function usePresence(userId: string | undefined) {
   const { client, isConnected } = usePresenceContext();
   const [presence, setPresence] = useState<PresenceData | null>(null);
@@ -20,7 +45,8 @@ export function usePresence(userId: string | undefined) {
 
   useEffect(() => {
     if (!client || !userId || !isConnected) {
-      setIsLoading(false);
+      // Defer state update to avoid synchronous setState in effect
+      setTimeout(() => setIsLoading(false), 0);
       return;
     }
 
@@ -45,28 +71,38 @@ export function usePresence(userId: string | undefined) {
       }
     };
 
-    // Get current presence state
-    channel.presence.get({ clientId: userId }, (err, members) => {
-      if (err || !mounted) {
-        setIsLoading(false);
-        return;
-      }
+    // Attach channel and then subscribe to presence
+    ensureChannelAttached(channel)
+      .then(() => {
+        if (!mounted) return;
 
-      const member = members?.find((m) => m.clientId === userId);
-      if (member && member.data) {
-        setPresence(member.data as PresenceData);
-      } else {
-        setPresence({
-          userId,
-          status: "offline",
-          lastSeen: Date.now(),
+        // Get current presence state
+        channel.presence.get({ clientId: userId }, (err, members) => {
+          if (err || !mounted) {
+            setIsLoading(false);
+            return;
+          }
+
+          const member = members?.find((m) => m.clientId === userId);
+          if (member && member.data) {
+            setPresence(member.data as PresenceData);
+          } else {
+            setPresence({
+              userId,
+              status: "offline",
+              lastSeen: Date.now(),
+            });
+          }
+          setIsLoading(false);
         });
-      }
-      setIsLoading(false);
-    });
 
-    // Subscribe to presence updates
-    channel.presence.subscribe(handlePresenceMessage);
+        // Subscribe to presence updates
+        channel.presence.subscribe(handlePresenceMessage);
+      })
+      .catch((err) => {
+        console.error("Failed to attach presence channel:", err);
+        setIsLoading(false);
+      });
 
     return () => {
       mounted = false;
@@ -86,13 +122,15 @@ export function usePresenceList(userIds: string[]) {
 
   useEffect(() => {
     if (!client || userIds.length === 0 || !isConnected) {
-      setIsLoading(false);
+      // Defer state update to avoid synchronous setState in effect
+      setTimeout(() => setIsLoading(false), 0);
       return;
     }
 
     const channel = client.channels.get(PRESENCE_CHANNEL);
     let mounted = true;
     const userIdSet = new Set(userIds);
+    let handlePresenceMessage: ((message: any) => void) | null = null;
 
     const updatePresences = () => {
       channel.presence.get((err, members) => {
@@ -124,38 +162,50 @@ export function usePresenceList(userIds: string[]) {
       });
     };
 
-    // Initial fetch
-    updatePresences();
+    // Attach channel and then fetch and subscribe to presence
+    ensureChannelAttached(channel)
+      .then(() => {
+        if (!mounted) return;
 
-    // Subscribe to presence updates
-    const handlePresenceMessage = (message: any) => {
-      if (!mounted || !userIdSet.has(message.clientId)) return;
+        // Initial fetch
+        updatePresences();
 
-      if (message.action === "enter" || message.action === "update") {
-        const data = message.data as PresenceData;
-        setPresences((prev) => {
-          const next = new Map(prev);
-          next.set(message.clientId, data);
-          return next;
-        });
-      } else if (message.action === "leave") {
-        setPresences((prev) => {
-          const next = new Map(prev);
-          next.set(message.clientId, {
-            userId: message.clientId,
-            status: "offline",
-            lastSeen: Date.now(),
-          });
-          return next;
-        });
-      }
-    };
+        // Subscribe to presence updates
+        handlePresenceMessage = (message: any) => {
+          if (!mounted || !userIdSet.has(message.clientId)) return;
 
-    channel.presence.subscribe(handlePresenceMessage);
+          if (message.action === "enter" || message.action === "update") {
+            const data = message.data as PresenceData;
+            setPresences((prev) => {
+              const next = new Map(prev);
+              next.set(message.clientId, data);
+              return next;
+            });
+          } else if (message.action === "leave") {
+            setPresences((prev) => {
+              const next = new Map(prev);
+              next.set(message.clientId, {
+                userId: message.clientId,
+                status: "offline",
+                lastSeen: Date.now(),
+              });
+              return next;
+            });
+          }
+        };
+
+        channel.presence.subscribe(handlePresenceMessage);
+      })
+      .catch((err) => {
+        console.error("Failed to attach presence channel:", err);
+        setIsLoading(false);
+      });
 
     return () => {
       mounted = false;
-      channel.presence.unsubscribe(handlePresenceMessage);
+      if (handlePresenceMessage) {
+        channel.presence.unsubscribe(handlePresenceMessage);
+      }
     };
   }, [client, userIds.join(","), isConnected]);
 
@@ -178,10 +228,15 @@ export function useUpdatePresence() {
         lastSeen: Date.now(),
       };
 
-      // Enter or update presence using promise
-      channel.presence.enter(presenceData).catch((err) => {
-        console.error("Failed to update presence:", err);
-      });
+      // Ensure channel is attached before entering presence
+      ensureChannelAttached(channel)
+        .then(() => {
+          // Enter or update presence using promise
+          return channel.presence.enter(presenceData);
+        })
+        .catch((err) => {
+          console.error("Failed to update presence:", err);
+        });
     },
     [client, isConnected, userId]
   );
@@ -200,10 +255,29 @@ export function useUpdatePresence() {
 
     const channel = client.channels.get(PRESENCE_CHANNEL);
     const channelState = channel.state;
-    
-    // Only try to leave if channel is attached (presence operations require attached channel)
-    if (channelState !== "attached") {
-      // Channel not attached, can't leave presence
+
+    // Only try to leave if channel is attached or attaching (presence operations require attached channel)
+    if (channelState !== "attached" && channelState !== "attaching") {
+      // Try to attach first, then leave
+      ensureChannelAttached(channel)
+        .then(() => {
+          // Leave presence without data (Ably will automatically remove the client)
+          return channel.presence.leave();
+        })
+        .catch((err) => {
+          // Ignore errors if connection/channel is already closed or in incompatible state
+          const errorMsg = err?.message || String(err);
+          if (
+            errorMsg &&
+            !errorMsg.includes("Connection closed") &&
+            !errorMsg.includes("closed") &&
+            !errorMsg.includes("incompatible state") &&
+            !errorMsg.includes("detaching") &&
+            !errorMsg.includes("detached")
+          ) {
+            console.error("Failed to leave presence:", err);
+          }
+        });
       return;
     }
 
@@ -211,12 +285,14 @@ export function useUpdatePresence() {
     channel.presence.leave().catch((err) => {
       // Ignore errors if connection/channel is already closed or in incompatible state
       const errorMsg = err?.message || String(err);
-      if (errorMsg && 
-          !errorMsg.includes("Connection closed") && 
-          !errorMsg.includes("closed") &&
-          !errorMsg.includes("incompatible state") &&
-          !errorMsg.includes("detaching") &&
-          !errorMsg.includes("detached")) {
+      if (
+        errorMsg &&
+        !errorMsg.includes("Connection closed") &&
+        !errorMsg.includes("closed") &&
+        !errorMsg.includes("incompatible state") &&
+        !errorMsg.includes("detaching") &&
+        !errorMsg.includes("detached")
+      ) {
         console.error("Failed to leave presence:", err);
       }
     });
