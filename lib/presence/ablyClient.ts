@@ -60,11 +60,14 @@ export async function getAblyClient(userId?: string): Promise<any> {
   }
 
   try {
+    // Ensure userId is a string for Ably clientId
+    const userIdString = String(userId);
+    
     ablyClient = new AblyModule.Realtime({
       key: apiKey,
-      clientId: userId, // Use user ID as client ID for presence tracking
+      clientId: userIdString, // Use user ID as client ID for presence tracking
     });
-    currentClientId = userId;
+    currentClientId = userIdString;
     return ablyClient;
   } catch (error) {
     console.error("Failed to initialize Ably client:", error);

@@ -41,7 +41,9 @@ export function PresenceProvider({ children }: PresenceProviderProps) {
     let mounted = true;
 
     // Initialize Ably client asynchronously
-    getAblyClient(userId.toString()).then((ablyClient) => {
+    // Ensure userId is converted to string consistently
+    const userIdString = userId?.toString();
+    getAblyClient(userIdString).then((ablyClient) => {
       if (!mounted || !ablyClient) {
         setClient(null);
         setIsConnected(false);

@@ -16,7 +16,18 @@ interface StatusDotProps {
 
 export function StatusDot({ userId, lastActive, className = "" }: StatusDotProps) {
   // Use Ably presence if userId is provided, otherwise fallback to lastActive
-  const { presence } = usePresence(userId?.toString());
+  // Ensure userId is converted to string for Ably clientId matching
+  const userIdString = userId?.toString();
+  const { presence } = usePresence(userIdString);
+  
+  // Debug: log the userId being used
+  if (userId && typeof window !== "undefined") {
+    console.log(`[StatusDot] Checking presence for userId:`, {
+      original: userId,
+      stringified: userIdString,
+      presence,
+    });
+  }
   
   // Determine if user is active
   const isActive = presence
