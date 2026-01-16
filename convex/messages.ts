@@ -1,6 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { getCurrentUserOrThrow } from "./users";
+import { getCurrentUserOrThrow, getCurrentUser } from "./users";
 import { Id } from "./_generated/dataModel";
 
 // Helper function to generate secure random hash
@@ -742,5 +742,54 @@ export const getReservationConversations = query({
 
     // Sort by last message time
     return conversations.sort((a, b) => b.lastMessageTime - a.lastMessageTime);
+  },
+});
+
+
+export const getUnreadMessageCount = query({
+  args: {},
+  handler: async (ctx) => {
+    const currentUser = await getCurrentUser(ctx);
+
+    // Return 0 if user is not authenticated
+    if (!currentUser) {
+      return 0;
+    }
+
+    // Count unread individual messages
+    const unreadIndividualMessages = await ctx.db
+      .query("messages")
+      .withIndex("byReceiver", (q) => q.eq("receiverId", currentUser._id))
+      .collect();
+
+    const unreadIndividualCount = unreadIndividualMessages.filter((msg) => {
+      const readBy = msg.readBy || [];
+      return !readBy.includes(currentUser._id);
+    }).length;
+
+    // Count unread team messages
+    const allTeams = await ctx.db.query("teams").collect();
+    const userTeams = allTeams.filter((team) =>
+      team.teammates.includes(currentUser._id)
+    );
+
+    let unreadTeamCount = 0;
+    for (const team of userTeams) {
+      const teamMessages = await ctx.db
+        .query("groupMessages")
+        .withIndex("byTeam", (q) => q.eq("teamId", team._id))
+        .collect();
+
+      const unreadTeamMessages = teamMessages.filter((msg) => {
+        // Don't count messages sent by current user
+        if (msg.senderId === currentUser._id) return false;
+        const readBy = msg.readBy || [];
+        return !readBy.includes(currentUser._id);
+      });
+
+      unreadTeamCount += unreadTeamMessages.length;
+    }
+
+    return unreadIndividualCount + unreadTeamCount;
   },
 });

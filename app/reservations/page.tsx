@@ -2,14 +2,16 @@
 
 import { useOrganizerReservations, useUnreadReservationCount, useMarkReservationsAsRead } from "@/lib/hooks/useReservations";
 import { ReservationTable } from "@/components/reservations/ReservationTable";
+import { PaymentSection } from "@/components/reservations/PaymentSection";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Inbox, Filter } from "lucide-react";
+import { Inbox, Filter, CreditCard } from "lucide-react";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useOrganizer } from "@/lib/hooks/useOrganizer";
 import { useRouter } from "next/navigation";
 
 type StatusFilter = "all" | "active" | "cancelled";
+type ViewMode = "reservations" | "payments";
 
 export default function ReservationsPage() {
   const { isOrganizer } = useOrganizer();
@@ -17,6 +19,7 @@ export default function ReservationsPage() {
   const { count: unreadCount } = useUnreadReservationCount();
   const { markReservationsAsRead } = useMarkReservationsAsRead();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [viewMode, setViewMode] = useState<ViewMode>("reservations");
   const router = useRouter();
   const hasMarkedAsRead = useRef(false);
 
@@ -80,8 +83,33 @@ export default function ReservationsPage() {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* View Mode Toggle */}
       <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">
+        <Button
+          variant={viewMode === "reservations" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setViewMode("reservations")}
+          className="gap-2"
+        >
+          <Inbox className="h-4 w-4" />
+          Reservations
+        </Button>
+        <Button
+          variant={viewMode === "payments" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setViewMode("payments")}
+          className="gap-2"
+        >
+          <CreditCard className="h-4 w-4" />
+          Payments
+        </Button>
+      </div>
+
+      {/* Reservations View */}
+      {viewMode === "reservations" && (
+        <>
+          {/* Filters */}
+          <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">
         <Button
           variant={statusFilter === "all" ? "default" : "outline"}
           size="sm"
@@ -120,17 +148,22 @@ export default function ReservationsPage() {
         <ReservationTable reservations={filteredReservations} />
       )}
 
-      {/* Empty state */}
-      {!isLoading && filteredReservations.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">
-          <Inbox className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>
-            {statusFilter === "all"
-              ? "No reservations found"
-              : `No ${statusFilter} reservations found`}
-          </p>
-        </div>
+          {/* Empty state */}
+          {!isLoading && filteredReservations.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground">
+              <Inbox className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>
+                {statusFilter === "all"
+                  ? "No reservations found"
+                  : `No ${statusFilter} reservations found`}
+              </p>
+            </div>
+          )}
+        </>
       )}
+
+      {/* Payments View */}
+      {viewMode === "payments" && <PaymentSection />}
     </div>
   );
 }

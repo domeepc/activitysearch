@@ -3,6 +3,7 @@ import { httpAction } from './_generated/server';
 import { internal } from './_generated/api';
 import type { WebhookEvent } from '@clerk/backend';
 import { Webhook } from 'svix';
+import * as stripe from './stripe';
 
 const http = httpRouter();
 
@@ -33,6 +34,31 @@ http.route({
 
     return new Response(null, { status: 200 });
   }),
+});
+
+// Stripe routes
+http.route({
+  path: '/stripe/confirm-payment-intent',
+  method: 'POST',
+  handler: stripe.confirmPaymentIntent,
+});
+
+http.route({
+  path: '/stripe/create-connect-account-link',
+  method: 'POST',
+  handler: stripe.createConnectAccountLink,
+});
+
+http.route({
+  path: '/stripe/create-connect-account-with-details',
+  method: 'POST',
+  handler: stripe.createConnectAccountWithDetails,
+});
+
+http.route({
+  path: '/stripe/webhook',
+  method: 'POST',
+  handler: stripe.stripeWebhook,
 });
 
 async function validateRequest(req: Request): Promise<WebhookEvent | null> {

@@ -31,10 +31,12 @@ import { SignOutButton } from "@clerk/nextjs";
 import { DropdownMenuLabel } from "@radix-ui/react-dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { useUnreadReservationCount } from "@/lib/hooks/useReservations";
+import { useUnreadMessageCount } from "@/lib/hooks/useUnreadMessageCount";
 
 export default function Navbar() {
   const user = useQuery(api.users.current);
   const { count: unreadReservationCount } = useUnreadReservationCount();
+  const { count: unreadMessageCount } = useUnreadMessageCount();
   const isOrganizer = user?.role === "organiser";
 
   return (
@@ -49,8 +51,16 @@ export default function Navbar() {
             </Link>
           </li>
           <li>
-            <Link href="/chat">
+            <Link href="/chat" className="relative">
               <MessageSquare className="icon" /> Chat
+              {unreadMessageCount > 0 && (
+                <Badge
+                  variant="destructive"
+                  className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full p-0 flex items-center justify-center text-[10px] leading-none"
+                >
+                  {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
+                </Badge>
+              )}
             </Link>
           </li>
         </ul>
@@ -113,8 +123,16 @@ export default function Navbar() {
                   </DropdownMenuItem>
                 </Link>
                 <Link href="/chat">
-                  <DropdownMenuItem>
+                  <DropdownMenuItem className="relative">
                     <MessageSquare className="icon" /> Chat
+                    {unreadMessageCount > 0 && (
+                      <Badge
+                        variant="destructive"
+                        className="ml-auto h-5 min-w-5 rounded-full p-0 flex items-center justify-center text-xs"
+                      >
+                        {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
+                      </Badge>
+                    )}
                   </DropdownMenuItem>
                 </Link>
                 {isOrganizer && (

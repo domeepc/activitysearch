@@ -24,6 +24,10 @@ interface ChatViewProps {
     senderAvatar?: string;
     status?: "sent" | "delivered" | "read";
     encrypted?: boolean;
+    messageType?: "text" | "reservation_card";
+    reservationCardData?: {
+      reservationId: Id<"reservations">;
+    };
   }>;
   otherUser?: {
     name: string;
@@ -89,6 +93,10 @@ export function ChatView({
       senderAvatar?: string;
       status?: "sent" | "delivered" | "read";
       decryptionError?: boolean;
+      messageType?: "text" | "reservation_card";
+      reservationCardData?: {
+        reservationId: Id<"reservations">;
+      };
     }>
   >([]);
 
@@ -108,6 +116,15 @@ export function ChatView({
 
       const decrypted = await Promise.all(
         messages.map(async (msg) => {
+          // Skip decryption for reservation card messages
+          if (msg.messageType === "reservation_card") {
+            return {
+              ...msg,
+              text: msg.text,
+              decryptionError: false,
+            };
+          }
+
           if (msg.encrypted && isEncryptionAvailable) {
             try {
               const decryptedText = await decryptMessage(msg.text, true);
@@ -297,6 +314,8 @@ export function ChatView({
                   index > 0 ? decryptedMessages[index - 1].timestamp : undefined
                 }
                 decryptionError={message.decryptionError}
+                messageType={message.messageType}
+                reservationCardData={message.reservationCardData}
               />
             ))}
             <div ref={messagesEndRef} />

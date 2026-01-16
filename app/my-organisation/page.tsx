@@ -20,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { validateOrganizationField, validateEmail } from "@/lib/validation";
 import { extractErrorMessage } from "@/lib/errors";
 import ActivityListSection from "@/components/organisation/activityListSection";
+import { StripeConnectButton } from "@/components/organisation/StripeConnectButton";
 
 export default function MyOrganisationPage() {
   const router = useRouter();
@@ -409,6 +410,10 @@ export default function MyOrganisationPage() {
           </div>
         </CardContent>
       </Card>
+      
+      {/* Stripe Connect Section */}
+      <StripeConnectButton organisationId={organisation._id} />
+      
       <ActivityListSection activityIDs={organisation.activityIDs || []} />
     </div>
   );

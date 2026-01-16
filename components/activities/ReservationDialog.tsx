@@ -521,7 +521,7 @@ export function ReservationDialog({
                 !hasTeams ||
                 !selectedTeamId ||
                 (isDateFulfilled && queuePosition?.inQueue) ||
-                (activity?.maxParticipants &&
+                (!!activity?.maxParticipants &&
                   userCount > Number(activity.maxParticipants))
               }
             >

@@ -23,6 +23,8 @@ import { validateEmail, validateIBAN, validateContact } from "@/lib/validation";
 import { handleOAuthRedirect } from "@/lib/auth/oauth";
 import { extractErrorMessage } from "@/lib/errors";
 import { Eye, EyeOff } from "lucide-react";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { AddressAutocomplete, AddressCoordinates } from "@/components/ui/address-autocomplete";
 
 export default function CustomSignUpORG() {
   const { isLoaded, signUp, setActive } = useSignUp();
@@ -37,9 +39,13 @@ export default function CustomSignUpORG() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [address, setAddress] = useState("");
+  const [addressCoords, setAddressCoords] = useState<AddressCoordinates | null>(null);
   const [IBAN, setIBAN] = useState("");
   const [organizationName, setOrganizationName] = useState("");
   const [contact, setContact] = useState("");
+  const [country, setCountry] = useState("");
+  const [businessType, setBusinessType] = useState<"individual" | "company">("individual");
+  const [taxId, setTaxId] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
@@ -71,6 +77,12 @@ export default function CustomSignUpORG() {
     }
     if (!contact || !validateContact(contact)) {
       return "Please enter a valid contact number (7-15 digits)";
+    }
+    if (!country || country.trim().length === 0) {
+      return "Please select a country";
+    }
+    if (businessType === "company" && (!taxId || taxId.trim().length < 2)) {
+      return "Please enter a valid Tax ID/VAT number for company";
     }
     return null;
   };
@@ -140,13 +152,75 @@ export default function CustomSignUpORG() {
 
         while (retryCount < maxRetries && !orgCreated) {
           try {
-            await createOrganisation({
+            const organisationId = await createOrganisation({
               name: organizationName,
               email: organizationEmail,
               address,
               IBAN,
               ownerExternalId: completeSignUp.createdUserId!, // Pass Clerk user ID
+              country,
+              businessType,
+              taxId: businessType === "company" ? taxId : undefined,
             });
+            
+            // Create Stripe Connect account with business details
+            if (organisationId) {
+              try {
+                const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL || "";
+                const response = await fetch(
+                  `${convexUrl}/stripe/create-connect-account-with-details`,
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      organisationId,
+                      country,
+                      businessType,
+                      email: organizationEmail,
+                      businessName: organizationName,
+                      taxId: businessType === "company" ? taxId : undefined,
+                      phone: contact, // Use existing contact field
+                    }),
+                    credentials: "include",
+                  }
+                );
+                
+                if (!response.ok) {
+                  // Try to get error message from response
+                  let errorData: unknown = { error: "Unknown error" };
+                  const contentType = response.headers.get("content-type");
+                  
+                  if (contentType && contentType.includes("application/json")) {
+                    try {
+                      errorData = await response.json();
+                    } catch (e) {
+                      // If JSON parsing fails, try text
+                      const text = await response.text();
+                      errorData = { error: text || "Failed to parse error response" };
+                    }
+                  } else {
+                    const text = await response.text();
+                    errorData = { error: text || `HTTP ${response.status}: ${response.statusText}` };
+                  }
+                  
+                  console.error("Failed to create Stripe account:", {
+                    status: response.status,
+                    statusText: response.statusText,
+                    url: `${convexUrl}/stripe/create-connect-account-with-details`,
+                    error: errorData,
+                  });
+                  // Continue anyway - user can set up Stripe later
+                } else {
+                  const data = await response.json();
+                  console.log("Stripe account created successfully:", data);
+                }
+              } catch (stripeError) {
+                console.error("Error creating Stripe account:", stripeError);
+                // Continue anyway - user can set up Stripe later
+              }
+            }
             orgCreated = true;
           } catch (orgError: unknown) {
             const error = orgError as { message?: string };
@@ -373,16 +447,95 @@ export default function CustomSignUpORG() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="address">Address</Label>
-              <Input
+              <AddressAutocomplete
                 id="address"
-                type="text"
-                placeholder="123 Main St, City, Country"
                 value={address}
-                onChange={(e) => setAddress(e.target.value)}
+                onChange={setAddress}
+                onSelect={(selectedAddress, coords) => {
+                  setAddress(selectedAddress);
+                  setAddressCoords(coords);
+                }}
+                placeholder="Enter address..."
                 required
-                disabled={loading}
+                error={address && address.trim().length < 5 ? "Please enter a valid address (at least 5 characters)" : undefined}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="country">Country <span className="text-destructive">*</span></Label>
+              <NativeSelect
+                id="country"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                required
+                disabled={loading}
+                className="w-full"
+              >
+                <NativeSelectOption value="">Select a country</NativeSelectOption>
+                <NativeSelectOption value="US">United States</NativeSelectOption>
+                <NativeSelectOption value="GB">United Kingdom</NativeSelectOption>
+                <NativeSelectOption value="CA">Canada</NativeSelectOption>
+                <NativeSelectOption value="AU">Australia</NativeSelectOption>
+                <NativeSelectOption value="DE">Germany</NativeSelectOption>
+                <NativeSelectOption value="FR">France</NativeSelectOption>
+                <NativeSelectOption value="IT">Italy</NativeSelectOption>
+                <NativeSelectOption value="ES">Spain</NativeSelectOption>
+                <NativeSelectOption value="NL">Netherlands</NativeSelectOption>
+                <NativeSelectOption value="BE">Belgium</NativeSelectOption>
+                <NativeSelectOption value="AT">Austria</NativeSelectOption>
+                <NativeSelectOption value="CH">Switzerland</NativeSelectOption>
+                <NativeSelectOption value="SE">Sweden</NativeSelectOption>
+                <NativeSelectOption value="NO">Norway</NativeSelectOption>
+                <NativeSelectOption value="DK">Denmark</NativeSelectOption>
+                <NativeSelectOption value="FI">Finland</NativeSelectOption>
+                <NativeSelectOption value="PL">Poland</NativeSelectOption>
+                <NativeSelectOption value="CZ">Czech Republic</NativeSelectOption>
+                <NativeSelectOption value="IE">Ireland</NativeSelectOption>
+                <NativeSelectOption value="PT">Portugal</NativeSelectOption>
+                <NativeSelectOption value="GR">Greece</NativeSelectOption>
+                <NativeSelectOption value="HR">Croatia</NativeSelectOption>
+                <NativeSelectOption value="SI">Slovenia</NativeSelectOption>
+                <NativeSelectOption value="SK">Slovakia</NativeSelectOption>
+                <NativeSelectOption value="HU">Hungary</NativeSelectOption>
+                <NativeSelectOption value="RO">Romania</NativeSelectOption>
+                <NativeSelectOption value="BG">Bulgaria</NativeSelectOption>
+              </NativeSelect>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="businessType">Business Type <span className="text-destructive">*</span></Label>
+              <NativeSelect
+                id="businessType"
+                value={businessType}
+                onChange={(e) => {
+                  setBusinessType(e.target.value as "individual" | "company");
+                  if (e.target.value === "individual") {
+                    setTaxId(""); // Clear tax ID if switching to individual
+                  }
+                }}
+                required
+                disabled={loading}
+                className="w-full"
+              >
+                <NativeSelectOption value="individual">Individual</NativeSelectOption>
+                <NativeSelectOption value="company">Company</NativeSelectOption>
+              </NativeSelect>
+            </div>
+            {businessType === "company" && (
+              <div className="space-y-2">
+                <Label htmlFor="taxId">Tax ID / VAT Number <span className="text-destructive">*</span></Label>
+                <Input
+                  id="taxId"
+                  type="text"
+                  placeholder="VAT123456789"
+                  value={taxId}
+                  onChange={(e) => setTaxId(e.target.value)}
+                  required
+                  disabled={loading}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Enter your business Tax ID or VAT number
+                </p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="contact">Contact Number</Label>
               <Input

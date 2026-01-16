@@ -273,6 +273,8 @@ export const getTeamMessages = query({
         readBy: msg.readBy || [],
         status,
         encrypted: msg.encrypted || false,
+        messageType: msg.messageType || "text",
+        reservationCardData: msg.reservationCardData || undefined,
       };
     });
 
@@ -323,6 +325,49 @@ export const sendTeamMessage = mutation({
       text: messageText.trim(),
       timestamp,
       encrypted: isEncrypted ? true : undefined,
+      messageType: "text",
+    });
+
+    return { success: true };
+  },
+});
+
+export const sendReservationCardToTeam = mutation({
+  args: {
+    teamId: v.id("teams"),
+    reservationId: v.id("reservations"),
+  },
+  handler: async (ctx, { teamId, reservationId }) => {
+    // Get reservation to verify it exists
+    const reservation = await ctx.db.get(reservationId);
+    if (!reservation) {
+      throw new Error("Reservation not found");
+    }
+
+    // Verify team is part of the reservation
+    if (!reservation.teamIds.includes(teamId)) {
+      throw new Error("Team is not part of this reservation");
+    }
+
+    // Get team to verify it exists
+    const team = await ctx.db.get(teamId);
+    if (!team) {
+      throw new Error("Team not found");
+    }
+
+    // Use system user ID (the creator of the reservation) as sender
+    // This ensures the card appears as a system message
+    const timestamp = Date.now();
+
+    await ctx.db.insert("groupMessages", {
+      teamId,
+      senderId: reservation.createdBy,
+      text: "Reservation card", // Placeholder text for reservation card messages
+      timestamp,
+      messageType: "reservation_card",
+      reservationCardData: {
+        reservationId,
+      },
     });
 
     return { success: true };
@@ -582,6 +627,8 @@ export const getTeamMessagesBySlug = query({
         readBy: msg.readBy || [],
         status,
         encrypted: msg.encrypted || false,
+        messageType: msg.messageType || "text",
+        reservationCardData: msg.reservationCardData || undefined,
       };
     });
 

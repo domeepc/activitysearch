@@ -32,6 +32,8 @@ export default defineSchema({
     IBAN: v.string(),
     organisersIDs: v.array(v.id("users")),
     activityIDs: v.array(v.id("activities")),
+    stripeAccountId: v.optional(v.string()),
+    stripeAccountOnboardingComplete: v.optional(v.boolean()),
   }),
 
   teams: defineTable({
@@ -72,9 +74,29 @@ export default defineSchema({
     reservationChatSlug: v.optional(v.string()),
     cancelledAt: v.optional(v.number()),
     cancellationReason: v.optional(v.string()),
+    paymentStatus: v.optional(
+      v.union(
+        v.literal("pending"),
+        v.literal("on_hold"),
+        v.literal("fulfilled"),
+        v.literal("cancelled")
+      )
+    ),
+    paymentDeadline: v.optional(v.number()),
   })
     .index("byActivity", ["activityId"])
     .index("byDateTime", ["activityId", "date", "time"]),
+  reservationPayments: defineTable({
+    reservationId: v.id("reservations"),
+    userId: v.id("users"),
+    amount: v.float64(),
+    personsPaidFor: v.int64(),
+    paidAt: v.number(),
+    refundedAt: v.optional(v.number()),
+    stripePaymentIntentId: v.optional(v.string()),
+    capturedAt: v.optional(v.number()),
+    captureScheduledFor: v.optional(v.number()),
+  }).index("byReservation", ["reservationId"]),
   reservationQueue: defineTable({
     activityId: v.id("activities"),
     date: v.string(),
@@ -83,8 +105,7 @@ export default defineSchema({
     createdBy: v.id("users"),
     createdAt: v.number(),
     notifiedAt: v.optional(v.number()),
-  })
-    .index("byActivityDate", ["activityId", "date"]),
+  }).index("byActivityDate", ["activityId", "date"]),
   conversations: defineTable({
     user1Id: v.id("users"),
     user2Id: v.id("users"),
@@ -112,6 +133,14 @@ export default defineSchema({
     timestamp: v.number(),
     readBy: v.optional(v.array(v.id("users"))),
     encrypted: v.optional(v.boolean()),
+    messageType: v.optional(
+      v.union(v.literal("text"), v.literal("reservation_card"))
+    ),
+    reservationCardData: v.optional(
+      v.object({
+        reservationId: v.id("reservations"),
+      })
+    ),
   }).index("byTeam", ["teamId"]),
   activities: defineTable({
     activityName: v.string(),

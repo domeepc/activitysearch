@@ -1,7 +1,13 @@
-import { mutation, query, MutationCtx } from "./_generated/server";
+import {
+  mutation,
+  query,
+  MutationCtx,
+  internalMutation,
+} from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUserOrThrow, getCurrentUser } from "./users";
 import { Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 
 // Helper function to generate secure random hash for conversation slugs
 function generateSecureHash(): string {
@@ -355,6 +361,15 @@ export const createReservation = mutation({
         conversationSlug = newConversation!.slug;
       }
 
+      // Calculate payment deadline (7 days before activity, or activity date if less than 7 days away)
+      const activityDate = new Date(`${date}T${time}`);
+      const sevenDaysBefore = new Date(activityDate);
+      sevenDaysBefore.setDate(sevenDaysBefore.getDate() - 7);
+      const paymentDeadline =
+        sevenDaysBefore > now
+          ? sevenDaysBefore.getTime()
+          : activityDate.getTime();
+
       // Create the reservation
       const reservationId = await ctx.db.insert("reservations", {
         activityId,
@@ -365,6 +380,8 @@ export const createReservation = mutation({
         createdBy: currentUser._id,
         readByOrganizer: false,
         reservationChatSlug: conversationSlug,
+        paymentStatus: "pending",
+        paymentDeadline,
       });
 
       // Update conversation to link to reservation
@@ -383,6 +400,21 @@ export const createReservation = mutation({
             reservationId,
           });
         }
+      }
+
+      // Send reservation card to each team's chat
+      const timestamp = Date.now();
+      for (const teamId of teamIds) {
+        await ctx.db.insert("groupMessages", {
+          teamId,
+          senderId: currentUser._id,
+          text: "Reservation card",
+          timestamp,
+          messageType: "reservation_card",
+          reservationCardData: {
+            reservationId,
+          },
+        });
       }
 
       return { success: true, reservationId };
@@ -511,11 +543,41 @@ export const cancelReservation = mutation({
       throw new Error("Only the activity organizer can cancel reservations");
     }
 
-    // Mark reservation as cancelled
+    // Mark reservation as cancelled and update payment status
     await ctx.db.patch(reservationId, {
       cancelledAt: Date.now(),
       cancellationReason: cancellationReason.trim(),
+      paymentStatus: "cancelled",
     });
+
+    // Refund all payments
+    const payments = await ctx.db
+      .query("reservationPayments")
+      .withIndex("byReservation", (q) => q.eq("reservationId", reservationId))
+      .collect();
+
+    const activePayments = payments.filter((p) => !p.refundedAt);
+    for (const payment of activePayments) {
+      // If payment has Stripe payment intent, refund it
+      if (payment.stripePaymentIntentId) {
+        try {
+          await ctx.runMutation(internal.stripe.refundPayment, {
+            paymentIntentId: payment.stripePaymentIntentId,
+            reservationId,
+          });
+        } catch (error) {
+          console.error("Error refunding Stripe payment:", error);
+          // Still mark as refunded in our database even if Stripe refund fails
+        }
+      }
+
+      await ctx.db.patch(payment._id, {
+        refundedAt: Date.now(),
+      });
+    }
+
+    // Send card update to teams
+    await sendReservationCardUpdate(ctx, reservationId);
 
     // Delete reservation conversation and messages
     await deleteReservationConversation(ctx, reservationId);
@@ -638,6 +700,107 @@ export const getReservationsForOrganizer = query({
       if (dateCompare !== 0) return dateCompare;
       return b.time.localeCompare(a.time);
     });
+  },
+});
+
+export const getPaymentDetailsForOrganizer = query({
+  args: {},
+  handler: async (ctx) => {
+    const currentUser = await getCurrentUserOrThrow(ctx);
+
+    // Check if user is an organizer
+    if (currentUser.role !== "organiser") {
+      return [];
+    }
+
+    // Find organization(s) where user is an organizer
+    const allOrganisations = await ctx.db.query("organisations").collect();
+    const userOrganisations = allOrganisations.filter((org) =>
+      org.organisersIDs.includes(currentUser._id)
+    );
+
+    if (userOrganisations.length === 0) {
+      return [];
+    }
+
+    // Get all activity IDs from user's organizations
+    const activityIds = new Set<Id<"activities">>();
+    for (const org of userOrganisations) {
+      for (const activityId of org.activityIDs) {
+        activityIds.add(activityId);
+      }
+    }
+
+    if (activityIds.size === 0) {
+      return [];
+    }
+
+    // Get all reservations for these activities
+    const allReservations = await ctx.db.query("reservations").collect();
+    const organizerReservations = allReservations.filter((r) =>
+      activityIds.has(r.activityId)
+    );
+
+    // Enrich reservations with payment details
+    const paymentDetails = await Promise.all(
+      organizerReservations.map(async (reservation) => {
+        // Get activity
+        const activity = await ctx.db.get(reservation.activityId);
+
+        // Get teams
+        const teams = await Promise.all(
+          reservation.teamIds.map((teamId) => ctx.db.get(teamId))
+        );
+        const validTeams = teams.filter(
+          (t): t is NonNullable<typeof t> => t !== null
+        );
+
+        // Get all payments for this reservation
+        const payments = await ctx.db
+          .query("reservationPayments")
+          .withIndex("byReservation", (q) =>
+            q.eq("reservationId", reservation._id)
+          )
+          .collect();
+
+        // Calculate payment totals
+        const activePayments = payments.filter((p) => !p.refundedAt);
+        const totalAmount = activity ? activity.price : 0;
+        const collectedAmount = activePayments.reduce(
+          (sum, p) => sum + p.amount,
+          0
+        );
+        const saldo = collectedAmount; // Saldo is the collected amount
+
+        return {
+          reservationId: reservation._id,
+          activityId: reservation.activityId,
+          activityName: activity?.activityName || "Unknown Activity",
+          activityAddress: activity?.address || "",
+          teams: validTeams.map((t) => ({
+            _id: t._id,
+            teamName: t.teamName,
+            slug: t.slug,
+          })),
+          saldo,
+          totalAmount,
+          paymentStatus: reservation.paymentStatus || "pending",
+          date: reservation.date,
+          time: reservation.time,
+          userCount: Number(reservation.userCount),
+          cancelledAt: reservation.cancelledAt,
+        };
+      })
+    );
+
+    // Filter out cancelled reservations and sort by date (most recent first)
+    return paymentDetails
+      .filter((p) => !p.cancelledAt)
+      .sort((a, b) => {
+        const dateCompare = b.date.localeCompare(a.date);
+        if (dateCompare !== 0) return dateCompare;
+        return b.time.localeCompare(a.time);
+      });
   },
 });
 
@@ -1123,7 +1286,7 @@ export const acceptQueueReservation = mutation({
       .withIndex("byUser1", (q) => q.eq("user1Id", user1Id))
       .collect();
 
-    let existingConversation = allConversations.find(
+    const existingConversation = allConversations.find(
       (c) => c.user2Id === user2Id
     );
 
@@ -1323,5 +1486,541 @@ export const getMyQueueNotifications = query({
     return enrichedNotifications.sort(
       (a, b) => (b.notifiedAt ?? 0) - (a.notifiedAt ?? 0)
     );
+  },
+});
+
+// Payment Tracking Functions
+
+export const recordPayment = mutation({
+  args: {
+    reservationId: v.id("reservations"),
+    amount: v.float64(),
+    personsPaidFor: v.int64(),
+    stripePaymentIntentId: v.optional(v.string()),
+  },
+  handler: async (
+    ctx,
+    {
+      reservationId,
+      amount,
+      personsPaidFor,
+      stripePaymentIntentId,
+    }
+  ) => {
+    const currentUser = await getCurrentUserOrThrow(ctx);
+
+    // Get reservation
+    const reservation = await ctx.db.get(reservationId);
+    if (!reservation) {
+      throw new Error("Reservation not found");
+    }
+
+    // Verify user is part of one of the teams
+    const teams = await Promise.all(
+      reservation.teamIds.map((teamId) => ctx.db.get(teamId))
+    );
+    const validTeams = teams.filter(
+      (t): t is NonNullable<typeof t> => t !== null
+    );
+
+    const isTeamMember = validTeams.some((team) =>
+      team.teammates.includes(currentUser._id)
+    );
+
+    if (!isTeamMember && reservation.createdBy !== currentUser._id) {
+      throw new Error("User is not a member of the reservation teams");
+    }
+
+    // Calculate capture scheduled date (activity date)
+    const activityDate = new Date(`${reservation.date}T${reservation.time}`);
+    const captureScheduledFor = activityDate.getTime();
+
+    // Record payment
+    await ctx.db.insert("reservationPayments", {
+      reservationId,
+      userId: currentUser._id,
+      amount,
+      personsPaidFor,
+      paidAt: Date.now(),
+      stripePaymentIntentId,
+      captureScheduledFor,
+    });
+
+    // Check if all payments are collected and update status
+    await checkAndUpdatePaymentStatus(ctx, reservationId);
+
+    return { success: true };
+  },
+});
+
+export const getReservationPayments = query({
+  args: {
+    reservationId: v.id("reservations"),
+  },
+  handler: async (ctx, { reservationId }) => {
+    const currentUser = await getCurrentUserOrThrow(ctx);
+
+    // Get reservation
+    const reservation = await ctx.db.get(reservationId);
+    if (!reservation) {
+      throw new Error("Reservation not found");
+    }
+
+    // Verify user is part of one of the teams
+    const teams = await Promise.all(
+      reservation.teamIds.map((teamId) => ctx.db.get(teamId))
+    );
+    const validTeams = teams.filter(
+      (t): t is NonNullable<typeof t> => t !== null
+    );
+
+    const isTeamMember = validTeams.some((team) =>
+      team.teammates.includes(currentUser._id)
+    );
+
+    if (!isTeamMember && reservation.createdBy !== currentUser._id) {
+      throw new Error("You do not have access to this reservation");
+    }
+
+    // Get all payments for this reservation
+    const payments = await ctx.db
+      .query("reservationPayments")
+      .withIndex("byReservation", (q) => q.eq("reservationId", reservationId))
+      .collect();
+
+    // Filter out refunded payments
+    const activePayments = payments.filter((p) => !p.refundedAt);
+
+    // Get user details for each payment
+    const paymentsWithUsers = await Promise.all(
+      activePayments.map(async (payment) => {
+        const user = await ctx.db.get(payment.userId);
+        return {
+          ...payment,
+          user: user
+            ? {
+                _id: user._id,
+                name: user.name,
+                lastname: user.lastname,
+                avatar: user.avatar,
+              }
+            : null,
+        };
+      })
+    );
+
+    return paymentsWithUsers;
+  },
+});
+
+export const calculatePaymentProgress = query({
+  args: {
+    reservationId: v.id("reservations"),
+  },
+  handler: async (ctx, { reservationId }) => {
+    // Get reservation
+    const reservation = await ctx.db.get(reservationId);
+    if (!reservation) {
+      throw new Error("Reservation not found");
+    }
+
+    // Get activity to get price
+    const activity = await ctx.db.get(reservation.activityId);
+    if (!activity) {
+      throw new Error("Activity not found");
+    }
+
+    const totalAmount = activity.price;
+    const totalParticipants = Number(reservation.userCount);
+    const perPersonAmount = totalAmount / totalParticipants;
+
+    // Get all active payments
+    const payments = await ctx.db
+      .query("reservationPayments")
+      .withIndex("byReservation", (q) => q.eq("reservationId", reservationId))
+      .collect();
+
+    const activePayments = payments.filter((p) => !p.refundedAt);
+
+    // Calculate collected amount and persons paid for
+    const collectedAmount = activePayments.reduce(
+      (sum, p) => sum + p.amount,
+      0
+    );
+    const personsPaidFor = activePayments.reduce(
+      (sum, p) => sum + Number(p.personsPaidFor),
+      0
+    );
+
+    const isFullyPaid = collectedAmount >= totalAmount;
+    const remainingAmount = Math.max(0, totalAmount - collectedAmount);
+    const remainingPersons = totalParticipants - personsPaidFor;
+
+    return {
+      totalAmount,
+      collectedAmount,
+      perPersonAmount,
+      totalParticipants,
+      personsPaidFor,
+      remainingPersons,
+      isFullyPaid,
+      remainingAmount,
+      payments: activePayments.length,
+    };
+  },
+});
+
+export const updatePaymentStatus = mutation({
+  args: {
+    reservationId: v.id("reservations"),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("on_hold"),
+      v.literal("fulfilled"),
+      v.literal("cancelled")
+    ),
+  },
+  handler: async (ctx, { reservationId, status }) => {
+    const reservation = await ctx.db.get(reservationId);
+    if (!reservation) {
+      throw new Error("Reservation not found");
+    }
+
+    await ctx.db.patch(reservationId, {
+      paymentStatus: status,
+    });
+
+    return { success: true };
+  },
+});
+
+// Helper function to send reservation card update to teams
+async function sendReservationCardUpdate(
+  ctx: MutationCtx,
+  reservationId: Id<"reservations">
+): Promise<void> {
+  const reservation = await ctx.db.get(reservationId);
+  if (!reservation) return;
+
+  const timestamp = Date.now();
+  for (const teamId of reservation.teamIds) {
+    await ctx.db.insert("groupMessages", {
+      teamId,
+      senderId: reservation.createdBy,
+      text: "Reservation card",
+      timestamp,
+      messageType: "reservation_card",
+      reservationCardData: {
+        reservationId,
+      },
+    });
+  }
+}
+
+// Helper function to check and update payment status
+async function checkAndUpdatePaymentStatus(
+  ctx: MutationCtx,
+  reservationId: Id<"reservations">
+): Promise<void> {
+  const reservation = await ctx.db.get(reservationId);
+  if (!reservation) return;
+
+  // Only update if status is pending
+  if (reservation.paymentStatus !== "pending") return;
+
+  // Get activity
+  const activity = await ctx.db.get(reservation.activityId);
+  if (!activity) return;
+
+  const totalAmount = activity.price;
+
+  // Get all active payments
+  const payments = await ctx.db
+    .query("reservationPayments")
+    .withIndex("byReservation", (q) => q.eq("reservationId", reservationId))
+    .collect();
+
+  const activePayments = payments.filter((p) => !p.refundedAt);
+  const collectedAmount = activePayments.reduce((sum, p) => sum + p.amount, 0);
+
+  // If fully paid, move to on_hold and send card update
+  if (collectedAmount >= totalAmount) {
+    await ctx.db.patch(reservationId, {
+      paymentStatus: "on_hold",
+    });
+    // Send card update to teams
+    await sendReservationCardUpdate(ctx, reservationId);
+  }
+}
+
+// Function to check and update payment status when activity date passes
+// Made internal so it can be called from scheduled jobs
+export const checkAndFulfillReservations = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const allReservations = await ctx.db.query("reservations").collect();
+
+    // Find reservations that should be fulfilled (activity date passed, status is on_hold)
+    const reservationsToFulfill = allReservations.filter((r) => {
+      if (r.paymentStatus !== "on_hold") return false;
+      if (r.cancelledAt) return false;
+
+      // Parse the activity date and time
+      let activityDateTime: Date;
+      if (r.time.includes("-")) {
+        // Time range, use start time
+        const startTime = r.time.split("-")[0].trim();
+        activityDateTime = new Date(`${r.date}T${startTime}`);
+      } else {
+        // Single time
+        activityDateTime = new Date(`${r.date}T${r.time}`);
+      }
+
+      // Check if activity date/time has passed
+      return activityDateTime.getTime() < now;
+    });
+
+    // Update status, capture payments, and send card updates
+    for (const reservation of reservationsToFulfill) {
+      // Capture all payments for this reservation
+      const payments = await ctx.db
+        .query("reservationPayments")
+        .withIndex("byReservation", (q) =>
+          q.eq("reservationId", reservation._id)
+        )
+        .collect();
+
+      const uncapturedPayments = payments.filter(
+        (p) => p.stripePaymentIntentId && !p.capturedAt && !p.refundedAt
+      );
+
+      // Capture each payment
+      let allCaptured = true;
+      for (const payment of uncapturedPayments) {
+        if (payment.stripePaymentIntentId) {
+          try {
+            const result = await ctx.runMutation(
+              internal.stripe.capturePayment,
+              {
+                paymentIntentId: payment.stripePaymentIntentId,
+                reservationId: reservation._id,
+              }
+            );
+            if (!result.success) {
+              allCaptured = false;
+              console.error(
+                `Failed to capture payment ${payment.stripePaymentIntentId}`
+              );
+            }
+          } catch (error) {
+            console.error("Error capturing payment:", error);
+            allCaptured = false;
+          }
+        }
+      }
+
+      // Only mark as fulfilled if all payments were successfully captured
+      // or if there are no payments to capture (edge case)
+      if (allCaptured || uncapturedPayments.length === 0) {
+        await ctx.db.patch(reservation._id, {
+          paymentStatus: "fulfilled",
+        });
+        await sendReservationCardUpdate(ctx, reservation._id);
+        console.log(`Reservation ${reservation._id} marked as fulfilled`);
+      } else {
+        console.warn(
+          `Reservation ${reservation._id} has some uncaptured payments, status not updated`
+        );
+      }
+    }
+
+    return {
+      success: true,
+      fulfilled: reservationsToFulfill.length,
+    };
+  },
+});
+
+// Helper mutation to capture payment for a reservation
+export const captureReservationPayments = mutation({
+  args: {
+    reservationId: v.id("reservations"),
+  },
+  handler: async (
+    ctx,
+    { reservationId }
+  ): Promise<{
+    success: boolean;
+    captured: number;
+    results: Array<
+      { success: boolean; amount: number; status: string } | { error: string }
+    >;
+  }> => {
+    const currentUser = await getCurrentUserOrThrow(ctx);
+
+    // Get reservation
+    const reservation = await ctx.db.get(reservationId);
+    if (!reservation) {
+      throw new Error("Reservation not found");
+    }
+
+    // Verify user is organizer
+    const allOrganisations = await ctx.db.query("organisations").collect();
+    const organisation = allOrganisations.find((org) =>
+      org.activityIDs.includes(reservation.activityId)
+    );
+
+    if (
+      !organisation ||
+      !organisation.organisersIDs.includes(currentUser._id)
+    ) {
+      throw new Error("Only organizers can capture payments");
+    }
+
+    // Get all uncaptured payments
+    const payments = await ctx.db
+      .query("reservationPayments")
+      .withIndex("byReservation", (q) => q.eq("reservationId", reservationId))
+      .collect();
+
+    const uncapturedPayments = payments.filter(
+      (p) => p.stripePaymentIntentId && !p.capturedAt && !p.refundedAt
+    );
+
+    // Capture each payment using the stripe mutation
+    const captureResults: Array<
+      { success: boolean; amount: number; status: string } | { error: string }
+    > = [];
+    for (const payment of uncapturedPayments) {
+      if (payment.stripePaymentIntentId) {
+        try {
+          const result: { success: boolean; amount: number; status: string } =
+            await ctx.runMutation(internal.stripe.capturePayment, {
+              paymentIntentId: payment.stripePaymentIntentId,
+              reservationId,
+            });
+          captureResults.push(result);
+        } catch (error) {
+          console.error("Error capturing payment:", error);
+          captureResults.push({
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
+        }
+      }
+    }
+
+    return {
+      success: true,
+      captured: captureResults.length,
+      results: captureResults,
+    };
+  },
+});
+
+export const getReservationCardData = query({
+  args: {
+    reservationId: v.id("reservations"),
+  },
+  handler: async (ctx, { reservationId }) => {
+    // Get reservation
+    const reservation = await ctx.db.get(reservationId);
+    if (!reservation) {
+      return null;
+    }
+
+    // Get activity
+    const activity = await ctx.db.get(reservation.activityId);
+    if (!activity) {
+      return null;
+    }
+
+    // Get teams
+    const teams = await Promise.all(
+      reservation.teamIds.map((teamId) => ctx.db.get(teamId))
+    );
+    const validTeams = teams.filter(
+      (t): t is NonNullable<typeof t> => t !== null
+    );
+
+    // Collect all unique participant IDs
+    const participantIds = new Set<Id<"users">>();
+    for (const team of validTeams) {
+      for (const teammateId of team.teammates) {
+        participantIds.add(teammateId);
+      }
+    }
+
+    // Get participant details
+    const participants = await Promise.all(
+      Array.from(participantIds).map((id) => ctx.db.get(id))
+    );
+    const participantDetails = participants
+      .filter((p): p is NonNullable<typeof p> => p !== null)
+      .map((p) => ({
+        _id: p._id,
+        name: p.name,
+        lastname: p.lastname,
+        avatar: p.avatar,
+      }));
+
+    // Calculate payment progress
+    const totalAmount = activity.price;
+    const totalParticipants = Number(reservation.userCount);
+    const perPersonAmount = totalAmount / totalParticipants;
+
+    // Get all active payments
+    const payments = await ctx.db
+      .query("reservationPayments")
+      .withIndex("byReservation", (q) => q.eq("reservationId", reservationId))
+      .collect();
+
+    const activePayments = payments.filter((p) => !p.refundedAt);
+    const collectedAmount = activePayments.reduce(
+      (sum, p) => sum + p.amount,
+      0
+    );
+    const personsPaidFor = activePayments.reduce(
+      (sum, p) => sum + Number(p.personsPaidFor),
+      0
+    );
+
+    const paymentProgress = {
+      totalAmount,
+      collectedAmount,
+      perPersonAmount,
+      totalParticipants,
+      personsPaidFor,
+      remainingPersons: totalParticipants - personsPaidFor,
+      isFullyPaid: collectedAmount >= totalAmount,
+      remainingAmount: Math.max(0, totalAmount - collectedAmount),
+      payments: activePayments.length,
+    };
+
+    return {
+      reservation: {
+        _id: reservation._id,
+        date: reservation.date,
+        time: reservation.time,
+        userCount: reservation.userCount,
+        paymentStatus: reservation.paymentStatus,
+        paymentDeadline: reservation.paymentDeadline,
+        cancelledAt: reservation.cancelledAt,
+      },
+      activity: {
+        _id: activity._id,
+        activityName: activity.activityName,
+        description: activity.description,
+        images: activity.images,
+        duration: activity.duration,
+        price: activity.price,
+      },
+      teams: validTeams.map((t) => ({
+        _id: t._id,
+        teamName: t.teamName,
+      })),
+      paymentProgress,
+      participants: participantDetails,
+    };
   },
 });

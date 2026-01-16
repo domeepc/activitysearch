@@ -56,6 +56,8 @@ export default function TeamChatPage({
     senderAvatar: msg.sender?.avatar,
     status: msg.status,
     encrypted: msg.encrypted || false,
+    messageType: msg.messageType || "text",
+    reservationCardData: msg.reservationCardData,
   }));
 
   return (
