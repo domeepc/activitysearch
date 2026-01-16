@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserPlus, UserMinus } from "lucide-react";
+import { UserPlus, UserMinus, Ban } from "lucide-react";
 import Link from "next/link";
 
 interface ProfileHeaderProps {
@@ -10,8 +10,11 @@ interface ProfileHeaderProps {
   userName: string;
   username: string;
   isFriend: boolean;
+  isBlocked?: boolean;
   onAddFriend?: () => void;
   onRemoveFriend?: () => void;
+  onBlock?: () => void;
+  onUnblock?: () => void;
   onDeleteAccount?: () => void;
   settingsUrl?: string;
 }
@@ -21,8 +24,11 @@ export function ProfileHeader({
   userName,
   username,
   isFriend,
+  isBlocked = false,
   onAddFriend,
   onRemoveFriend,
+  onBlock,
+  onUnblock,
   onDeleteAccount,
   settingsUrl,
 }: ProfileHeaderProps) {
@@ -57,23 +63,68 @@ export function ProfileHeader({
             </>
           ) : (
             <>
-              {isFriend ? (
-                <Button
-                  variant="outline"
-                  onClick={onRemoveFriend}
-                  className="w-full md:w-auto"
-                >
-                  <UserMinus className="h-4 w-4 mr-2" />
-                  Remove Friend
-                </Button>
+              {isBlocked ? (
+                <>
+                  {onUnblock && (
+                    <Button
+                      variant="outline"
+                      onClick={onUnblock}
+                      className="w-full md:w-auto"
+                    >
+                      <Ban className="h-4 w-4 mr-2" />
+                      Unblock
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    disabled
+                    className="w-full md:w-auto opacity-50 cursor-not-allowed"
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    User is Blocked
+                  </Button>
+                </>
+              ) : isFriend ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={onRemoveFriend}
+                    className="w-full md:w-auto"
+                  >
+                    <UserMinus className="h-4 w-4 mr-2" />
+                    Remove Friend
+                  </Button>
+                  {onBlock && (
+                    <Button
+                      variant="destructive"
+                      onClick={onBlock}
+                      className="w-full md:w-auto"
+                    >
+                      <Ban className="h-4 w-4 mr-2" />
+                      Block
+                    </Button>
+                  )}
+                </>
               ) : (
-                <Button
-                  onClick={onAddFriend}
-                  className="w-full md:w-auto"
-                >
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Add Friend
-                </Button>
+                <>
+                  <Button
+                    onClick={onAddFriend}
+                    className="w-full md:w-auto"
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Add Friend
+                  </Button>
+                  {onBlock && (
+                    <Button
+                      variant="destructive"
+                      onClick={onBlock}
+                      className="w-full md:w-auto"
+                    >
+                      <Ban className="h-4 w-4 mr-2" />
+                      Block
+                    </Button>
+                  )}
+                </>
               )}
             </>
           )}

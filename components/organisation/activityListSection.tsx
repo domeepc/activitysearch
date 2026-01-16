@@ -6,7 +6,6 @@ import { Id } from "@/convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import ActivityCard from "@/components/ui/leafletMap/activityCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { mapActivityFromDb } from "@/lib/activities";
 import ActivityCardInList from "./activityCardInList";

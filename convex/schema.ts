@@ -14,7 +14,9 @@ export default defineSchema({
     avatar: v.string(),
     totalExp: v.int64(),
     friends: v.array(v.id("users")),
+    blocked: v.optional(v.array(v.id("users"))),
     role: v.optional(v.string()),
+    lastActive: v.optional(v.number()),
   })
     .index("byExternalId", ["externalId"])
     .index("byUsername", ["username"])
@@ -36,7 +38,11 @@ export default defineSchema({
     teamName: v.string(),
     teamDescription: v.string(),
     teammates: v.array(v.id("users")),
-  }),
+    admins: v.optional(v.array(v.id("users"))),
+    createdBy: v.id("users"),
+    slug: v.string(),
+    icon: v.optional(v.string()),
+  }).index("bySlug", ["slug"]),
   payments: defineTable({
     userId: v.id("users"),
     organisationId: v.id("organisations"),
@@ -57,16 +63,41 @@ export default defineSchema({
   }),
   reservations: defineTable({
     date: v.string(),
+    time: v.string(),
     userCount: v.int64(),
     activityId: v.id("activities"),
     teamIds: v.array(v.id("teams")),
-  }),
+    createdBy: v.id("users"),
+  })
+    .index("byActivity", ["activityId"])
+    .index("byDateTime", ["activityId", "date", "time"]),
+  conversations: defineTable({
+    user1Id: v.id("users"),
+    user2Id: v.id("users"),
+    slug: v.string(),
+    createdAt: v.number(),
+  })
+    .index("bySlug", ["slug"])
+    .index("byUser1", ["user1Id"])
+    .index("byUser2", ["user2Id"]),
   messages: defineTable({
     text: v.string(),
     senderId: v.id("users"),
     receiverId: v.id("users"),
+    timestamp: v.number(),
+    readBy: v.optional(v.array(v.id("users"))),
+    encrypted: v.optional(v.boolean()),
+  })
+    .index("byConversation", ["senderId", "receiverId"])
+    .index("byReceiver", ["receiverId"]),
+  groupMessages: defineTable({
+    text: v.string(),
+    senderId: v.id("users"),
     teamId: v.id("teams"),
-  }),
+    timestamp: v.number(),
+    readBy: v.optional(v.array(v.id("users"))),
+    encrypted: v.optional(v.boolean()),
+  }).index("byTeam", ["teamId"]),
   activities: defineTable({
     activityName: v.string(),
     description: v.string(),
@@ -83,5 +114,6 @@ export default defineSchema({
     reviewCount: v.optional(v.int64()),
     equipment: v.array(v.string()),
     images: v.optional(v.array(v.string())),
+    availableTimeSlots: v.optional(v.array(v.string())),
   }),
 });

@@ -1,25 +1,26 @@
 "use client";
 
 import { AvatarUpload } from "@/components/ui/avatar-upload";
-import { useAction } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useRouter } from "next/navigation";
+import { Id } from "@/convex/_generated/dataModel";
 
-interface UserAvatarSectionProps {
-  currentAvatar?: string;
-  userName?: string;
+interface TeamIconSectionProps {
+  teamId: Id<"teams">;
+  currentIcon?: string;
+  teamName: string;
   disabled?: boolean;
 }
 
-export function UserAvatarSection({
-  currentAvatar,
-  userName,
+export function TeamIconSection({
+  teamId,
+  currentIcon,
+  teamName,
   disabled = false,
-}: UserAvatarSectionProps) {
-  const router = useRouter();
-  const updateProfile = useAction(api.users.updateUserProfile);
+}: TeamIconSectionProps) {
+  const updateTeamIcon = useMutation(api.teams.updateTeamIcon);
 
-  const handleAvatarChange = async (file: File) => {
+  const handleIconChange = async (file: File) => {
     try {
       // Validate file size (max 750KB to account for base64 encoding overhead)
       // Base64 encoding adds ~33% overhead, so 750KB becomes ~1MB when encoded
@@ -30,32 +31,22 @@ export function UserAvatarSection({
         throw new Error(`File is too large (${fileSizeMB}MB)`);
       }
 
-      // Convert the file to base64 or upload to a service
-      // For this example, we'll convert to base64
+      // Convert the file to base64
       const base64 = await fileToBase64(file);
 
-      // In a real application, you'd upload to a service like:
-      // - Clerk's profile image endpoint
-      // - AWS S3
-      // - Cloudinary
-      // - Convex storage (if configured)
-
-      // For now, we'll use the base64 directly (not recommended for production)
-      await updateProfile({ avatar: base64 });
-
-      // Refresh the page to show updated avatar
-      router.refresh();
+      // Update team icon
+      await updateTeamIcon({ teamId, icon: base64 });
     } catch (error) {
-      console.error("Failed to update avatar:", error);
+      console.error("Failed to update team icon:", error);
       throw error;
     }
   };
 
   return (
     <AvatarUpload
-      currentAvatar={currentAvatar}
-      userName={userName}
-      onAvatarChange={handleAvatarChange}
+      currentAvatar={currentIcon}
+      userName={teamName}
+      onAvatarChange={handleIconChange}
       disabled={disabled}
     />
   );

@@ -76,7 +76,7 @@ export default function Navbar() {
                     My account
                   </DropdownMenuItem>
                 </Link>
-                {user?.role === "organizer" && (
+                {user?.role === "organiser" && (
                   <Link href="/my-organisation">
                     <DropdownMenuItem>
                       <Building2 className="icon" />

@@ -8,6 +8,7 @@ import {
 import { UserJSON, createClerkClient } from "@clerk/backend";
 import { v, Validator } from "convex/values";
 import { api } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 
 // Helper function to generate URL-safe slug from username
 function generateSlug(username: string): string {
@@ -20,6 +21,8 @@ function generateSlug(username: string): string {
 export const current = query({
   args: {},
   handler: async (ctx) => {
+    // This query is cached by Convex based on arguments (empty in this case)
+    // Multiple components calling this will share the same cached result
     return await getCurrentUser(ctx);
   },
 });
@@ -85,17 +88,22 @@ export const deleteFromClerk = internalMutation({
 
     if (user !== null) {
       // Remove this user from ALL users' friends lists
+      // Batch fetch all users once
       const allUsers = await ctx.db.query("users").collect();
-      for (const otherUser of allUsers) {
-        if (
+      const usersToUpdate = allUsers.filter(
+        (otherUser) =>
           otherUser._id !== user._id &&
           otherUser.friends.includes(user._id)
-        ) {
-          await ctx.db.patch(otherUser._id, {
+      );
+
+      // Batch update all affected users
+      await Promise.all(
+        usersToUpdate.map((otherUser) =>
+          ctx.db.patch(otherUser._id, {
             friends: otherUser.friends.filter((id) => id !== user._id),
-          });
-        }
-      }
+          })
+        )
+      );
 
       // Handle organization cleanup
       const allOrganisations = await ctx.db.query("organisations").collect();
@@ -103,49 +111,86 @@ export const deleteFromClerk = internalMutation({
         org.organisersIDs.includes(user._id)
       );
 
+      // Pre-fetch all related data once to avoid repeated queries
+      const allReviews = await ctx.db.query("reviews").collect();
+      const allReservations = await ctx.db.query("reservations").collect();
+      const allQuests = await ctx.db.query("quests").collect();
+
+      // Create maps for efficient lookup
+      const reviewsByActivity = new Map<string, typeof allReviews>();
+      const reservationsByActivity = new Map<string, typeof allReservations>();
+      const questsByActivity = new Map<string, typeof allQuests>();
+
+      for (const review of allReviews) {
+        const activityId = review.activityId.toString();
+        if (!reviewsByActivity.has(activityId)) {
+          reviewsByActivity.set(activityId, []);
+        }
+        reviewsByActivity.get(activityId)!.push(review);
+      }
+
+      for (const reservation of allReservations) {
+        const activityId = reservation.activityId.toString();
+        if (!reservationsByActivity.has(activityId)) {
+          reservationsByActivity.set(activityId, []);
+        }
+        reservationsByActivity.get(activityId)!.push(reservation);
+      }
+
+      for (const quest of allQuests) {
+        const activityId = quest.activityId.toString();
+        if (!questsByActivity.has(activityId)) {
+          questsByActivity.set(activityId, []);
+        }
+        questsByActivity.get(activityId)!.push(quest);
+      }
+
+      // Process each organisation
       for (const organisation of userOrganisations) {
         if (organisation.organisersIDs.length === 1) {
-          // User is the only organizer - delete organization and all related data
+          // User is the only organiser - delete organization and all related data
+
+          // Collect all items to delete
+          const itemsToDelete: Array<{ 
+            type: "review" | "reservation" | "quest" | "activity"; 
+            id: Id<"reviews"> | Id<"reservations"> | Id<"quests"> | Id<"activities">;
+          }> = [];
 
           // Delete all activities and related data
           for (const activityId of organisation.activityIDs) {
-            // Delete reviews for this activity
-            const allReviews = await ctx.db.query("reviews").collect();
-            const reviews = allReviews.filter(
-              (review) => review.activityId === activityId
-            );
+            const activityIdStr = activityId.toString();
+
+            // Add reviews to delete list
+            const reviews = reviewsByActivity.get(activityIdStr) || [];
             for (const review of reviews) {
-              await ctx.db.delete(review._id);
+              itemsToDelete.push({ type: "review", id: review._id });
             }
 
-            // Delete reservations for this activity
-            const allReservations = await ctx.db
-              .query("reservations")
-              .collect();
-            const reservations = allReservations.filter(
-              (reservation) => reservation.activityId === activityId
-            );
+            // Add reservations to delete list
+            const reservations = reservationsByActivity.get(activityIdStr) || [];
             for (const reservation of reservations) {
-              await ctx.db.delete(reservation._id);
+              itemsToDelete.push({ type: "reservation", id: reservation._id });
             }
 
-            // Delete quests for this activity
-            const allQuests = await ctx.db.query("quests").collect();
-            const quests = allQuests.filter(
-              (quest) => quest.activityId === activityId
-            );
+            // Add quests to delete list
+            const quests = questsByActivity.get(activityIdStr) || [];
             for (const quest of quests) {
-              await ctx.db.delete(quest._id);
+              itemsToDelete.push({ type: "quest", id: quest._id });
             }
 
-            // Delete the activity itself
-            await ctx.db.delete(activityId);
+            // Add activity to delete list
+            itemsToDelete.push({ type: "activity", id: activityId });
           }
+
+          // Batch delete all items
+          await Promise.all(
+            itemsToDelete.map((item) => ctx.db.delete(item.id))
+          );
 
           // Delete the organization
           await ctx.db.delete(organisation._id);
         } else {
-          // There are other organizers - just remove this user from organisersIDs
+          // There are other organisers - just remove this user from organisersIDs
           await ctx.db.patch(organisation._id, {
             organisersIDs: organisation.organisersIDs.filter(
               (id) => id !== user._id
@@ -170,14 +215,18 @@ export async function getCurrentUserOrThrow(ctx: QueryCtx) {
 }
 
 export async function getCurrentUser(ctx: QueryCtx) {
+  // Get identity first (fast operation)
   const identity = await ctx.auth.getUserIdentity();
   if (identity === null) {
     return null;
   }
+  // Lookup user by externalId using index (efficient)
   return await userByExternalId(ctx, identity.subject);
 }
 
 async function userByExternalId(ctx: QueryCtx, externalId: string) {
+  // Uses index "byExternalId" for efficient lookup
+  // This is already optimized - no further caching needed as Convex handles query-level caching
   return await ctx.db
     .query("users")
     .withIndex("byExternalId", (q) => q.eq("externalId", externalId))
@@ -204,8 +253,101 @@ export const getUserBySlug = query({
 export const getUsersByIds = query({
   args: { userIds: v.array(v.id("users")) },
   handler: async (ctx, { userIds }) => {
-    const users = await Promise.all(userIds.map((id) => ctx.db.get(id)));
-    return users.filter((user) => user !== null);
+    // Early return for empty input
+    if (userIds.length === 0) {
+      return [];
+    }
+
+    const currentUser = await getCurrentUserOrThrow(ctx);
+    const blocked = currentUser.blocked || [];
+
+    // Filter out blocked users before fetching
+    const filteredUserIds = userIds.filter((id) => !blocked.includes(id));
+
+    // Early return if all users are blocked
+    if (filteredUserIds.length === 0) {
+      return [];
+    }
+
+    // Batch fetch all users in parallel
+    const users = await Promise.all(
+      filteredUserIds.map((id) => ctx.db.get(id))
+    );
+
+    return users.filter((u): u is NonNullable<typeof u> => u !== null);
+  },
+});
+
+export const getBlockedUsers = query({
+  args: {},
+  handler: async (ctx) => {
+    const currentUser = await getCurrentUserOrThrow(ctx);
+    const blocked = currentUser.blocked || [];
+
+    if (blocked.length === 0) {
+      return [];
+    }
+
+    const users = await Promise.all(blocked.map((id) => ctx.db.get(id)));
+
+    return users.filter((u): u is NonNullable<typeof u> => u !== null);
+  },
+});
+
+export const unblockUser = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const currentUser = await getCurrentUserOrThrow(ctx);
+
+    const blocked = currentUser.blocked || [];
+    if (!blocked.includes(userId)) {
+      throw new Error("User is not blocked");
+    }
+
+    // Remove from blocked list
+    await ctx.db.patch(currentUser._id, {
+      blocked: blocked.filter((id) => id !== userId),
+    });
+
+    return { success: true };
+  },
+});
+
+export const searchUsers = query({
+  args: { query: v.string() },
+  handler: async (ctx, { query }) => {
+    const currentUser = await getCurrentUser(ctx);
+    if (!currentUser) return [];
+
+    const searchTerm = query.toLowerCase().trim();
+    if (searchTerm.length < 2) return [];
+
+    const blocked = currentUser.blocked || [];
+
+    // Get all users and filter by search term
+    // Note: We include blocked users in search results but mark them as blocked
+    // This allows users to see they've blocked someone and potentially unblock them
+    const allUsers = await ctx.db.query("users").collect();
+
+    return allUsers
+      .filter((user) => {
+        if (user._id === currentUser._id) return false;
+        // Filter out organisers - only show regular users
+        if (user.role === "organiser") return false;
+        const name = `${user.name} ${user.lastname}`.toLowerCase();
+        const username = user.username.toLowerCase();
+        return name.includes(searchTerm) || username.includes(searchTerm);
+      })
+      .slice(0, 20) // Limit to 20 results
+      .map((user) => ({
+        _id: user._id,
+        name: user.name,
+        lastname: user.lastname,
+        username: user.username,
+        slug: user.slug,
+        avatar: user.avatar,
+        isBlocked: blocked.includes(user._id),
+      }));
   },
 });
 
@@ -407,6 +549,23 @@ export const addFriend = mutation({
       throw new Error("Cannot add yourself as a friend");
     }
 
+    // Check if user is blocked
+    const blocked = user.blocked || [];
+    if (blocked.includes(friendId)) {
+      throw new Error(
+        "Cannot add a blocked user as a friend. Unblock them first."
+      );
+    }
+
+    // Check if the other user has blocked you
+    const otherUser = await ctx.db.get(friendId);
+    if (otherUser) {
+      const otherUserBlocked = otherUser.blocked || [];
+      if (otherUserBlocked.includes(user._id)) {
+        throw new Error("This user has blocked you");
+      }
+    }
+
     // Add friend to current user's friends list
     await ctx.db.patch(user._id, {
       friends: [...user.friends, friendId],
@@ -421,6 +580,84 @@ export const addFriend = mutation({
     }
 
     return await ctx.db.get(user._id);
+  },
+});
+
+export const blockUser = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const currentUser = await getCurrentUserOrThrow(ctx);
+
+    if (currentUser._id === userId) {
+      throw new Error("Cannot block yourself");
+    }
+
+    const blocked = currentUser.blocked || [];
+    if (blocked.includes(userId)) {
+      throw new Error("User is already blocked");
+    }
+
+    // Remove from friends if they are friends
+    const friends = currentUser.friends.filter((id) => id !== userId);
+
+    // Add to blocked list
+    await ctx.db.patch(currentUser._id, {
+      blocked: [...blocked, userId],
+      friends,
+    });
+
+    // Also remove current user from the blocked user's friends list
+    const blockedUser = await ctx.db.get(userId);
+    if (blockedUser) {
+      const blockedUserFriends = blockedUser.friends.filter(
+        (id) => id !== currentUser._id
+      );
+      await ctx.db.patch(userId, {
+        friends: blockedUserFriends,
+      });
+    }
+
+    // Delete conversation between the two users
+    // Conversations are stored with sorted user IDs (user1Id < user2Id)
+    const userIds = [currentUser._id, userId].sort((a, b) => a.localeCompare(b));
+    const user1Id = userIds[0];
+    const user2Id = userIds[1];
+
+    // Find conversation using byUser1 index
+    const allConversations = await ctx.db
+      .query("conversations")
+      .withIndex("byUser1", (q) => q.eq("user1Id", user1Id))
+      .collect();
+
+    const conversation = allConversations.find((c) => c.user2Id === user2Id);
+
+    // Delete conversation if it exists
+    if (conversation) {
+      await ctx.db.delete(conversation._id);
+    }
+
+    // Delete all messages between the two users
+    // Get messages where currentUser is sender and userId is receiver
+    const sentMessages = await ctx.db
+      .query("messages")
+      .withIndex("byConversation", (q) =>
+        q.eq("senderId", currentUser._id).eq("receiverId", userId)
+      )
+      .collect();
+
+    // Get messages where userId is sender and currentUser is receiver
+    const receivedMessages = await ctx.db
+      .query("messages")
+      .withIndex("byConversation", (q) =>
+        q.eq("senderId", userId).eq("receiverId", currentUser._id)
+      )
+      .collect();
+
+    // Delete all messages
+    const allMessages = [...sentMessages, ...receivedMessages];
+    await Promise.all(allMessages.map((msg) => ctx.db.delete(msg._id)));
+
+    return { success: true };
   },
 });
 
@@ -441,6 +678,46 @@ export const removeFriend = mutation({
         friends: friend.friends.filter((id) => id !== user._id),
       });
     }
+
+    // Delete conversation between the two users
+    // Conversations are stored with sorted user IDs (user1Id < user2Id)
+    const userIds = [user._id, friendId].sort((a, b) => a.localeCompare(b));
+    const user1Id = userIds[0];
+    const user2Id = userIds[1];
+
+    // Find conversation using byUser1 index
+    const allConversations = await ctx.db
+      .query("conversations")
+      .withIndex("byUser1", (q) => q.eq("user1Id", user1Id))
+      .collect();
+
+    const conversation = allConversations.find((c) => c.user2Id === user2Id);
+
+    // Delete conversation if it exists
+    if (conversation) {
+      await ctx.db.delete(conversation._id);
+    }
+
+    // Delete all messages between the two users
+    // Get messages where user is sender and friendId is receiver
+    const sentMessages = await ctx.db
+      .query("messages")
+      .withIndex("byConversation", (q) =>
+        q.eq("senderId", user._id).eq("receiverId", friendId)
+      )
+      .collect();
+
+    // Get messages where friendId is sender and user is receiver
+    const receivedMessages = await ctx.db
+      .query("messages")
+      .withIndex("byConversation", (q) =>
+        q.eq("senderId", friendId).eq("receiverId", user._id)
+      )
+      .collect();
+
+    // Delete all messages
+    const allMessages = [...sentMessages, ...receivedMessages];
+    await Promise.all(allMessages.map((msg) => ctx.db.delete(msg._id)));
 
     return await ctx.db.get(user._id);
   },
