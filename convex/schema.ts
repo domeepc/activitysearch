@@ -68,14 +68,29 @@ export default defineSchema({
     activityId: v.id("activities"),
     teamIds: v.array(v.id("teams")),
     createdBy: v.id("users"),
+    readByOrganizer: v.optional(v.boolean()),
+    reservationChatSlug: v.optional(v.string()),
+    cancelledAt: v.optional(v.number()),
+    cancellationReason: v.optional(v.string()),
   })
     .index("byActivity", ["activityId"])
     .index("byDateTime", ["activityId", "date", "time"]),
+  reservationQueue: defineTable({
+    activityId: v.id("activities"),
+    date: v.string(),
+    teamIds: v.array(v.id("teams")),
+    userCount: v.int64(),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    notifiedAt: v.optional(v.number()),
+  })
+    .index("byActivityDate", ["activityId", "date"]),
   conversations: defineTable({
     user1Id: v.id("users"),
     user2Id: v.id("users"),
     slug: v.string(),
     createdAt: v.number(),
+    reservationId: v.optional(v.id("reservations")),
   })
     .index("bySlug", ["slug"])
     .index("byUser1", ["user1Id"])

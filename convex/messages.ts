@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUserOrThrow } from "./users";
+import { Id } from "./_generated/dataModel";
 
 // Helper function to generate secure random hash
 function generateSecureHash(): string {
@@ -182,12 +183,15 @@ export const getConversations = query({
       .withIndex("byUser2", (q) => q.eq("user2Id", currentUser._id))
       .collect();
     
-    // Create a map of conversation slugs by partner ID
-    const conversationMap = new Map<string, string>();
+    // Create a map of conversation slugs by partner ID and track reservation conversations
+    const conversationMap = new Map<string, { slug: string; reservationId?: Id<"reservations"> }>();
     for (const conv of [...allUserConversations, ...user2Conversations]) {
       const otherUserId =
         conv.user1Id === currentUser._id ? conv.user2Id : conv.user1Id;
-      conversationMap.set(otherUserId.toString(), conv.slug);
+      conversationMap.set(otherUserId.toString(), {
+        slug: conv.slug,
+        reservationId: conv.reservationId,
+      });
     }
 
     // Build conversations array - only include friends with messages
@@ -212,13 +216,15 @@ export const getConversations = query({
           }
         }
 
+        const convData = conversationMap.get(partnerIdStr);
         return {
           userId: partner._id,
           name: partner.name,
           lastname: partner.lastname,
           username: partner.username,
           slug: partner.slug,
-          conversationSlug: conversationMap.get(partnerIdStr) || null,
+          conversationSlug: convData?.slug || null,
+          reservationId: convData?.reservationId || null,
           avatar: partner.avatar,
           role: partner.role,
           lastMessage: lastMessage?.text || "",
@@ -389,12 +395,16 @@ export const getMessagesByConversationSlug = query({
       )
       .collect();
 
-    // Allow access if they have messages together OR if they're friends
+    // Check if this is a reservation conversation (conversation already fetched above)
+    const isReservationChat = conversation.reservationId !== undefined;
+
+    // Allow access if they have messages together OR if they're friends OR if it's a reservation chat
     // This allows viewing historical conversations even if friendship was removed
+    // and allows reservation chats without requiring friendship
     const hasMessages = sentMessages.length > 0 || receivedMessages.length > 0;
     const isFriend = currentUser.friends.includes(friend._id);
 
-    if (!hasMessages && !isFriend) {
+    if (!hasMessages && !isFriend && !isReservationChat) {
       throw new Error("You are not friends with this user");
     }
 
@@ -557,5 +567,180 @@ export const migrateMessageToEncrypted = mutation({
     });
 
     return { success: true };
+  },
+});
+
+export const getReservationConversations = query({
+  args: {},
+  handler: async (ctx) => {
+    const currentUser = await getCurrentUserOrThrow(ctx);
+    const blocked = currentUser.blocked || [];
+
+    // Get all conversations with reservationId set
+    const allUserConversations = await ctx.db
+      .query("conversations")
+      .withIndex("byUser1", (q) => q.eq("user1Id", currentUser._id))
+      .collect();
+    const user2Conversations = await ctx.db
+      .query("conversations")
+      .withIndex("byUser2", (q) => q.eq("user2Id", currentUser._id))
+      .collect();
+
+    // Filter to only reservation conversations
+    const reservationConversations = [...allUserConversations, ...user2Conversations].filter(
+      (conv) => conv.reservationId !== undefined
+    );
+
+    // Get last messages for these conversations
+    const lastMessages: Map<
+      string,
+      {
+        text: string;
+        timestamp: number;
+        senderId: typeof currentUser._id;
+        readBy?: (typeof currentUser._id)[];
+      }
+    > = new Map();
+
+    for (const conv of reservationConversations) {
+      const otherUserId =
+        conv.user1Id === currentUser._id ? conv.user2Id : conv.user1Id;
+
+      // Skip if blocked
+      if (blocked.includes(otherUserId)) {
+        continue;
+      }
+
+      // Get messages sent by current user to other user
+      const sentToOther = await ctx.db
+        .query("messages")
+        .withIndex("byConversation", (q) =>
+          q.eq("senderId", currentUser._id).eq("receiverId", otherUserId)
+        )
+        .collect();
+
+      // Get messages received from other user
+      const receivedFromOther = await ctx.db
+        .query("messages")
+        .withIndex("byConversation", (q) =>
+          q.eq("senderId", otherUserId).eq("receiverId", currentUser._id)
+        )
+        .collect();
+
+      // Find the most recent message in this conversation
+      const allMessages = [...sentToOther, ...receivedFromOther];
+      if (allMessages.length > 0) {
+        const lastMessage = allMessages.reduce((latest, msg) =>
+          msg.timestamp > latest.timestamp ? msg : latest
+        );
+
+        lastMessages.set(otherUserId.toString(), {
+          text: lastMessage.text,
+          timestamp: lastMessage.timestamp,
+          senderId: lastMessage.senderId,
+          readBy: lastMessage.readBy,
+        });
+      }
+    }
+
+    // Get partner IDs from both messages and conversations (to include conversations without messages)
+    const partnerIdsFromMessages = Array.from(lastMessages.keys()).map(
+      (idStr) => idStr as typeof currentUser._id
+    );
+    
+    // Get all partner IDs from reservation conversations (even without messages)
+    const allPartnerIds = new Set<string>();
+    for (const conv of reservationConversations) {
+      const otherUserId =
+        conv.user1Id === currentUser._id ? conv.user2Id : conv.user1Id;
+      if (!blocked.includes(otherUserId)) {
+        allPartnerIds.add(otherUserId.toString());
+      }
+    }
+    
+    const partnerIds = Array.from(allPartnerIds).map(
+      (idStr) => idStr as typeof currentUser._id
+    );
+
+    // Batch fetch all partner users at once
+    const partners = await Promise.all(
+      partnerIds.map((id) => ctx.db.get(id))
+    );
+    const partnerMap = new Map(
+      partners
+        .filter((p): p is NonNullable<typeof p> => p !== null)
+        .map((p) => [p._id.toString(), p])
+    );
+
+    // Get reservation details for each conversation
+    const reservationMap = new Map<string, any>();
+    for (const conv of reservationConversations) {
+      if (conv.reservationId) {
+        const reservation = await ctx.db.get(conv.reservationId);
+        if (reservation) {
+          const activity = await ctx.db.get(reservation.activityId);
+          const otherUserId =
+            conv.user1Id === currentUser._id ? conv.user2Id : conv.user1Id;
+          reservationMap.set(otherUserId.toString(), {
+            reservationId: reservation._id,
+            activityName: activity?.activityName || "Unknown Activity",
+            date: reservation.date,
+            time: reservation.time,
+            status: reservation.cancelledAt ? "cancelled" : "active",
+          });
+        }
+      }
+    }
+
+    // Build conversations array
+    const conversations = partnerIds
+      .map((partnerId) => {
+        const partner = partnerMap.get(partnerId.toString());
+        if (!partner) return null;
+
+        const partnerIdStr = partnerId.toString();
+        const lastMessage = lastMessages.get(partnerIdStr);
+        const reservationData = reservationMap.get(partnerIdStr);
+
+        // Find conversation slug
+        const conv = reservationConversations.find(
+          (c) =>
+            (c.user1Id === currentUser._id && c.user2Id === partnerId) ||
+            (c.user2Id === currentUser._id && c.user1Id === partnerId)
+        );
+
+        // Determine read status
+        let lastMessageReadStatus: "sent" | "delivered" | "read" | null = null;
+        if (lastMessage) {
+          if (lastMessage.senderId === currentUser._id) {
+            const isRead = lastMessage.readBy?.includes(partnerId) || false;
+            lastMessageReadStatus = isRead ? "read" : "sent";
+          }
+        }
+
+        return {
+          userId: partner._id,
+          name: partner.name,
+          lastname: partner.lastname,
+          username: partner.username,
+          slug: partner.slug,
+          conversationSlug: conv?.slug || null,
+          reservationId: reservationData?.reservationId || null,
+          activityName: reservationData?.activityName || null,
+          reservationDate: reservationData?.date || null,
+          reservationTime: reservationData?.time || null,
+          reservationStatus: reservationData?.status || null,
+          avatar: partner.avatar,
+          role: partner.role,
+          lastMessage: lastMessage?.text || "",
+          lastMessageTime: lastMessage?.timestamp || 0,
+          lastActive: partner.lastActive,
+          lastMessageReadStatus,
+        };
+      })
+      .filter((c): c is NonNullable<typeof c> => c !== null);
+
+    // Sort by last message time
+    return conversations.sort((a, b) => b.lastMessageTime - a.lastMessageTime);
   },
 });
