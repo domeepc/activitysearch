@@ -9,6 +9,7 @@ import { Inbox, Filter, CreditCard } from "lucide-react";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useOrganizer } from "@/lib/hooks/useOrganizer";
 import { useRouter } from "next/navigation";
+import { Spinner } from "@/components/ui/spinner";
 
 type StatusFilter = "all" | "active" | "cancelled";
 type ViewMode = "reservations" | "payments";
@@ -141,8 +142,8 @@ export default function ReservationsPage() {
 
       {/* Table */}
       {isLoading ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <p>Loading reservations...</p>
+        <div className="flex items-center justify-center py-12">
+          <Spinner className="h-8 w-8" />
         </div>
       ) : (
         <ReservationTable reservations={filteredReservations} />

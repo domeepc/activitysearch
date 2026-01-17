@@ -277,6 +277,7 @@ export default function CustomSignUp() {
               </p>
             </div>
             {error && <div className="text-sm text-destructive">{error}</div>}
+            <div id="clerk-captcha"></div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Creating account..." : "Create account"}
             </Button>

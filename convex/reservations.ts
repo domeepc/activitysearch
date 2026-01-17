@@ -331,34 +331,20 @@ export const createReservation = mutation({
         (c) => c.user2Id === user2Id
       );
 
-      let conversationSlug: string;
+      let conversationId: Id<"conversations">;
       if (existingConversation) {
-        conversationSlug = existingConversation.slug;
+        conversationId = existingConversation._id;
         // Update conversation to link to reservation if not already linked
         if (!existingConversation.reservationId) {
           // We'll update this after creating the reservation
         }
       } else {
-        // Create new conversation with secure hash
-        let slug = generateSecureHash();
-        // Ensure slug is unique
-        while (
-          await ctx.db
-            .query("conversations")
-            .withIndex("bySlug", (q) => q.eq("slug", slug))
-            .first()
-        ) {
-          slug = generateSecureHash();
-        }
-
-        const conversationId = await ctx.db.insert("conversations", {
+        // Create new conversation
+        conversationId = await ctx.db.insert("conversations", {
           user1Id,
           user2Id,
-          slug,
           createdAt: Date.now(),
         });
-        const newConversation = await ctx.db.get(conversationId);
-        conversationSlug = newConversation!.slug;
       }
 
       // Calculate payment deadline (7 days before activity, or activity date if less than 7 days away)
@@ -379,7 +365,7 @@ export const createReservation = mutation({
         userCount,
         createdBy: currentUser._id,
         readByOrganizer: false,
-        reservationChatSlug: conversationSlug,
+        reservationChatId: conversationId,
         paymentStatus: "pending",
         paymentDeadline,
       });
@@ -391,15 +377,9 @@ export const createReservation = mutation({
         });
       } else if (!existingConversation) {
         // Update the newly created conversation
-        const newConv = await ctx.db
-          .query("conversations")
-          .withIndex("bySlug", (q) => q.eq("slug", conversationSlug))
-          .first();
-        if (newConv) {
-          await ctx.db.patch(newConv._id, {
-            reservationId,
-          });
-        }
+        await ctx.db.patch(conversationId, {
+          reservationId,
+        });
       }
 
       // Send reservation card to each team's chat
@@ -1290,28 +1270,15 @@ export const acceptQueueReservation = mutation({
       (c) => c.user2Id === user2Id
     );
 
-    let conversationSlug: string;
+    let conversationId: Id<"conversations">;
     if (existingConversation) {
-      conversationSlug = existingConversation.slug;
+      conversationId = existingConversation._id;
     } else {
-      let slug = generateSecureHash();
-      while (
-        await ctx.db
-          .query("conversations")
-          .withIndex("bySlug", (q) => q.eq("slug", slug))
-          .first()
-      ) {
-        slug = generateSecureHash();
-      }
-
-      const conversationId = await ctx.db.insert("conversations", {
+      conversationId = await ctx.db.insert("conversations", {
         user1Id,
         user2Id,
-        slug,
         createdAt: Date.now(),
       });
-      const newConversation = await ctx.db.get(conversationId);
-      conversationSlug = newConversation!.slug;
     }
 
     // Create reservation
@@ -1323,7 +1290,7 @@ export const acceptQueueReservation = mutation({
       userCount: queueEntry.userCount,
       createdBy: currentUser._id,
       readByOrganizer: false,
-      reservationChatSlug: conversationSlug,
+      reservationChatId: conversationId,
     });
 
     // Link conversation to reservation
@@ -1332,15 +1299,9 @@ export const acceptQueueReservation = mutation({
         reservationId,
       });
     } else if (!existingConversation) {
-      const newConv = await ctx.db
-        .query("conversations")
-        .withIndex("bySlug", (q) => q.eq("slug", conversationSlug))
-        .first();
-      if (newConv) {
-        await ctx.db.patch(newConv._id, {
-          reservationId,
-        });
-      }
+      await ctx.db.patch(conversationId, {
+        reservationId,
+      });
     }
 
     // Remove from queue
@@ -1444,7 +1405,10 @@ export const cleanupFinishedReservations = mutation({
 export const getMyQueueNotifications = query({
   args: {},
   handler: async (ctx) => {
-    const currentUser = await getCurrentUserOrThrow(ctx);
+    const currentUser = await getCurrentUser(ctx);
+    if (!currentUser) {
+      return [];
+    }
 
     // Get all queue entries where user is creator and has been notified
     const allQueueEntries = await ctx.db.query("reservationQueue").collect();

@@ -83,17 +83,36 @@ export class EncryptionService {
 
       const [ivBase64, ciphertextBase64, tagBase64] = parts;
 
-      // Decode from base64
-      const iv = this.base64ToArrayBuffer(ivBase64);
-      const ciphertext = this.base64ToArrayBuffer(ciphertextBase64);
-      const tag = this.base64ToArrayBuffer(tagBase64);
+      // Validate that all parts are non-empty
+      if (!ivBase64 || !ciphertextBase64 || !tagBase64) {
+        throw new Error("Invalid encrypted message format: missing parts");
+      }
+
+      // Decode from base64 and convert to Uint8Array
+      const ivBuffer = this.base64ToArrayBuffer(ivBase64);
+      const iv = new Uint8Array(ivBuffer);
+      
+      // Validate IV length
+      if (iv.length !== IV_LENGTH) {
+        throw new Error(`Invalid IV length: expected ${IV_LENGTH} bytes, got ${iv.length}`);
+      }
+
+      const ciphertextBuffer = this.base64ToArrayBuffer(ciphertextBase64);
+      const ciphertext = new Uint8Array(ciphertextBuffer);
+      const tagBuffer = this.base64ToArrayBuffer(tagBase64);
+      const tag = new Uint8Array(tagBuffer);
+
+      // Validate tag length
+      if (tag.length !== TAG_LENGTH / 8) {
+        throw new Error(`Invalid tag length: expected ${TAG_LENGTH / 8} bytes, got ${tag.length}`);
+      }
 
       // Combine ciphertext and tag for GCM decryption
-      const combined = new Uint8Array(ciphertext.byteLength + tag.byteLength);
-      combined.set(new Uint8Array(ciphertext), 0);
-      combined.set(new Uint8Array(tag), ciphertext.byteLength);
+      const combined = new Uint8Array(ciphertext.length + tag.length);
+      combined.set(ciphertext, 0);
+      combined.set(tag, ciphertext.length);
 
-      // Decrypt
+      // Decrypt - pass the Uint8Array directly (Web Crypto API accepts ArrayBufferView)
       const decrypted = await crypto.subtle.decrypt(
         {
           name: ALGORITHM,

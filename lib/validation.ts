@@ -21,11 +21,21 @@ export function validateIBAN(iban: string): boolean {
 
 /**
  * Validates a contact/phone number
+ * Accepts E.164 format (starting with +) or digits only
  */
 export function validateContact(contact: string): boolean {
-  // Remove spaces, dashes, and plus signs for validation
-  const cleaned = contact.replace(/[\s\-+]/g, "");
-  // Should contain only digits and be between 7-15 digits
+  if (!contact) return false;
+  
+  // Remove spaces and dashes for validation
+  const cleaned = contact.replace(/[\s\-]/g, "");
+  
+  // Check if it's in E.164 format (starts with + followed by 10-15 digits)
+  if (cleaned.startsWith("+")) {
+    const digitsAfterPlus = cleaned.slice(1);
+    return /^\d{10,15}$/.test(digitsAfterPlus);
+  }
+  
+  // Legacy validation: digits only, 7-15 digits (for backward compatibility)
   return /^\d{7,15}$/.test(cleaned);
 }
 

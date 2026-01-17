@@ -64,30 +64,16 @@ export const sendMessage = mutation({
 
     const conversation = allConversations.find((c) => c.user2Id === user2Id);
 
-    let conversationSlug: string;
+    let conversationId: Id<"conversations">;
     if (!conversation) {
-      // Create new conversation with secure hash
-      let slug = generateSecureHash();
-      // Ensure slug is unique (very unlikely but check anyway)
-      while (
-        await ctx.db
-          .query("conversations")
-          .withIndex("bySlug", (q) => q.eq("slug", slug))
-          .first()
-      ) {
-        slug = generateSecureHash();
-      }
-
-      const conversationId = await ctx.db.insert("conversations", {
+      // Create new conversation
+      conversationId = await ctx.db.insert("conversations", {
         user1Id,
         user2Id,
-        slug,
         createdAt: timestamp,
       });
-      const newConversation = await ctx.db.get(conversationId);
-      conversationSlug = newConversation!.slug;
     } else {
-      conversationSlug = conversation.slug;
+      conversationId = conversation._id;
     }
 
     await ctx.db.insert("messages", {
@@ -98,7 +84,7 @@ export const sendMessage = mutation({
       encrypted: isEncrypted ? true : undefined,
     });
 
-    return { success: true, conversationSlug };
+    return { success: true, conversationId };
   },
 });
 
@@ -183,13 +169,13 @@ export const getConversations = query({
       .withIndex("byUser2", (q) => q.eq("user2Id", currentUser._id))
       .collect();
     
-    // Create a map of conversation slugs by partner ID and track reservation conversations
-    const conversationMap = new Map<string, { slug: string; reservationId?: Id<"reservations"> }>();
+    // Create a map of conversation data by partner ID and track reservation conversations
+    const conversationMap = new Map<string, { conversationId: Id<"conversations">; reservationId?: Id<"reservations"> }>();
     for (const conv of [...allUserConversations, ...user2Conversations]) {
       const otherUserId =
         conv.user1Id === currentUser._id ? conv.user2Id : conv.user1Id;
       conversationMap.set(otherUserId.toString(), {
-        slug: conv.slug,
+        conversationId: conv._id,
         reservationId: conv.reservationId,
       });
     }
@@ -223,7 +209,7 @@ export const getConversations = query({
           lastname: partner.lastname,
           username: partner.username,
           slug: partner.slug,
-          conversationSlug: convData?.slug || null,
+          conversationId: convData?.conversationId || null,
           reservationId: convData?.reservationId || null,
           avatar: partner.avatar,
           role: partner.role,
@@ -339,18 +325,15 @@ export const markMessageAsRead = mutation({
   },
 });
 
-export const getMessagesByConversationSlug = query({
+export const getMessagesByConversationId = query({
   args: {
-    slug: v.string(),
+    conversationId: v.id("conversations"),
   },
-  handler: async (ctx, { slug }) => {
+  handler: async (ctx, { conversationId }) => {
     const currentUser = await getCurrentUserOrThrow(ctx);
 
-    // Get conversation by secure hash slug
-    const conversation = await ctx.db
-      .query("conversations")
-      .withIndex("bySlug", (q) => q.eq("slug", slug))
-      .first();
+    // Get conversation by ID
+    const conversation = await ctx.db.get(conversationId);
 
     if (!conversation) {
       // Conversation may have been deleted (e.g., when friend was removed)
@@ -444,13 +427,13 @@ export const getMessagesByConversationSlug = query({
         lastActive: friend.lastActive, // Kept for fallback if Ably is unavailable
         slug: friend.slug,
       },
-      conversationSlug: conversation.slug,
+      conversationId: conversation._id,
     };
   },
 });
 
-// Mutation to create a conversation slug for a user pair (called when opening chat)
-export const createConversationSlug = mutation({
+// Mutation to get or create a conversation ID for a user pair (called when opening chat)
+export const getOrCreateConversationId = mutation({
   args: {
     otherUserId: v.id("users"),
   },
@@ -476,29 +459,17 @@ export const createConversationSlug = mutation({
     const conversation = allConversations.find((c) => c.user2Id === user2Id);
 
     if (conversation) {
-      return conversation.slug;
+      return conversation._id;
     }
 
-    // Create new conversation with secure hash
-    let slug = generateSecureHash();
-    // Ensure slug is unique
-    while (
-      await ctx.db
-        .query("conversations")
-        .withIndex("bySlug", (q) => q.eq("slug", slug))
-        .first()
-    ) {
-      slug = generateSecureHash();
-    }
-
-    await ctx.db.insert("conversations", {
+    // Create new conversation
+    const conversationId = await ctx.db.insert("conversations", {
       user1Id,
       user2Id,
-      slug,
       createdAt: Date.now(),
     });
 
-    return slug;
+    return conversationId;
   },
 });
 
@@ -702,7 +673,7 @@ export const getReservationConversations = query({
         const lastMessage = lastMessages.get(partnerIdStr);
         const reservationData = reservationMap.get(partnerIdStr);
 
-        // Find conversation slug
+        // Find conversation
         const conv = reservationConversations.find(
           (c) =>
             (c.user1Id === currentUser._id && c.user2Id === partnerId) ||
@@ -724,7 +695,7 @@ export const getReservationConversations = query({
           lastname: partner.lastname,
           username: partner.username,
           slug: partner.slug,
-          conversationSlug: conv?.slug || null,
+          conversationId: conv?._id || null,
           reservationId: reservationData?.reservationId || null,
           activityName: reservationData?.activityName || null,
           reservationDate: reservationData?.date || null,

@@ -10,6 +10,8 @@ import { AddFriendDialog } from "@/components/chat/AddFriendDialog";
 import { usePathname } from "next/navigation";
 import { useUpdatePresence } from "@/lib/hooks/usePresence";
 import { usePresenceContext } from "@/components/PresenceProvider";
+import { Id } from "@/convex/_generated/dataModel";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function ChatLayout({
   children,
@@ -51,29 +53,30 @@ export default function ChatLayout({
     };
   }, [userId, currentUser, updatePresence, leavePresence]);
 
-  // Determine current chat type and slug from pathname
+  // Determine current chat type and conversation ID from pathname
   const getCurrentChatInfo = () => {
     if (pathname === "/chat") {
-      return { type: null, slug: null };
+      return { type: null, conversationId: null };
     }
     // Check for team route first (more specific)
     if (pathname.startsWith("/chat/team/")) {
       const slug = pathname.replace("/chat/team/", "");
       if (slug) {
-        return { type: "team" as const, slug };
+        return { type: "team" as const, conversationId: null, slug };
       }
     }
-    // Check for individual chat route
+    // Check for individual chat route - slug is now conversation ID
     if (pathname.startsWith("/chat/") && !pathname.startsWith("/chat/team/")) {
-      const slug = pathname.replace("/chat/", "");
-      if (slug) {
-        return { type: "individual" as const, slug };
+      const conversationId = pathname.replace("/chat/", "");
+      if (conversationId) {
+        return { type: "individual" as const, conversationId: conversationId as Id<"conversations">, slug: null };
       }
     }
-    return { type: null, slug: null };
+    return { type: null, conversationId: null, slug: null };
   };
 
   const chatInfo = getCurrentChatInfo();
+  const currentConversationId = chatInfo.conversationId;
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
   const handleSelectIndividual = (_slug: string) => {
@@ -104,7 +107,7 @@ export default function ChatLayout({
   if (!currentUser) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <p>Loading...</p>
+        <Spinner className="h-8 w-8" />
       </div>
     );
   }
@@ -123,7 +126,8 @@ export default function ChatLayout({
       >
         <ConversationList
           currentChatType={chatInfo.type}
-          currentChatSlug={chatInfo.slug}
+          currentChatSlug={chatInfo.slug ?? null}
+          currentConversationId={currentConversationId}
           onSelectIndividual={handleSelectIndividual}
           onSelectTeam={handleSelectTeam}
           onAddFriend={() => setShowAddFriend(true)}

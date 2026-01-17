@@ -145,6 +145,7 @@ export default function CustomSignIn() {
               </div>
             </div>
             {error && <div className="text-sm text-destructive">{error}</div>}
+            <div id="clerk-captcha"></div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Signing in..." : "Sign in"}
             </Button>

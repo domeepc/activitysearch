@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreditCard, CheckCircle, Loader2, AlertCircle } from "lucide-react";
 import { Id } from "@/convex/_generated/dataModel";
-import { useQuery } from "convex/react";
+import { useQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
 interface StripeConnectButtonProps {
@@ -14,45 +14,38 @@ interface StripeConnectButtonProps {
 
 export function StripeConnectButton({ organisationId }: StripeConnectButtonProps) {
   const [isConnecting, setIsConnecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const organisation = useQuery(api.organisation.getById, { organisationId });
+  const createConnectAccountLink = useAction(api.stripe.createConnectAccountLink);
 
   const handleConnect = async () => {
     setIsConnecting(true);
+    setError(null);
     try {
-      // Get Convex deployment URL
-      const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL || "";
       const returnUrl = `${window.location.origin}/my-organisation`;
       const refreshUrl = `${window.location.origin}/my-organisation`;
 
-      const response = await fetch(
-        `${convexUrl}/stripe/create-connect-account-link`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            organisationId,
-            returnUrl,
-            refreshUrl,
-          }),
-          credentials: "include",
-        }
-      );
+      // Use Convex action instead of HTTP route - automatically handles authentication
+      const result = await createConnectAccountLink({
+        organisationId,
+        returnUrl,
+        refreshUrl,
+        // Country is optional - backend will default to HR if not provided
+      });
 
-      if (!response.ok) {
-        throw new Error("Failed to create Stripe Connect account link");
-      }
-
-      const data = await response.json();
-      
       // Redirect to Stripe onboarding
-      if (data.url) {
-        window.location.href = data.url;
+      if (result?.url) {
+        window.location.href = result.url;
+      } else {
+        throw new Error("No redirect URL received from server");
       }
     } catch (error) {
       console.error("Error connecting Stripe:", error);
-      alert("Failed to connect Stripe account. Please try again.");
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to connect Stripe account. Please try again.";
+      setError(errorMessage);
     } finally {
       setIsConnecting(false);
     }
@@ -98,6 +91,15 @@ export function StripeConnectButton({ organisationId }: StripeConnectButtonProps
                 </p>
               </div>
             </div>
+            {error && (
+              <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-destructive">Error</p>
+                  <p className="text-xs text-destructive mt-1">{error}</p>
+                </div>
+              </div>
+            )}
             <Button
               onClick={handleConnect}
               disabled={isConnecting}

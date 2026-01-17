@@ -15,7 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 
-function Calendar({
+function DateOfBirthCalendar({
   className,
   classNames,
   showOutsideDays = true,
@@ -32,6 +32,7 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
+
       className={cn(
         "bg-background group/calendar p-3 [--cell-size:--spacing(8)] in-data-[slot=card-content]:bg-transparent in-data-[slot=popover-content]:bg-transparent",
         String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
@@ -52,7 +53,7 @@ function Calendar({
         ),
         month: cn("flex flex-col w-full gap-4", defaultClassNames.month),
         nav: cn(
-          "flex items-center gap-4 w-full absolute top-0 inset-x-0 justify-between h-(--cell-size)",
+          "flex items-center w-full absolute top-0 inset-x-0 justifty-between h-(--cell-size)",
           defaultClassNames.nav
         ),
         button_previous: cn(
@@ -108,9 +109,6 @@ function Calendar({
           props.showWeekNumber
             ? "[&:nth-child(2)[data-selected=true]_button]:rounded-l-md"
             : "[&:first-child[data-selected=true]_button]:rounded-l-md",
-          "[&[data-reservation-status=green]_button]:bg-green-100 [&[data-reservation-status=green]_button]:text-green-900 [&[data-reservation-status=green]_button]:dark:bg-green-950/30 [&[data-reservation-status=green]_button]:dark:text-green-100",
-          "[&[data-reservation-status=yellow]_button]:bg-yellow-100 [&[data-reservation-status=yellow]_button]:text-yellow-900 [&[data-reservation-status=yellow]_button]:dark:bg-yellow-950/30 [&[data-reservation-status=yellow]_button]:dark:text-yellow-100",
-          "[&[data-reservation-status=red]_button]:bg-red-100 [&[data-reservation-status=red]_button]:text-red-900 [&[data-reservation-status=red]_button]:dark:bg-red-950/30 [&[data-reservation-status=red]_button]:dark:text-red-100",
           defaultClassNames.day
         ),
         range_start: cn(
@@ -171,7 +169,7 @@ function Calendar({
             />
           );
         },
-        DayButton: CalendarDayButton,
+        DayButton: DateOfBirthCalendarDayButton,
         WeekNumber: ({ children, ...props }) => {
           return (
             <td {...props}>
@@ -188,7 +186,7 @@ function Calendar({
   );
 }
 
-function CalendarDayButton({
+function DateOfBirthCalendarDayButton({
   className,
   day,
   modifiers,
@@ -200,15 +198,6 @@ function CalendarDayButton({
   React.useEffect(() => {
     if (modifiers.focused) ref.current?.focus();
   }, [modifiers.focused]);
-
-  // Determine reservation status from modifiers
-  const reservationStatus = modifiers.reservation_full
-    ? "red"
-    : modifiers.reservation_limited
-      ? "yellow"
-      : modifiers.reservation_available
-        ? "green"
-        : undefined;
 
   return (
     <Button
@@ -225,18 +214,9 @@ function CalendarDayButton({
       data-range-start={modifiers.range_start}
       data-range-end={modifiers.range_end}
       data-range-middle={modifiers.range_middle}
-      data-reservation-status={reservationStatus}
       className={cn(
-        // Reservation status colors (applied when not selected)
-        "data-[reservation-status=green]:bg-green-300! data-[reservation-status=green]:text-green-900!",
-        "data-[reservation-status=yellow]:bg-yellow-300! data-[reservation-status=yellow]:text-yellow-900! ",
-        "data-[reservation-status=red]:bg-red-300! data-[reservation-status=red]:text-red-900! ",
-        // Selected date (light blue) - only when selected and no reservation status
+        // Selected date (light blue)
         "data-[selected-single=true]:bg-blue-100 data-[selected-single=true]:text-blue-900 data-[selected-single=true]:dark:bg-blue-950/30 data-[selected-single=true]:dark:text-blue-100",
-        // Override selected color if there's a reservation status
-        "data-[selected-single=true][data-reservation-status=green]:!bg-green-200 data-[selected-single=true][data-reservation-status=green]:!text-green-950",
-        "data-[selected-single=true][data-reservation-status=yellow]:!bg-yellow-200 data-[selected-single=true][data-reservation-status=yellow]:!text-yellow-950",
-        "data-[selected-single=true][data-reservation-status=red]:!bg-red-200 data-[selected-single=true][data-reservation-status=red]:!text-red-950",
         // Range styles
         "data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground",
         // Other styles
@@ -249,4 +229,4 @@ function CalendarDayButton({
   );
 }
 
-export { Calendar, CalendarDayButton };
+export { DateOfBirthCalendar };

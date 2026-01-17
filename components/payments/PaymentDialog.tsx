@@ -25,9 +25,8 @@ import { useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
 // Initialize Stripe
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ""
-);
+const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
+const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
 
 interface PaymentDialogProps {
   open: boolean;
@@ -65,10 +64,20 @@ function PaymentForm({
 
   const totalAmount = perPersonAmount * personsToPayFor;
 
+  // Show error if Stripe or Elements are not available
+  useEffect(() => {
+    if (!stripe || !elements) {
+      setError("Payment form is not ready. Please wait a moment and try again.");
+    } else {
+      setError(null);
+    }
+  }, [stripe, elements]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!stripe || !elements) {
+      setError("Payment system is not ready. Please refresh the page and try again.");
       return;
     }
 
@@ -219,6 +228,19 @@ export function PaymentDialog({
     setIsLoading(true);
     setError(null);
     try {
+      // Validate Stripe configuration
+      if (!stripePublishableKey) {
+        throw new Error(
+          "Stripe is not configured. Please contact support or try again later."
+        );
+      }
+
+      if (!stripePromise) {
+        throw new Error(
+          "Stripe payment system is not available. Please contact support."
+        );
+      }
+
       // Validate inputs
       if (remainingPersons <= 0) {
         throw new Error("No remaining persons to pay for");
@@ -251,8 +273,14 @@ export function PaymentDialog({
       });
 
       if (!data || !data.clientSecret) {
-        throw new Error("No client secret returned from server");
+        throw new Error("No client secret returned from server. Please try again.");
       }
+
+      // Validate clientSecret format (should start with pi_)
+      if (!data.clientSecret.startsWith("pi_") && !data.clientSecret.includes("_secret_")) {
+        throw new Error("Invalid payment configuration. Please contact support.");
+      }
+
       setClientSecret(data.clientSecret);
     } catch (err) {
       console.error("Error creating payment intent:", err);
@@ -339,7 +367,7 @@ export function PaymentDialog({
             </div>
           )}
 
-          {clientSecret ? (
+          {clientSecret && stripePromise ? (
             <Elements
               stripe={stripePromise}
               options={{

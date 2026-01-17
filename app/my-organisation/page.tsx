@@ -43,8 +43,8 @@ export default function MyOrganisationPage() {
   // Compute form data from organisation when not editing
   const organisationFormData = useMemo(
     () => ({
-      name: organisation?.organizationName || "",
-      email: organisation?.organizationEmail || "",
+      name: organisation?.organisationName || "",
+      email: organisation?.organisationEmail || "",
       description: organisation?.description || "",
       address: organisation?.address || "",
       IBAN: organisation?.IBAN || "",

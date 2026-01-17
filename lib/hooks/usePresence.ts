@@ -77,13 +77,13 @@ export function usePresence(userId: string | undefined) {
         if (!mounted) return;
 
         // Get current presence state
-        channel.presence.get({ clientId: userId }, (err, members) => {
+        (channel.presence.get as any)({ clientId: userId }, (err: any, members: any) => {
           if (err || !mounted) {
             setIsLoading(false);
             return;
           }
 
-          const member = members?.find((m) => m.clientId === userId);
+          const member = members?.find((m: any) => m.clientId === userId);
           if (member && member.data) {
             setPresence(member.data as PresenceData);
           } else {
@@ -133,7 +133,7 @@ export function usePresenceList(userIds: string[]) {
     let handlePresenceMessage: ((message: any) => void) | null = null;
 
     const updatePresences = () => {
-      channel.presence.get((err, members) => {
+      (channel.presence.get as any)((err: any, members: any) => {
         if (err || !mounted) {
           setIsLoading(false);
           return;
@@ -151,7 +151,7 @@ export function usePresenceList(userIds: string[]) {
         });
 
         // Update with actual presence data
-        members?.forEach((member) => {
+        members?.forEach((member: any) => {
           if (userIdSet.has(member.clientId) && member.data) {
             newPresences.set(member.clientId, member.data as PresenceData);
           }

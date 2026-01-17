@@ -46,13 +46,13 @@ http.route({
 http.route({
   path: '/stripe/create-connect-account-link',
   method: 'POST',
-  handler: stripe.createConnectAccountLink,
+  handler: stripe.createConnectAccountLinkHttp,
 });
 
 http.route({
   path: '/stripe/create-connect-account-with-details',
   method: 'POST',
-  handler: stripe.createConnectAccountWithDetails,
+  handler: stripe.createConnectAccountWithDetailsHttp,
 });
 
 http.route({

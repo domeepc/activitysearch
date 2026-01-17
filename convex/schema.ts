@@ -71,7 +71,7 @@ export default defineSchema({
     teamIds: v.array(v.id("teams")),
     createdBy: v.id("users"),
     readByOrganizer: v.optional(v.boolean()),
-    reservationChatSlug: v.optional(v.string()),
+    reservationChatId: v.optional(v.id("conversations")),
     cancelledAt: v.optional(v.number()),
     cancellationReason: v.optional(v.string()),
     paymentStatus: v.optional(
@@ -109,11 +109,9 @@ export default defineSchema({
   conversations: defineTable({
     user1Id: v.id("users"),
     user2Id: v.id("users"),
-    slug: v.string(),
     createdAt: v.number(),
     reservationId: v.optional(v.id("reservations")),
   })
-    .index("bySlug", ["slug"])
     .index("byUser1", ["user1Id"])
     .index("byUser2", ["user2Id"]),
   messages: defineTable({

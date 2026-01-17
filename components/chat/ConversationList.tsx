@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import { api } from "@/convex/_generated/api";
@@ -36,6 +36,7 @@ import {
 interface ConversationListProps {
   currentChatType: "individual" | "team" | null;
   currentChatSlug: string | null;
+  currentConversationId: Id<"conversations"> | null;
   onSelectIndividual: (slug: string) => void;
   onSelectTeam: (slug: string) => void;
   onAddFriend: () => void;
@@ -46,6 +47,7 @@ interface ConversationListProps {
 export function ConversationList({
   currentChatType,
   currentChatSlug,
+  currentConversationId,
   onSelectIndividual,
   onSelectTeam,
   onAddFriend,
@@ -58,6 +60,8 @@ export function ConversationList({
   const [showDeleteTeam, setShowDeleteTeam] = useState(false);
   const [showRemoveFriend, setShowRemoveFriend] = useState(false);
   const [showBlockFriend, setShowBlockFriend] = useState(false);
+  // Track recently created conversation IDs for optimistic selection
+  const [recentlyCreatedConversations, setRecentlyCreatedConversations] = useState<Map<Id<"users">, Id<"conversations">>>(new Map());
   const [selectedTeam, setSelectedTeam] = useState<{
     _id: Id<"teams">;
     teamName: string;
@@ -82,6 +86,17 @@ export function ConversationList({
   const conversations = useQuery(api.messages.getConversations);
   const reservationConversations = useQuery(api.messages.getReservationConversations);
   const currentUser = useQuery(api.users.current);
+  
+  // Query the current conversation to get the other user ID for matching
+  const currentConversationData = useQuery(
+    api.messages.getMessagesByConversationId,
+    currentConversationId && currentChatType === "individual"
+      ? { conversationId: currentConversationId }
+      : "skip"
+  );
+  
+  // Get the other user ID from the current conversation
+  const currentConversationOtherUserId = currentConversationData?.otherUser?._id || null;
 
   // Teams query - Convex automatically updates when data changes
   // No need to manually manage fetching state as Convex handles reactivity
@@ -92,9 +107,10 @@ export function ConversationList({
   const leaveTeam = useMutation(api.teams.leaveTeam);
   const deleteTeam = useMutation(api.teams.deleteTeam);
   const removeFromTeam = useMutation(api.teams.removeFromTeam);
-  const createConversationSlug = useMutation(
-    api.messages.createConversationSlug
+  const getOrCreateConversationId = useMutation(
+    api.messages.getOrCreateConversationId
   );
+
 
   // Create stable friends array key to prevent unnecessary refetches
   // Only refetch when the actual friend IDs change (not just array reference)
@@ -139,14 +155,28 @@ export function ConversationList({
 
   // Merge all friends (including organizers) into one list
   const allFriendsList = useMemo(() => {
-    const convFriends =
+    type FriendListItem = {
+      _id: Id<"users">;
+      name: string;
+      lastname: string;
+      username: string;
+      slug: string;
+      conversationId: Id<"conversations"> | null;
+      avatar: string;
+      role: string | undefined;
+      lastActive: number | undefined;
+      lastMessageTime: number;
+      lastMessageReadStatus: "sent" | "delivered" | "read" | null;
+    };
+
+    const convFriends: FriendListItem[] =
       regularConversations?.map((conv) => ({
         _id: conv.userId,
         name: conv.name,
         lastname: conv.lastname,
         username: conv.username,
         slug: conv.slug,
-        conversationSlug: conv.conversationSlug,
+        conversationId: conv.conversationId,
         avatar: conv.avatar,
         role: conv.role,
         lastActive: conv.lastActive,
@@ -154,14 +184,14 @@ export function ConversationList({
         lastMessageReadStatus: conv.lastMessageReadStatus,
       })) || [];
 
-    const friendsWithoutConv =
+    const friendsWithoutConv: FriendListItem[] =
       friendsWithoutConversations.map((friend) => ({
         _id: friend._id,
         name: friend.name,
         lastname: friend.lastname,
         username: friend.username,
         slug: friend.slug,
-        conversationSlug: null, // Will be created when first message is sent
+        conversationId: null, // Will be created when first message is sent
         avatar: friend.avatar,
         role: friend.role,
         lastActive: friend.lastActive,
@@ -211,6 +241,21 @@ export function ConversationList({
         friend.username.toLowerCase().includes(query)
     );
   }, [allFriendsList, searchQuery]);
+
+  // Debug: Log current conversation ID and friend conversation IDs
+  useEffect(() => {
+    if (currentConversationId && currentChatType === "individual") {
+      console.log("Current conversation ID:", currentConversationId);
+      console.log("Current conversation other user ID:", currentConversationOtherUserId);
+      console.log("Friends with conversations:", filteredFriendsList.map(f => ({
+        name: f.name,
+        userId: f._id.toString(),
+        conversationId: f.conversationId,
+        match: f.conversationId ? String(f.conversationId) === String(currentConversationId) : false,
+        matchByUserId: f._id.toString() === (currentConversationOtherUserId?.toString() || "")
+      })));
+    }
+  }, [currentConversationId, currentChatType, currentConversationOtherUserId, filteredFriendsList]);
 
   const filteredTeams = useMemo(() => {
     if (!teams) return [];
@@ -262,29 +307,54 @@ export function ConversationList({
           {filteredFriendsList.length > 0 && (
             <>
               {filteredFriendsList.map((friend) => {
-                const conversationSlug = friend.conversationSlug;
-                const isSelected = currentChatSlug === conversationSlug;
+                // Use conversation ID for matching instead of slug
+                // Check both the friend's conversationId and recently created ones
+                const friendConversationId = friend.conversationId || recentlyCreatedConversations.get(friend._id) || null;
+                // Convert both to strings for reliable comparison
+                // Ensure we handle both string and Id types
+                const currentIdStr = currentConversationId ? String(currentConversationId) : null;
+                const friendIdStr = friendConversationId ? String(friendConversationId) : null;
+                // Also match by user ID as a fallback (in case conversation data hasn't loaded yet)
+                const matchesByConversationId = 
+                  currentIdStr !== null &&
+                  friendIdStr !== null &&
+                  currentIdStr === friendIdStr;
+                const matchesByUserId = 
+                  currentConversationOtherUserId !== null &&
+                  friend._id.toString() === currentConversationOtherUserId.toString();
+                const isSelected =
+                  currentChatType === "individual" &&
+                  (matchesByConversationId || matchesByUserId);
                 return (
                   <div
                     key={friend._id.toString()}
                     onClick={async () => {
-                      // If no conversation slug exists, create one first
-                      let slug = conversationSlug;
-                      if (!slug) {
+                      // If no conversation ID exists, create one first
+                      let conversationId: Id<"conversations"> | null = friend.conversationId;
+                      if (!conversationId) {
                         try {
-                          slug = await createConversationSlug({
+                          const newConversationId = await getOrCreateConversationId({
                             otherUserId: friend._id,
+                          });
+                          conversationId = newConversationId;
+                          // Optimistically update the conversation ID for this friend
+                          setRecentlyCreatedConversations(prev => {
+                            const newMap = new Map(prev);
+                            newMap.set(friend._id, newConversationId);
+                            return newMap;
                           });
                         } catch (error) {
                           console.error(
-                            "Failed to create conversation slug:",
+                            "Failed to create conversation:",
                             error
                           );
                           return;
                         }
                       }
-                      router.push(`/chat/${slug}`);
-                      onSelectIndividual(slug);
+                      if (conversationId) {
+                        router.push(`/chat/${conversationId}`);
+                        onSelectIndividual(conversationId.toString());
+                      }
                     }}
                     className={cn(
                       "w-full px-4 py-2 bg-gray-200 cursor-pointer mb-4 hover:bg-blue-200 transition-colors text-left flex items-center gap-3 rounded-lg",
@@ -601,17 +671,23 @@ export function ConversationList({
               <span>Reservation Chats {!searchQuery.trim() && reservationCount}</span>
             </div>
             {filteredReservationConversations.map((conv) => {
-              const conversationSlug = conv.conversationSlug;
+              // Use conversation ID for matching instead of slug
+              // Convert both to strings for reliable comparison
+              // Ensure we handle both string and Id types
+              const currentIdStr = currentConversationId ? String(currentConversationId) : null;
+              const convIdStr = conv.conversationId ? String(conv.conversationId) : null;
               const isSelected =
                 currentChatType === "individual" &&
-                currentChatSlug === conversationSlug;
+                currentIdStr !== null &&
+                convIdStr !== null &&
+                currentIdStr === convIdStr;
               return (
                 <div
                   key={conv.userId.toString()}
                   onClick={() => {
-                    if (conversationSlug) {
-                      router.push(`/chat/${conversationSlug}`);
-                      onSelectIndividual(conversationSlug);
+                    if (conv.conversationId) {
+                      router.push(`/chat/${conv.conversationId}`);
+                      onSelectIndividual(conv.conversationId.toString());
                     }
                   }}
                   className={cn(
