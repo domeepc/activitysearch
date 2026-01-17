@@ -188,6 +188,7 @@ export const createSetupIntent = action({
 
 // Internal action to create payment intent for a team with collected payment methods
 // Must be an action (not mutation) because Stripe SDK uses setTimeout internally for retries
+// Type assertion breaks circular reference: function is referenced via internal.stripe.createTeamPaymentIntentInternal
 export const createTeamPaymentIntentInternal = internalAction({
   args: {
     reservationId: v.id("reservations"),
@@ -195,7 +196,10 @@ export const createTeamPaymentIntentInternal = internalAction({
     amount: v.number(),
     currency: v.optional(v.string()),
   },
-  handler: async (ctx, { reservationId, teamId, amount, currency = "eur" }) => {
+  handler: async (ctx, { reservationId, teamId, amount, currency = "eur" }): Promise<{
+    clientSecret: string | null;
+    paymentIntentId: string;
+  }> => {
     if (!reservationId || !amount) {
       throw new Error("Missing required fields");
     }
