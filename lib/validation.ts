@@ -20,6 +20,39 @@ export function validateIBAN(iban: string): boolean {
 }
 
 /**
+ * Validates a currency code (ISO 4217 format - 3 letters)
+ */
+export function validateCurrency(currency: string): boolean {
+  if (!currency) return false;
+  const cleaned = currency.trim().toUpperCase();
+  // ISO 4217 currency codes are exactly 3 uppercase letters
+  return /^[A-Z]{3}$/.test(cleaned);
+}
+
+/**
+ * Validates a country code (ISO 3166-1 alpha-2 format - 2 letters)
+ */
+export function validateCountryCode(countryCode: string): boolean {
+  if (!countryCode) return false;
+  const cleaned = countryCode.trim().toUpperCase();
+  // ISO 3166-1 alpha-2 country codes are exactly 2 uppercase letters
+  return /^[A-Z]{2}$/.test(cleaned);
+}
+
+/**
+ * Validates a URL format
+ */
+export function validateURL(url: string): boolean {
+  if (!url) return false;
+  try {
+    const urlObj = new URL(url);
+    return urlObj.protocol === "http:" || urlObj.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Validates a contact/phone number
  * Accepts E.164 format (starting with +) or digits only
  */

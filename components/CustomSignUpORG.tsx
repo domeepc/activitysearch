@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSignUp } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useMutation, useAction } from "convex/react";
@@ -20,16 +20,18 @@ import { OAuthButtons } from "@/components/auth/OAuthButtons";
 import { EmailVerificationDialog } from "@/components/auth/EmailVerificationDialog";
 import { Stepper } from "@/components/ui/stepper";
 import { api } from "@/convex/_generated/api";
-import { validateEmail, validateIBAN, validateContact } from "@/lib/validation";
+import { validateEmail, validateIBAN, validateContact, validateURL } from "@/lib/validation";
 import { handleOAuthRedirect } from "@/lib/auth/oauth";
 import { extractErrorMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import { Eye, EyeOff, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DateOfBirthCalendar } from "@/components/ui/date-of-birth-calendar";
 import { format } from "date-fns";
+import { Textarea } from "@/components/ui/textarea";
+import { loadStripe, Stripe } from "@stripe/stripe-js";
 
 const STEPS = [
   { label: "Personal Info", description: "Your account details" },
@@ -38,10 +40,14 @@ const STEPS = [
   { label: "Review", description: "Review & create" },
 ];
 
+// Initialize Stripe
+const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
+
 export default function CustomSignUpORG() {
   const { isLoaded, signUp, setActive } = useSignUp();
   const createOrganisation = useMutation(api.organisation.createOrganisation);
   const createStripeAccount = useAction(api.stripe.createConnectAccountWithDetails);
+  const [stripe, setStripe] = useState<Stripe | null>(null);
 
   // Form state
   const [currentPage, setCurrentPage] = useState(0);
@@ -63,6 +69,7 @@ export default function CustomSignUpORG() {
   const [state, setState] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [IBAN, setIBAN] = useState("");
+  const [IBANConfirm, setIBANConfirm] = useState("");
   const [organizationName, setOrganizationName] = useState("");
   const [organizationDescription, setOrganizationDescription] = useState("");
   const [contact, setContact] = useState("");
@@ -71,7 +78,9 @@ export default function CustomSignUpORG() {
   // Additional Stripe required fields
   const [dateOfBirth, setDateOfBirth] = useState<Date | undefined>(undefined);
   const [businessWebsite, setBusinessWebsite] = useState("");
-  const [industry, setIndustry] = useState("");
+  const [industry, setIndustry] = useState("Other entertainment and recreation");
+  const [currency, setCurrency] = useState("EUR");
+  const [bankCountry, setBankCountry] = useState("HR");
   const [tosAccepted, setTosAccepted] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -79,6 +88,15 @@ export default function CustomSignUpORG() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  // Load Stripe on mount
+  useEffect(() => {
+    if (stripePublishableKey) {
+      loadStripe(stripePublishableKey).then((stripeInstance) => {
+        setStripe(stripeInstance);
+      });
+    }
+  }, []);
 
   // Page validation functions
   const validatePage1 = (): string | null => {
@@ -119,6 +137,10 @@ export default function CustomSignUpORG() {
     if (!organizationDescription || organizationDescription.trim().length < 10) {
       return "Please enter an organization description (at least 10 characters)";
     }
+
+    if (businessWebsite && !validateURL(businessWebsite)) {
+      return "Please enter a valid website URL (starting with http:// or https://)";
+    }
     if (!addressLine1 || addressLine1.trim().length < 3) {
       return "Please enter a street address";
     }
@@ -138,28 +160,24 @@ export default function CustomSignUpORG() {
   };
 
   const validatePage3 = (): string | null => {
-    if (!taxId || taxId.trim().length < 2) {
-      return "Please enter a valid Tax ID/VAT number";
-    }
-    // Website is optional, but if provided, validate it's a proper URL
-    if (businessWebsite && businessWebsite.trim()) {
-      try {
-        new URL(businessWebsite);
-      } catch {
-        return "Please enter a valid website URL (e.g., https://www.example.com)";
-      }
-    }
-    if (!industry || industry.trim().length === 0) {
-      return "Please select an industry";
-    }
     if (!contact || !validateContact(contact)) {
       return "Please enter a valid contact number in E.164 format (e.g., +1234567890)";
     }
     if (!IBAN || !validateIBAN(IBAN)) {
       return "Please enter a valid IBAN (e.g., DE89 3704 0044 0532 0130 00)";
     }
+    if (!IBANConfirm || !validateIBAN(IBANConfirm)) {
+      return "Please confirm your IBAN";
+    }
+    if (IBAN !== IBANConfirm) {
+      return "IBAN and confirmation IBAN do not match";
+    }
+    // Currency and bankCountry are automatically set, no validation needed
+    if (!industry || industry.trim() === "") {
+      return "Please select your industry";
+    }
     if (!dateOfBirth) {
-      return "Please enter date of birth for business representative";
+      return "Please enter your date of birth";
     }
     // Validate date of birth format and age (must be 18+)
     const today = new Date();
@@ -167,7 +185,7 @@ export default function CustomSignUpORG() {
     const monthDiff = today.getMonth() - dateOfBirth.getMonth();
     const actualAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < dateOfBirth.getDate()) ? age - 1 : age;
     if (actualAge < 18) {
-      return "Business representative must be at least 18 years old";
+      return "You must be at least 18 years old";
     }
     return null;
   };
@@ -289,25 +307,60 @@ export default function CustomSignUpORG() {
             // Create Stripe Connect account with business details
             if (organisationId) {
               try {
+                // Create bank account token from IBAN if IBAN is provided
+                let bankAccountToken: string | undefined = undefined;
+
+                if (IBAN && IBAN.trim() && stripe && stripePublishableKey) {
+                  try {
+                    // Clean IBAN (remove spaces and convert to uppercase)
+                    const cleanedIBAN = IBAN.replace(/\s/g, "").toUpperCase();
+
+                    // Create bank account token using Stripe.js
+                    const tokenResult = await stripe.createToken("bank_account", {
+                      country: "HR", // Croatia
+                      currency: "eur",
+                      account_number: cleanedIBAN,
+                      account_holder_name: `${firstName} ${lastName}`.trim(),
+                      account_holder_type: "individual",
+                    });
+
+                    if (tokenResult.error) {
+                      console.error("Error creating bank account token:", tokenResult.error);
+                      throw new Error(`Failed to create bank account token: ${tokenResult.error.message}`);
+                    }
+
+                    if (tokenResult.token) {
+                      bankAccountToken = tokenResult.token.id;
+                      console.log("Bank account token created successfully");
+                    }
+                  } catch (tokenError) {
+                    console.error("Error creating bank token:", tokenError);
+                    // Continue without token - backend can still use IBAN directly
+                    console.warn("Continuing with IBAN instead of token");
+                  }
+                }
+
                 await createStripeAccount({
                   organisationId,
                   country,
-                  businessType: "company",
+                  businessType: "individual",
                   email: organizationEmail,
-                  businessName: organizationName,
-                  businessDescription: organizationDescription,
-                  taxId,
                   phone: contact,
                   addressLine1,
                   addressLine2,
                   city,
                   state,
                   postalCode,
-                  dateOfBirth: dateOfBirth?.toISOString() || "",
-                  businessWebsite,
-                  industry,
+                  dateOfBirth: dateOfBirth ? `${dateOfBirth.getFullYear()}-${String(dateOfBirth.getMonth() + 1).padStart(2, '0')}-${String(dateOfBirth.getDate()).padStart(2, '0')}` : "",
                   firstName,
                   lastName,
+                  industry,
+                  businessWebsite: businessWebsite || undefined,
+                  businessDescription: organizationDescription,
+                  IBAN: bankAccountToken ? undefined : IBAN, // Send IBAN only if no token
+                  externalAccountToken: bankAccountToken, // Send token if created
+                  currency: "EUR", // Always send EUR to Stripe
+                  bankCountry: "HR", // Always send HR (Croatia) to Stripe
                 });
                 console.log("Stripe account created successfully");
               } catch (stripeError) {
@@ -551,7 +604,7 @@ export default function CustomSignUpORG() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="organizationDescription">Organization Description</Label>
-              <textarea
+              <Textarea
                 id="organizationDescription"
                 placeholder="Describe your organization..."
                 value={organizationDescription}
@@ -559,11 +612,37 @@ export default function CustomSignUpORG() {
                 required
                 disabled={loading}
                 rows={4}
-                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+
+                className="flex min-h-[80px] resize-none w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
               <p className="text-xs text-muted-foreground">
                 Provide a brief description of your organization
               </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="businessWebsite">Business Website (Optional)</Label>
+              <Input
+                id="businessWebsite"
+                type="url"
+                placeholder="https://example.com"
+                value={businessWebsite}
+                onChange={(e) => setBusinessWebsite(e.target.value)}
+                disabled={loading}
+                className={
+                  businessWebsite && !validateURL(businessWebsite)
+                    ? "border-destructive"
+                    : ""
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                If you don&apos;t have a website, we&apos;ll use your organization description instead
+              </p>
+              {businessWebsite && !validateURL(businessWebsite) && (
+                <p className="text-xs text-destructive">
+                  Please enter a valid URL starting with http:// or https://
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="organizationEmail">Organization Email</Label>
@@ -648,30 +727,35 @@ export default function CustomSignUpORG() {
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="postalCode">Postal Code <span className="text-destructive">*</span></Label>
-              <Input
-                id="postalCode"
-                type="text"
-                placeholder="12345"
-                value={postalCode}
-                onChange={(e) => setPostalCode(e.target.value)}
-                required
-                disabled={loading}
-              />
+            <div className="space-y-2 flex gap-4 w-full justify-between">
+              <div className="space-y-2 w-full">
+                <Label htmlFor="postalCode">Postal Code <span className="text-destructive">*</span></Label>
+                <Input
+                  id="postalCode"
+                  type="text"
+                  placeholder="12345"
+                  value={postalCode}
+                  onChange={(e) => setPostalCode(e.target.value)}
+                  required
+                  disabled={loading}
+                />
+              </div>
+              <div className="space-y-2 w-full">
+                <Label htmlFor="country">Country</Label>
+                <Input
+                  id="country"
+                  type="text"
+                  value="Croatia (HR)"
+                  disabled
+                  className="bg-muted"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Country is set to Croatia
+                </p>
+              </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="country">Country</Label>
-              <Input
-                id="country"
-                type="text"
-                value="Croatia (HR)"
-                disabled
-                className="bg-muted"
-              />
-              <p className="text-xs text-muted-foreground">
-                Country is set to Croatia
-              </p>
+
             </div>
           </div>
         );
@@ -680,110 +764,7 @@ export default function CustomSignUpORG() {
         return (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="taxId">Tax ID / VAT Number <span className="text-destructive">*</span></Label>
-              <Input
-                id="taxId"
-                type="text"
-                placeholder="VAT123456789"
-                value={taxId}
-                onChange={(e) => setTaxId(e.target.value)}
-                required
-                disabled={loading}
-              />
-              <p className="text-xs text-muted-foreground">
-                Enter your business Tax ID or VAT number
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="businessWebsite">Business Website (Optional)</Label>
-              <Input
-                id="businessWebsite"
-                type="url"
-                placeholder="https://www.example.com"
-                value={businessWebsite}
-                onChange={(e) => setBusinessWebsite(e.target.value)}
-                disabled={loading}
-              />
-              <p className="text-xs text-muted-foreground">
-                Enter your business website URL (optional)
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="industry">Industry <span className="text-destructive">*</span></Label>
-              <NativeSelect
-                id="industry"
-                value={industry}
-                onChange={(e) => setIndustry(e.target.value)}
-                required
-                disabled={loading}
-                className="w-full"
-              >
-                <NativeSelectOption value="">Select an industry</NativeSelectOption>
-                <NativeSelectOption value="5734">Computer Software Stores</NativeSelectOption>
-                <NativeSelectOption value="5970">Arts and Crafts Supplies</NativeSelectOption>
-                <NativeSelectOption value="5942">Book Stores</NativeSelectOption>
-                <NativeSelectOption value="5971">Art Dealers and Galleries</NativeSelectOption>
-                <NativeSelectOption value="5972">Stamp and Coin Stores</NativeSelectOption>
-                <NativeSelectOption value="5947">Cosmetic Stores</NativeSelectOption>
-                <NativeSelectOption value="5948">Luggage and Leather Goods Stores</NativeSelectOption>
-                <NativeSelectOption value="5949">Sewing, Needlework, Fabric and Piece Goods Stores</NativeSelectOption>
-                <NativeSelectOption value="5950">Glassware, Chinaware Stores</NativeSelectOption>
-                <NativeSelectOption value="5975">Hearing Aids - Sales, Service, and Supply Stores</NativeSelectOption>
-                <NativeSelectOption value="5976">Orthopedic Goods - Prosthetic Devices</NativeSelectOption>
-                <NativeSelectOption value="5977">Cosmetic Stores</NativeSelectOption>
-                <NativeSelectOption value="5978">Typewriter Stores</NativeSelectOption>
-                <NativeSelectOption value="5992">Florists</NativeSelectOption>
-                <NativeSelectOption value="5993">Cigar Stores and Stands</NativeSelectOption>
-                <NativeSelectOption value="5994">News Dealers and Newsstands</NativeSelectOption>
-                <NativeSelectOption value="5995">Pet Shops, Pet Food, and Supplies Stores</NativeSelectOption>
-                <NativeSelectOption value="5996">Swimming Pools - Sales, Service, and Supplies</NativeSelectOption>
-                <NativeSelectOption value="5997">Electric Razor Stores</NativeSelectOption>
-                <NativeSelectOption value="5998">Tent and Awning Shops</NativeSelectOption>
-                <NativeSelectOption value="5999">Miscellaneous and Specialty Retail Stores</NativeSelectOption>
-                <NativeSelectOption value="5811">Caterers</NativeSelectOption>
-                <NativeSelectOption value="5812">Eating Places, Restaurants</NativeSelectOption>
-                <NativeSelectOption value="5813">Drinking Places (Alcoholic Beverages)</NativeSelectOption>
-                <NativeSelectOption value="5814">Fast Food Restaurants</NativeSelectOption>
-                <NativeSelectOption value="7011">Hotels, Motels, and Resorts</NativeSelectOption>
-                <NativeSelectOption value="7012">Timeshares</NativeSelectOption>
-                <NativeSelectOption value="7032">Sporting and Recreational Camps</NativeSelectOption>
-                <NativeSelectOption value="7033">Trailer Parks, Campgrounds</NativeSelectOption>
-                <NativeSelectOption value="7911">Dance Halls, Studios, and Schools</NativeSelectOption>
-                <NativeSelectOption value="7922">Theatrical Producers (Except Motion Pictures) and Ticket Agencies</NativeSelectOption>
-                <NativeSelectOption value="7929">Bands, Orchestras, and Miscellaneous Entertainers</NativeSelectOption>
-                <NativeSelectOption value="7932">Billiard and Pool Establishments</NativeSelectOption>
-                <NativeSelectOption value="7933">Bowling Alleys</NativeSelectOption>
-                <NativeSelectOption value="7941">Commercial Sports, Athletic Fields, Recreation, and Parks</NativeSelectOption>
-                <NativeSelectOption value="7991">Tourist Attractions and Exhibits</NativeSelectOption>
-                <NativeSelectOption value="7992">Public Golf Courses</NativeSelectOption>
-                <NativeSelectOption value="7993">Video Amusement Game Supplies</NativeSelectOption>
-                <NativeSelectOption value="7994">Video Game Arcades</NativeSelectOption>
-                <NativeSelectOption value="7995">Betting (including Lottery Tickets, Casino Gaming Chips, Off-track Betting, and Wagers)</NativeSelectOption>
-                <NativeSelectOption value="7996">Amusement Parks, Circuses, Carnivals, and Fortune Tellers</NativeSelectOption>
-                <NativeSelectOption value="7997">Membership Clubs (Sports, Recreation, Athletic), Country Clubs, and Private Golf Courses</NativeSelectOption>
-                <NativeSelectOption value="7998">Aquariums, Seaquariums, Dolphinariums</NativeSelectOption>
-                <NativeSelectOption value="7999">Recreation Services (Not Elsewhere Classified)</NativeSelectOption>
-                <NativeSelectOption value="8220">Colleges, Universities, Professional Schools, and Junior Colleges</NativeSelectOption>
-                <NativeSelectOption value="8241">Correspondence Schools</NativeSelectOption>
-                <NativeSelectOption value="8244">Business and Secretarial Schools</NativeSelectOption>
-                <NativeSelectOption value="8249">Vocational and Trade Schools</NativeSelectOption>
-                <NativeSelectOption value="8299">Schools and Educational Services (Not Elsewhere Classified)</NativeSelectOption>
-                <NativeSelectOption value="8351">Child Care Services</NativeSelectOption>
-                <NativeSelectOption value="8398">Charitable and Social Service Organizations</NativeSelectOption>
-                <NativeSelectOption value="8641">Civic, Social, and Fraternal Associations</NativeSelectOption>
-                <NativeSelectOption value="8651">Political Organizations</NativeSelectOption>
-                <NativeSelectOption value="8661">Religious Organizations</NativeSelectOption>
-                <NativeSelectOption value="8911">Architectural, Engineering, and Surveying Services</NativeSelectOption>
-                <NativeSelectOption value="8912">Accounting, Auditing, and Bookkeeping Services</NativeSelectOption>
-                <NativeSelectOption value="8931">Accounting, Auditing, and Bookkeeping Services</NativeSelectOption>
-                <NativeSelectOption value="8999">Professional Services (Not Elsewhere Classified)</NativeSelectOption>
-              </NativeSelect>
-              <p className="text-xs text-muted-foreground">
-                Select the industry that best describes your business
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="dateOfBirth">Date of Birth (Business Representative) <span className="text-destructive">*</span></Label>
+              <Label htmlFor="dateOfBirth">Date of Birth <span className="text-destructive">*</span></Label>
               <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -828,6 +809,31 @@ export default function CustomSignUpORG() {
               </p>
             </div>
             <div className="space-y-2">
+              <Label htmlFor="industry">Industry <span className="text-destructive">*</span></Label>
+              <NativeSelect
+                id="industry"
+                value={industry}
+                onChange={(e) => setIndustry(e.target.value)}
+                required
+                disabled={loading}
+              >
+                <NativeSelectOption value="">Select an industry</NativeSelectOption>
+                <NativeSelectOption value="Tourism & Travel">Tourism & Travel</NativeSelectOption>
+                <NativeSelectOption value="Events & Entertainment">Events & Entertainment</NativeSelectOption>
+                <NativeSelectOption value="Sports & Recreation">Sports & Recreation</NativeSelectOption>
+                <NativeSelectOption value="Adventure & Outdoor">Adventure & Outdoor</NativeSelectOption>
+                <NativeSelectOption value="Education & Training">Education & Training</NativeSelectOption>
+                <NativeSelectOption value="Food & Beverage">Food & Beverage</NativeSelectOption>
+                <NativeSelectOption value="Arts & Culture">Arts & Culture</NativeSelectOption>
+                <NativeSelectOption value="Health & Wellness">Health & Wellness</NativeSelectOption>
+                <NativeSelectOption value="Technology & Digital">Technology & Digital</NativeSelectOption>
+                <NativeSelectOption value="Retail & Shopping">Retail & Shopping</NativeSelectOption>
+                <NativeSelectOption value="Hospitality & Accommodation">Hospitality & Accommodation</NativeSelectOption>
+                <NativeSelectOption value="Other entertainment and recreation">Other entertainment and recreation</NativeSelectOption>
+                <NativeSelectOption value="Other">Other</NativeSelectOption>
+              </NativeSelect>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="contact">Contact Number</Label>
               <Input
                 id="contact"
@@ -853,7 +859,7 @@ export default function CustomSignUpORG() {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="IBAN">IBAN</Label>
+              <Label htmlFor="IBAN">IBAN <span className="text-destructive">*</span></Label>
               <Input
                 id="IBAN"
                 type="text"
@@ -877,21 +883,81 @@ export default function CustomSignUpORG() {
               )}
             </div>
             <div className="space-y-2">
-              <div className="flex items-start space-x-2">
+              <Label htmlFor="IBANConfirm">Confirm IBAN <span className="text-destructive">*</span></Label>
+              <Input
+                id="IBANConfirm"
+                type="text"
+                placeholder="DE89 3704 0044 0532 0130 00"
+                value={IBANConfirm}
+                onChange={(e) => setIBANConfirm(e.target.value)}
+                required
+                disabled={loading}
+                className={
+                  IBANConfirm && (!validateIBAN(IBANConfirm) || IBAN !== IBANConfirm)
+                    ? "border-destructive"
+                    : ""
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Re-enter your IBAN to confirm
+              </p>
+              {IBANConfirm && !validateIBAN(IBANConfirm) && (
+                <p className="text-xs text-destructive">
+                  Please enter a valid IBAN format
+                </p>
+              )}
+              {IBANConfirm && validateIBAN(IBANConfirm) && IBAN !== IBANConfirm && (
+                <p className="text-xs text-destructive">
+                  IBAN and confirmation do not match
+                </p>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="currency">Currency <span className="text-destructive">*</span></Label>
+                <Input
+                  id="currency"
+                  type="text"
+                  value="EUR - Euro"
+                  readOnly
+                  disabled
+                  className="bg-muted cursor-not-allowed"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Currency is automatically set to EUR - Euro
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bankCountry">Bank Account Country <span className="text-destructive">*</span></Label>
+                <Input
+                  id="bankCountry"
+                  type="text"
+                  value="Croatia"
+                  readOnly
+                  disabled
+                  className="bg-muted cursor-not-allowed"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Bank country is automatically set to Croatia
+                </p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
                 <Checkbox
                   id="tosAccepted"
                   checked={tosAccepted}
                   onCheckedChange={(checked) => setTosAccepted(checked === true)}
                   disabled={loading}
-                  className="mt-1"
+                  className="cursor-pointer"
                 />
-                <Label htmlFor="tosAccepted" className="text-sm font-normal cursor-pointer">
+                <Label htmlFor="tosAccepted" className="text-sm font-normal flex flex-wrap">
                   I accept Stripe&apos;s{" "}
                   <a
                     href="https://stripe.com/legal/connect-account"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-primary hover:underline"
+                    className="text-blue-500 font-bold hover:underline"
                   >
                     Terms of Service
                   </a>{" "}
@@ -900,7 +966,7 @@ export default function CustomSignUpORG() {
                     href="https://stripe.com/legal/connect-account"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-primary hover:underline"
+                    className="text-blue-500 font-bold hover:underline"
                   >
                     Connected Account Agreement
                   </a>
@@ -980,7 +1046,7 @@ export default function CustomSignUpORG() {
                   }}
                 >
                   <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-sm text-muted-foreground uppercase">Organization Details</h4>
+                    <h4 className="font-medium text-lg text-muted-foreground uppercase">Organization Details</h4>
                     <span className="text-xs text-muted-foreground">Click to edit</span>
                   </div>
                   <div className="space-y-1 text-sm">
@@ -993,6 +1059,20 @@ export default function CustomSignUpORG() {
                     {organizationDescription && (
                       <div>
                         <span className="text-muted-foreground">Description:</span> {organizationDescription}
+                      </div>
+                    )}
+                    {industry && (
+                      <div>
+                        <span className="text-muted-foreground">Industry:</span> {industry}
+                      </div>
+                    )}
+                    {businessWebsite ? (
+                      <div>
+                        <span className="text-muted-foreground">Website:</span> {businessWebsite}
+                      </div>
+                    ) : (
+                      <div>
+                        <span className="text-muted-foreground">Website:</span> <span className="text-muted-foreground italic">Using description instead</span>
                       </div>
                     )}
                     <div>
@@ -1038,84 +1118,19 @@ export default function CustomSignUpORG() {
                   </div>
                   <div className="space-y-1 text-sm">
                     <div>
-                      <span className="text-muted-foreground">Tax ID:</span> {taxId}
+                      <span className="text-muted-foreground">Date of Birth:</span> {dateOfBirth ? format(dateOfBirth, "PPP") : "Not provided"}
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Business Website:</span> {businessWebsite || "Not provided"}
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Industry:</span> {industry ? (() => {
-                        const industryMap: Record<string, string> = {
-                          "5734": "Computer Software Stores",
-                          "5970": "Arts and Crafts Supplies",
-                          "5942": "Book Stores",
-                          "5971": "Art Dealers and Galleries",
-                          "5972": "Stamp and Coin Stores",
-                          "5947": "Cosmetic Stores",
-                          "5948": "Luggage and Leather Goods Stores",
-                          "5949": "Sewing, Needlework, Fabric and Piece Goods Stores",
-                          "5950": "Glassware, Chinaware Stores",
-                          "5975": "Hearing Aids - Sales, Service, and Supply Stores",
-                          "5976": "Orthopedic Goods - Prosthetic Devices",
-                          "5977": "Cosmetic Stores",
-                          "5978": "Typewriter Stores",
-                          "5992": "Florists",
-                          "5993": "Cigar Stores and Stands",
-                          "5994": "News Dealers and Newsstands",
-                          "5995": "Pet Shops, Pet Food, and Supplies Stores",
-                          "5996": "Swimming Pools - Sales, Service, and Supplies",
-                          "5997": "Electric Razor Stores",
-                          "5998": "Tent and Awning Shops",
-                          "5999": "Miscellaneous and Specialty Retail Stores",
-                          "5811": "Caterers",
-                          "5812": "Eating Places, Restaurants",
-                          "5813": "Drinking Places (Alcoholic Beverages)",
-                          "5814": "Fast Food Restaurants",
-                          "7011": "Hotels, Motels, and Resorts",
-                          "7012": "Timeshares",
-                          "7032": "Sporting and Recreational Camps",
-                          "7033": "Trailer Parks, Campgrounds",
-                          "7911": "Dance Halls, Studios, and Schools",
-                          "7922": "Theatrical Producers (Except Motion Pictures) and Ticket Agencies",
-                          "7929": "Bands, Orchestras, and Miscellaneous Entertainers",
-                          "7932": "Billiard and Pool Establishments",
-                          "7933": "Bowling Alleys",
-                          "7941": "Commercial Sports, Athletic Fields, Recreation, and Parks",
-                          "7991": "Tourist Attractions and Exhibits",
-                          "7992": "Public Golf Courses",
-                          "7993": "Video Amusement Game Supplies",
-                          "7994": "Video Game Arcades",
-                          "7995": "Betting (including Lottery Tickets, Casino Gaming Chips, Off-track Betting, and Wagers)",
-                          "7996": "Amusement Parks, Circuses, Carnivals, and Fortune Tellers",
-                          "7997": "Membership Clubs (Sports, Recreation, Athletic), Country Clubs, and Private Golf Courses",
-                          "7998": "Aquariums, Seaquariums, Dolphinariums",
-                          "7999": "Recreation Services (Not Elsewhere Classified)",
-                          "8220": "Colleges, Universities, Professional Schools, and Junior Colleges",
-                          "8241": "Correspondence Schools",
-                          "8244": "Business and Secretarial Schools",
-                          "8249": "Vocational and Trade Schools",
-                          "8299": "Schools and Educational Services (Not Elsewhere Classified)",
-                          "8351": "Child Care Services",
-                          "8398": "Charitable and Social Service Organizations",
-                          "8641": "Civic, Social, and Fraternal Associations",
-                          "8651": "Political Organizations",
-                          "8661": "Religious Organizations",
-                          "8911": "Architectural, Engineering, and Surveying Services",
-                          "8912": "Accounting, Auditing, and Bookkeeping Services",
-                          "8931": "Accounting, Auditing, and Bookkeeping Services",
-                          "8999": "Professional Services (Not Elsewhere Classified)",
-                        };
-                        return industryMap[industry] || industry;
-                      })() : "Not selected"}
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Date of Birth:</span> {dateOfBirth ? format(dateOfBirth, "PPP") : "Not set"}
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Contact:</span> {contact}
+                      <span className="text-muted-foreground">Contact Number:</span> {contact}
                     </div>
                     <div>
                       <span className="text-muted-foreground">IBAN:</span> {IBAN}
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Currency:</span> EUR - Euro
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Bank Country:</span> Croatia
                     </div>
                   </div>
                 </div>
@@ -1131,12 +1146,12 @@ export default function CustomSignUpORG() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 py-8">
-      <Card className="w-full max-w-2xl">
-        <CardHeader className="space-y-1">
+      <Card className="w-full max-w-2xl border-border border-2 shadow-xl translate-y-[-30px] ">
+        <CardHeader className="space-y-1 text-left border-b border-border">
           <CardTitle className="text-2xl font-bold">
             Create Organizer Account
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-sm text-foreground text-left">
             {currentPage === 0 && "Choose your preferred sign up method or fill in your personal information"}
             {currentPage === 1 && "Enter your organization details"}
             {currentPage === 2 && "Provide business and payment information"}
@@ -1169,13 +1184,13 @@ export default function CustomSignUpORG() {
 
           {/* Step description */}
           <div className="text-center">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xl text-foreground font-bold text-left">
               {STEPS[currentPage].description}
             </p>
           </div>
 
           {/* Form content */}
-          <div className="min-h-[400px] relative overflow-hidden">
+          <div className="min-h-[400px] relative">
             <div
               key={currentPage}
               className={cn(
@@ -1205,10 +1220,10 @@ export default function CustomSignUpORG() {
               variant="outline"
               onClick={handlePrevious}
               disabled={currentPage === 0 || loading}
-              className="flex items-center gap-2 shrink-0"
+              className="flex items-center shrink-0 md:gap-2 gap-0"
             >
               <ChevronLeft className="h-4 w-4" />
-              Previous
+              <span className="hidden md:inline">Previous</span>
             </Button>
             <div className="flex-1 flex justify-center">
               <Stepper steps={STEPS} currentStep={currentPage + 1} />
@@ -1218,9 +1233,9 @@ export default function CustomSignUpORG() {
                 type="button"
                 onClick={handleNext}
                 disabled={!canProceedToNext() || loading}
-                className="flex items-center gap-2 shrink-0"
+                className="flex items-center shrink-0 md:gap-2 gap-0"
               >
-                Next
+                <span className="hidden md:inline">Next</span>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             ) : (

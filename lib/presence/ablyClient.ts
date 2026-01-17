@@ -1,9 +1,36 @@
 // Client-side only Ably client initialization
 // Using dynamic import to prevent SSR bundling issues
 
-let ablyClient: any = null;
+// Ably types - using unknown since Ably is dynamically imported
+// The actual Ably types are complex and vary by version, so we use a minimal interface
+// and type assertions where needed
+interface AblyConnection {
+  close: () => void;
+  state: string;
+  on: (event: string | string[], callback: (...args: unknown[]) => void) => void;
+  off: (event: string | string[], callback: (...args: unknown[]) => void) => void;
+}
+
+interface AblyRealtime {
+  connection: AblyConnection;
+  channels: {
+    get: (name: string) => unknown;
+  };
+  clientId?: string;
+  close?: () => void;
+  connect?: () => void;
+  auth?: unknown;
+  [key: string]: unknown; // Allow additional properties
+}
+
+interface AblyModule {
+  Realtime: new (config: { key: string; clientId: string }) => AblyRealtime;
+  [key: string]: unknown; // Allow additional exports
+}
+
+let ablyClient: AblyRealtime | null = null;
 let currentClientId: string | undefined = undefined;
-let ablyModulePromise: Promise<any> | null = null;
+let ablyModulePromise: Promise<AblyModule | null> | null = null;
 
 function loadAblyModule() {
   if (typeof window === "undefined") {
@@ -16,7 +43,7 @@ function loadAblyModule() {
 
   ablyModulePromise = import("ably").then((module) => {
     // Use the browser build by accessing the default export or Realtime directly
-    return module;
+    return module as unknown as AblyModule;
   }).catch((error) => {
     console.error("Failed to load Ably:", error);
     return null;
@@ -25,7 +52,7 @@ function loadAblyModule() {
   return ablyModulePromise;
 }
 
-export async function getAblyClient(userId?: string): Promise<any> {
+export async function getAblyClient(userId?: string): Promise<AblyRealtime | null> {
   if (typeof window === "undefined") {
     // Server-side: return null
     return null;

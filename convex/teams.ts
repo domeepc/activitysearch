@@ -160,7 +160,7 @@ export const getMyTeams = query({
           lastMessage: lastMessage
             ? {
                 text: lastMessage.text,
-                timestamp: lastMessage.timestamp,
+                timestamp: lastMessage._creationTime,
                 senderId: lastMessage.senderId,
               }
             : null,
@@ -259,7 +259,7 @@ export const getTeamMessages = query({
         _id: msg._id,
         text: msg.text,
         senderId: msg.senderId,
-        timestamp: msg.timestamp,
+        timestamp: msg._creationTime,
         sender: sender
           ? {
               _id: sender._id,
@@ -316,14 +316,12 @@ export const sendTeamMessage = mutation({
       throw new Error("Message cannot be empty");
     }
 
-    const timestamp = Date.now();
     const isEncrypted = !!encryptedText;
 
     await ctx.db.insert("groupMessages", {
       teamId,
       senderId: currentUser._id,
       text: messageText.trim(),
-      timestamp,
       encrypted: isEncrypted ? true : undefined,
       messageType: "text",
     });
@@ -357,13 +355,10 @@ export const sendReservationCardToTeam = mutation({
 
     // Use system user ID (the creator of the reservation) as sender
     // This ensures the card appears as a system message
-    const timestamp = Date.now();
-
     await ctx.db.insert("groupMessages", {
       teamId,
       senderId: reservation.createdBy,
       text: "Reservation card", // Placeholder text for reservation card messages
-      timestamp,
       messageType: "reservation_card",
       reservationCardData: {
         reservationId,
@@ -480,6 +475,16 @@ export const markTeamMessageAsRead = mutation({
     }
 
     return { success: true };
+  },
+});
+
+export const getTeamById = query({
+  args: {
+    teamId: v.id("teams"),
+  },
+  handler: async (ctx, { teamId }) => {
+    const team = await ctx.db.get(teamId);
+    return team;
   },
 });
 
@@ -613,7 +618,7 @@ export const getTeamMessagesBySlug = query({
         _id: msg._id,
         text: msg.text,
         senderId: msg.senderId,
-        timestamp: msg.timestamp,
+        timestamp: msg._creationTime,
         sender: sender
           ? {
               _id: sender._id,

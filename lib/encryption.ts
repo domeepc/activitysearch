@@ -1,19 +1,114 @@
 /**
  * End-to-End Encryption Service
  * Uses Web Crypto API with AES-GCM-256 for message encryption
+ * Keys are derived deterministically from user IDs to work across devices
  */
 
 const ALGORITHM = "AES-GCM";
 const KEY_LENGTH = 256;
 const IV_LENGTH = 12; // 96 bits for GCM
 const TAG_LENGTH = 128; // 128 bits for authentication tag
+const PBKDF2_ITERATIONS = 100000; // High iteration count for security
+const PBKDF2_SALT = "activitysearch_e2e_salt_v1"; // Fixed salt for deterministic key derivation
 
 /**
  * Encryption Service for E2E message encryption
  */
 export class EncryptionService {
   /**
-   * Generate a new AES-GCM encryption key
+   * Derive an AES-GCM encryption key from user IDs using PBKDF2
+   * This ensures the same key is generated on all devices for the same conversation
+   */
+  static async deriveKeyFromIds(user1Id: string, user2Id: string): Promise<CryptoKey> {
+    // Sort IDs to ensure consistent key derivation
+    const sortedIds = [user1Id, user2Id].sort((a, b) => a.localeCompare(b));
+    const keyMaterial = `${sortedIds[0]}_${sortedIds[1]}`;
+    
+    // Convert key material to ArrayBuffer
+    const encoder = new TextEncoder();
+    const keyMaterialBuffer = encoder.encode(keyMaterial);
+    const saltBuffer = encoder.encode(PBKDF2_SALT);
+    
+    // Import key material for PBKDF2
+    const baseKey = await crypto.subtle.importKey(
+      "raw",
+      keyMaterialBuffer,
+      "PBKDF2",
+      false,
+      ["deriveBits"]
+    );
+    
+    // Derive key bits using PBKDF2
+    const derivedBits = await crypto.subtle.deriveBits(
+      {
+        name: "PBKDF2",
+        salt: saltBuffer,
+        iterations: PBKDF2_ITERATIONS,
+        hash: "SHA-256",
+      },
+      baseKey,
+      KEY_LENGTH
+    );
+    
+    // Import derived bits as AES-GCM key
+    return await crypto.subtle.importKey(
+      "raw",
+      derivedBits,
+      {
+        name: ALGORITHM,
+        length: KEY_LENGTH,
+      },
+      true, // extractable
+      ["encrypt", "decrypt"]
+    );
+  }
+
+  /**
+   * Derive an AES-GCM encryption key from team ID using PBKDF2
+   */
+  static async deriveKeyFromTeamId(teamId: string): Promise<CryptoKey> {
+    // Convert team ID to ArrayBuffer
+    const encoder = new TextEncoder();
+    const keyMaterialBuffer = encoder.encode(teamId);
+    const saltBuffer = encoder.encode(PBKDF2_SALT);
+    
+    // Import key material for PBKDF2
+    const baseKey = await crypto.subtle.importKey(
+      "raw",
+      keyMaterialBuffer,
+      "PBKDF2",
+      false,
+      ["deriveBits"]
+    );
+    
+    // Derive key bits using PBKDF2
+    const derivedBits = await crypto.subtle.deriveBits(
+      {
+        name: "PBKDF2",
+        salt: saltBuffer,
+        iterations: PBKDF2_ITERATIONS,
+        hash: "SHA-256",
+      },
+      baseKey,
+      KEY_LENGTH
+    );
+    
+    // Import derived bits as AES-GCM key
+    return await crypto.subtle.importKey(
+      "raw",
+      derivedBits,
+      {
+        name: ALGORITHM,
+        length: KEY_LENGTH,
+      },
+      true, // extractable
+      ["encrypt", "decrypt"]
+    );
+  }
+
+  /**
+   * Generate a new AES-GCM encryption key (kept for backward compatibility)
+   * @deprecated Use deriveKeyFromIds or deriveKeyFromTeamId instead
    */
   static async generateKey(): Promise<CryptoKey> {
     return await crypto.subtle.generateKey(
@@ -133,44 +228,55 @@ export class EncryptionService {
 
   /**
    * Get or create encryption key for a conversation between two users
-   * Keys are stored in localStorage with sorted user IDs
+   * Keys are derived deterministically from user IDs to work across devices
+   * localStorage is used as a cache for performance
    */
   static async getOrCreateConversationKey(
     user1Id: string,
     user2Id: string
   ): Promise<CryptoKey> {
-    // Sort IDs to ensure consistent key name
+    // Sort IDs to ensure consistent key derivation
     const sortedIds = [user1Id, user2Id].sort((a, b) => a.localeCompare(b));
     const keyName = `e2e_key_${sortedIds[0]}_${sortedIds[1]}`;
 
-    // Try to load existing key
-    const existingKey = await this.loadKey(keyName);
-    if (existingKey) {
-      return existingKey;
+    // Try to load cached key from localStorage for performance
+    const cachedKey = await this.loadKey(keyName);
+    if (cachedKey) {
+      return cachedKey;
     }
 
-    // Generate new key
-    const newKey = await this.generateKey();
-    await this.storeKey(keyName, newKey);
-    return newKey;
+    // Derive key deterministically from user IDs
+    // This ensures the same key is generated on all devices
+    const derivedKey = await this.deriveKeyFromIds(user1Id, user2Id);
+    
+    // Cache the key in localStorage for performance
+    await this.storeKey(keyName, derivedKey);
+    
+    return derivedKey;
   }
 
   /**
    * Get or create encryption key for a team
+   * Keys are derived deterministically from team ID to work across devices
+   * localStorage is used as a cache for performance
    */
   static async getOrCreateTeamKey(teamId: string): Promise<CryptoKey> {
     const keyName = `e2e_team_key_${teamId}`;
 
-    // Try to load existing key
-    const existingKey = await this.loadKey(keyName);
-    if (existingKey) {
-      return existingKey;
+    // Try to load cached key from localStorage for performance
+    const cachedKey = await this.loadKey(keyName);
+    if (cachedKey) {
+      return cachedKey;
     }
 
-    // Generate new key
-    const newKey = await this.generateKey();
-    await this.storeKey(keyName, newKey);
-    return newKey;
+    // Derive key deterministically from team ID
+    // This ensures the same key is generated on all devices
+    const derivedKey = await this.deriveKeyFromTeamId(teamId);
+    
+    // Cache the key in localStorage for performance
+    await this.storeKey(keyName, derivedKey);
+    
+    return derivedKey;
   }
 
   /**

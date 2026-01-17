@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, CreditCard, AlertCircle, Users } from "lucide-react";
+import { Loader2, CreditCard, AlertCircle } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -93,9 +93,9 @@ function PaymentForm({
         return;
       }
 
-      // Confirm payment
-      const { error: confirmError, paymentIntent } =
-        await stripe.confirmPayment({
+      // Confirm setup intent to collect payment method
+      const { error: confirmError, setupIntent } =
+        await stripe.confirmSetup({
           elements,
           confirmParams: {
             return_url: `${window.location.origin}/reservations`,
@@ -104,24 +104,37 @@ function PaymentForm({
         });
 
       if (confirmError) {
-        setError(confirmError.message || "Payment failed");
+        setError(confirmError.message || "Payment method setup failed");
         setIsProcessing(false);
         return;
       }
 
-      if (paymentIntent && paymentIntent.status === "requires_capture") {
-        // Payment is held, record it in database
+      if (setupIntent && setupIntent.status === "succeeded") {
+        // Payment method collected successfully
+        // Extract payment method ID from setup intent
+        const paymentMethodId = setupIntent.payment_method;
+        
+        if (!paymentMethodId || typeof paymentMethodId !== "string") {
+          setError("Failed to collect payment method");
+          setIsProcessing(false);
+          return;
+        }
+
+        // Record payment with SetupIntent ID and payment method ID
+        // PaymentIntent will be created when team's soldo is fulfilled
         await recordPayment({
           reservationId,
           amount: Number(totalAmount),
           personsPaidFor: BigInt(personsToPayFor),
-          stripePaymentIntentId: paymentIntent.id,
+          stripePaymentIntentId: undefined, // Will be set when team PaymentIntent is created
+          stripeSetupIntentId: setupIntent.id,
+          stripePaymentMethodId: paymentMethodId,
         });
 
         onSuccess();
         onClose();
       } else {
-        setError("Payment was not held successfully");
+        setError("Payment method was not collected successfully");
       }
     } catch (err) {
       setError(
@@ -195,7 +208,7 @@ export function PaymentDialog({
   open,
   onOpenChange,
   reservationId,
-  amount,
+  amount: _amount,
   perPersonAmount,
   remainingPersons,
   activityName,
@@ -205,7 +218,7 @@ export function PaymentDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [personsToPayFor, setPersonsToPayFor] = useState(1);
-  const createPaymentIntentAction = useAction(api.stripe.createPaymentIntent);
+  const createSetupIntentAction = useAction(api.stripe.createSetupIntent);
 
   // Reset persons to pay for when dialog opens
   useEffect(() => {
@@ -224,7 +237,7 @@ export function PaymentDialog({
     }
   }, [open, remainingPersons]);
 
-  const createPaymentIntent = useCallback(async () => {
+  const createSetupIntent = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -259,16 +272,15 @@ export function PaymentDialog({
         throw new Error("Total amount must be greater than 0");
       }
 
-      console.log("Creating payment intent:", {
+      console.log("Creating setup intent:", {
         reservationId,
         totalAmount,
         personsToPayFor,
         perPersonAmount,
       });
 
-      const data = await createPaymentIntentAction({
+      const data = await createSetupIntentAction({
         reservationId,
-        amount: totalAmount,
         currency: "eur",
       });
 
@@ -276,18 +288,18 @@ export function PaymentDialog({
         throw new Error("No client secret returned from server. Please try again.");
       }
 
-      // Validate clientSecret format (should start with pi_)
-      if (!data.clientSecret.startsWith("pi_") && !data.clientSecret.includes("_secret_")) {
+      // Validate clientSecret format (should start with seti_ for SetupIntent)
+      if (!data.clientSecret.startsWith("seti_") && !data.clientSecret.includes("_secret_")) {
         throw new Error("Invalid payment configuration. Please contact support.");
       }
 
       setClientSecret(data.clientSecret);
     } catch (err) {
-      console.error("Error creating payment intent:", err);
+      console.error("Error creating setup intent:", err);
       const errorMessage =
         err instanceof Error
           ? err.message
-          : "Failed to create payment intent. Please try again.";
+          : "Failed to create setup intent. Please try again.";
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -297,7 +309,7 @@ export function PaymentDialog({
     perPersonAmount,
     personsToPayFor,
     remainingPersons,
-    createPaymentIntentAction,
+    createSetupIntentAction,
   ]);
 
   if (!clientSecret && isLoading) {
@@ -389,7 +401,7 @@ export function PaymentDialog({
             </Elements>
           ) : (
             <Button
-              onClick={createPaymentIntent}
+              onClick={createSetupIntent}
               disabled={
                 isLoading || remainingPersons <= 0 || personsToPayFor <= 0
               }
@@ -398,7 +410,7 @@ export function PaymentDialog({
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating payment...
+                  Setting up payment...
                 </>
               ) : (
                 <>

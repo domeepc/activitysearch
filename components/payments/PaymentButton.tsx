@@ -15,9 +15,9 @@ interface PaymentButtonProps {
 }
 
 export function PaymentButton({
-  reservationId,
+  reservationId: _reservationId,
   paymentStatus = "pending",
-  amount,
+  amount: _amount,
   remainingAmount,
   onPaymentClick,
   disabled = false,

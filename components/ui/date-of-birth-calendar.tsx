@@ -53,7 +53,7 @@ function DateOfBirthCalendar({
         ),
         month: cn("flex flex-col w-full gap-4", defaultClassNames.month),
         nav: cn(
-          "flex items-center w-full absolute top-0 inset-x-0 justifty-between h-(--cell-size)",
+          "flex items-center w-full absolute top-0 inset-x-0 justify-between h-(--cell-size)",
           defaultClassNames.nav
         ),
         button_previous: cn(

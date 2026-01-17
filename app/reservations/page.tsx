@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Inbox, Filter, CreditCard } from "lucide-react";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useOrganizer } from "@/lib/hooks/useOrganizer";
-import { useRouter } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
 
 type StatusFilter = "all" | "active" | "cancelled";
@@ -21,7 +20,6 @@ export default function ReservationsPage() {
   const { markReservationsAsRead } = useMarkReservationsAsRead();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("reservations");
-  const router = useRouter();
   const hasMarkedAsRead = useRef(false);
 
   // Mark reservations as read when page loads (only once)
@@ -111,43 +109,43 @@ export default function ReservationsPage() {
         <>
           {/* Filters */}
           <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">
-        <Button
-          variant={statusFilter === "all" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setStatusFilter("all")}
-          className="gap-1 sm:gap-2 text-xs sm:text-sm"
-        >
-          <Filter className="h-3 w-3 sm:h-4 sm:w-4" />
-          <span className="hidden sm:inline">All</span>
-          <span className="sm:hidden">All</span>
-          <span className="ml-1">({reservations.length})</span>
-        </Button>
-        <Button
-          variant={statusFilter === "active" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setStatusFilter("active")}
-          className="text-xs sm:text-sm"
-        >
-          Active ({reservations.filter((r) => !r.cancelledAt).length})
-        </Button>
-        <Button
-          variant={statusFilter === "cancelled" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setStatusFilter("cancelled")}
-          className="text-xs sm:text-sm"
-        >
-          Cancelled ({reservations.filter((r) => !!r.cancelledAt).length})
-        </Button>
-      </div>
+            <Button
+              variant={statusFilter === "all" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setStatusFilter("all")}
+              className="gap-1 sm:gap-2 text-xs sm:text-sm"
+            >
+              <Filter className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">All</span>
+              <span className="sm:hidden">All</span>
+              <span className="ml-1">({reservations.length})</span>
+            </Button>
+            <Button
+              variant={statusFilter === "active" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setStatusFilter("active")}
+              className="text-xs sm:text-sm"
+            >
+              Active ({reservations.filter((r) => !r.cancelledAt).length})
+            </Button>
+            <Button
+              variant={statusFilter === "cancelled" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setStatusFilter("cancelled")}
+              className="text-xs sm:text-sm"
+            >
+              Cancelled ({reservations.filter((r) => !!r.cancelledAt).length})
+            </Button>
+          </div>
 
-      {/* Table */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Spinner className="h-8 w-8" />
-        </div>
-      ) : (
-        <ReservationTable reservations={filteredReservations} />
-      )}
+          {/* Table */}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Spinner className="h-8 w-8" />
+            </div>
+          ) : (
+            <ReservationTable reservations={filteredReservations} />
+          )}
 
           {/* Empty state */}
           {!isLoading && filteredReservations.length === 0 && (

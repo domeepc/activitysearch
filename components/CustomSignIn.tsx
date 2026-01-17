@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useSignIn } from "@clerk/nextjs";
+import { useSignIn, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -23,12 +23,38 @@ import { Eye, EyeOff } from "lucide-react";
 
 export default function CustomSignIn() {
   const { isLoaded, signIn, setActive } = useSignIn();
+  const { isSignedIn, isLoaded: userLoaded } = useUser();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
   const [error, setError] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const router = useRouter();
+
+  // Redirect authenticated users away from sign-in page
+  React.useEffect(() => {
+    if (userLoaded && isSignedIn) {
+      router.push("/");
+    }
+  }, [userLoaded, isSignedIn, router]);
+
+  // Show loading state while checking authentication
+  if (!userLoaded || !isLoaded) {
+    return (
+      <div className="flex h-screen items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex items-center justify-center py-8">
+            <div className="text-muted-foreground">Loading...</div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Don't render sign-in form if user is already authenticated
+  if (isSignedIn) {
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

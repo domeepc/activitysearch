@@ -11,10 +11,35 @@ export interface PresenceData {
   lastSeen: number;
 }
 
+// Ably types - using flexible typing since Ably is dynamically imported
+interface AblyChannel {
+  state: "initialized" | "attaching" | "attached" | "detaching" | "detached" | "failed" | "suspended";
+  presence: {
+    get: (paramsOrCallback?: unknown, callback?: unknown) => void;
+    subscribe: (callback: (message: AblyPresenceMessage) => void) => Promise<void> | void;
+    unsubscribe: (callback: (message: AblyPresenceMessage) => void) => void;
+    enter: (data: PresenceData) => Promise<void>;
+    leave: () => Promise<void>;
+  };
+  once: (event: string, callback: (...args: unknown[]) => void) => void;
+  attach: (callback?: (err: Error | null) => void) => void;
+}
+
+interface AblyPresenceMember {
+  clientId: string;
+  data: PresenceData;
+}
+
+interface AblyPresenceMessage {
+  clientId: string;
+  action: "enter" | "update" | "leave" | "absent" | "present";
+  data: PresenceData;
+}
+
 const PRESENCE_CHANNEL = "presence:users";
 
 // Helper function to ensure channel is attached
-async function ensureChannelAttached(channel: any): Promise<void> {
+async function ensureChannelAttached(channel: AblyChannel): Promise<void> {
   if (channel.state === "attached") {
     return;
   }
@@ -23,12 +48,12 @@ async function ensureChannelAttached(channel: any): Promise<void> {
     // If already attaching, wait for it
     if (channel.state === "attaching") {
       channel.once("attached", () => resolve());
-      channel.once("failed", (err: any) => reject(err));
+      channel.once("failed", (err?: unknown) => reject(err as Error));
       return;
     }
 
     // Attach the channel
-    channel.attach((err: any) => {
+    channel.attach((err: Error | null) => {
       if (err) {
         reject(err);
       } else {
@@ -54,10 +79,10 @@ export function usePresence(userId: string | undefined) {
     let mounted = true;
 
     // Subscribe to presence events for this user
-    const handlePresenceMessage = (message: any) => {
+    const handlePresenceMessage = (message: AblyPresenceMessage) => {
       if (!mounted || message.clientId !== userId) return;
 
-      if (message.action === "enter" || message.action === "update") {
+      if (message.action === "enter" || message.action === "update" || message.action === "absent") {
         const data = message.data as PresenceData;
         setPresence(data);
         setIsLoading(false);
@@ -72,32 +97,35 @@ export function usePresence(userId: string | undefined) {
     };
 
     // Attach channel and then subscribe to presence
-    ensureChannelAttached(channel)
+    ensureChannelAttached(channel as unknown as AblyChannel)
       .then(() => {
         if (!mounted) return;
 
         // Get current presence state
-        (channel.presence.get as any)({ clientId: userId }, (err: any, members: any) => {
-          if (err || !mounted) {
-            setIsLoading(false);
-            return;
-          }
+        (channel.presence.get as unknown as (params: { clientId: string }, callback: (err: Error | null, members: AblyPresenceMember[] | null) => void) => void)(
+          { clientId: userId },
+          (err: Error | null, members: AblyPresenceMember[] | null) => {
+            if (err || !mounted) {
+              setIsLoading(false);
+              return;
+            }
 
-          const member = members?.find((m: any) => m.clientId === userId);
-          if (member && member.data) {
-            setPresence(member.data as PresenceData);
-          } else {
-            setPresence({
-              userId,
-              status: "offline",
-              lastSeen: Date.now(),
-            });
+            const member = members?.find((m: AblyPresenceMember) => m.clientId === userId);
+            if (member && member.data) {
+              setPresence(member.data as PresenceData);
+            } else {
+              setPresence({
+                userId,
+                status: "offline",
+                lastSeen: Date.now(),
+              });
+            }
+            setIsLoading(false);
           }
-          setIsLoading(false);
-        });
+        );
 
         // Subscribe to presence updates
-        channel.presence.subscribe(handlePresenceMessage);
+        (channel.presence.subscribe as unknown as (callback: (message: AblyPresenceMessage) => void) => void)(handlePresenceMessage);
       })
       .catch((err) => {
         console.error("Failed to attach presence channel:", err);
@@ -106,7 +134,7 @@ export function usePresence(userId: string | undefined) {
 
     return () => {
       mounted = false;
-      channel.presence.unsubscribe(handlePresenceMessage);
+      (channel.presence.unsubscribe as unknown as (callback: (message: AblyPresenceMessage) => void) => void)(handlePresenceMessage);
     };
   }, [client, userId, isConnected]);
 
@@ -130,40 +158,42 @@ export function usePresenceList(userIds: string[]) {
     const channel = client.channels.get(PRESENCE_CHANNEL);
     let mounted = true;
     const userIdSet = new Set(userIds);
-    let handlePresenceMessage: ((message: any) => void) | null = null;
+    let handlePresenceMessage: ((message: AblyPresenceMessage) => void) | null = null;
 
     const updatePresences = () => {
-      (channel.presence.get as any)((err: any, members: any) => {
-        if (err || !mounted) {
-          setIsLoading(false);
-          return;
-        }
-
-        const newPresences = new Map<string, PresenceData>();
-
-        // Initialize all requested users as offline
-        userIds.forEach((userId) => {
-          newPresences.set(userId, {
-            userId,
-            status: "offline",
-            lastSeen: Date.now(),
-          });
-        });
-
-        // Update with actual presence data
-        members?.forEach((member: any) => {
-          if (userIdSet.has(member.clientId) && member.data) {
-            newPresences.set(member.clientId, member.data as PresenceData);
+      (channel.presence.get as (callback: (err: Error | null, members: AblyPresenceMember[] | null) => void) => void)(
+        (err: Error | null, members: AblyPresenceMember[] | null) => {
+          if (err || !mounted) {
+            setIsLoading(false);
+            return;
           }
-        });
 
-        setPresences(newPresences);
-        setIsLoading(false);
-      });
+          const newPresences = new Map<string, PresenceData>();
+
+          // Initialize all requested users as offline
+          userIds.forEach((userId) => {
+            newPresences.set(userId, {
+              userId,
+              status: "offline",
+              lastSeen: Date.now(),
+            });
+          });
+
+          // Update with actual presence data
+          members?.forEach((member: AblyPresenceMember) => {
+            if (userIdSet.has(member.clientId) && member.data) {
+              newPresences.set(member.clientId, member.data as PresenceData);
+            }
+          });
+
+          setPresences(newPresences);
+          setIsLoading(false);
+        }
+      );
     };
 
     // Attach channel and then fetch and subscribe to presence
-    ensureChannelAttached(channel)
+    ensureChannelAttached(channel as unknown as AblyChannel)
       .then(() => {
         if (!mounted) return;
 
@@ -171,10 +201,10 @@ export function usePresenceList(userIds: string[]) {
         updatePresences();
 
         // Subscribe to presence updates
-        handlePresenceMessage = (message: any) => {
+        handlePresenceMessage = (message: AblyPresenceMessage) => {
           if (!mounted || !userIdSet.has(message.clientId)) return;
 
-          if (message.action === "enter" || message.action === "update") {
+          if (message.action === "enter" || message.action === "update" || message.action === "absent") {
             const data = message.data as PresenceData;
             setPresences((prev) => {
               const next = new Map(prev);
@@ -194,7 +224,7 @@ export function usePresenceList(userIds: string[]) {
           }
         };
 
-        channel.presence.subscribe(handlePresenceMessage);
+        (channel.presence.subscribe as unknown as (callback: (message: AblyPresenceMessage) => void) => void)(handlePresenceMessage);
       })
       .catch((err) => {
         console.error("Failed to attach presence channel:", err);
@@ -204,7 +234,7 @@ export function usePresenceList(userIds: string[]) {
     return () => {
       mounted = false;
       if (handlePresenceMessage) {
-        channel.presence.unsubscribe(handlePresenceMessage);
+        (channel.presence.unsubscribe as unknown as (callback: (message: AblyPresenceMessage) => void) => void)(handlePresenceMessage);
       }
     };
   }, [client, userIds.join(","), isConnected]);
@@ -229,7 +259,7 @@ export function useUpdatePresence() {
       };
 
       // Ensure channel is attached before entering presence
-      ensureChannelAttached(channel)
+      ensureChannelAttached(channel as unknown as AblyChannel)
         .then(() => {
           // Enter or update presence using promise
           return channel.presence.enter(presenceData);
@@ -259,7 +289,7 @@ export function useUpdatePresence() {
     // Only try to leave if channel is attached or attaching (presence operations require attached channel)
     if (channelState !== "attached" && channelState !== "attaching") {
       // Try to attach first, then leave
-      ensureChannelAttached(channel)
+      ensureChannelAttached(channel as unknown as AblyChannel)
         .then(() => {
           // Leave presence without data (Ably will automatically remove the client)
           return channel.presence.leave();

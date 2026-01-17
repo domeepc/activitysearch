@@ -94,6 +94,8 @@ export default defineSchema({
     paidAt: v.number(),
     refundedAt: v.optional(v.number()),
     stripePaymentIntentId: v.optional(v.string()),
+    stripeSetupIntentId: v.optional(v.string()), // SetupIntent for collecting payment method
+    stripePaymentMethodId: v.optional(v.string()), // Payment method ID from SetupIntent
     capturedAt: v.optional(v.number()),
     captureScheduledFor: v.optional(v.number()),
   }).index("byReservation", ["reservationId"]),
@@ -118,7 +120,6 @@ export default defineSchema({
     text: v.string(),
     senderId: v.id("users"),
     receiverId: v.id("users"),
-    timestamp: v.number(),
     readBy: v.optional(v.array(v.id("users"))),
     encrypted: v.optional(v.boolean()),
   })
@@ -128,7 +129,6 @@ export default defineSchema({
     text: v.string(),
     senderId: v.id("users"),
     teamId: v.id("teams"),
-    timestamp: v.number(),
     readBy: v.optional(v.array(v.id("users"))),
     encrypted: v.optional(v.boolean()),
     messageType: v.optional(

@@ -113,9 +113,12 @@ export default function Home() {
         onOpenChange={setIsMobileDialogOpen}
         onSearch={handleMobileSearch}
       />
+
       {isOrganizer && (
-        <MobileAddActivityFAB onClick={() => setShowAddDialog(true)} />
+        <MobileAddActivityFAB onClick={() => setShowDialogMobile(true)} />
       )}
+
+
       <DialogAddActivity
         showDialog={showAddDialog}
         setShowDialog={setShowAddDialog}
@@ -124,7 +127,7 @@ export default function Home() {
         showDialog={showAddDialogMobile}
         setShowDialog={setShowDialogMobile}
       />
-       
+
       <div className="map_tab">
         <OpenStreetMapComponent
           activities={filteredActivities}

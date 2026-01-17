@@ -48,7 +48,9 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
     );
   }
 
-  const status = reservation.paymentStatus || "pending";
+  // Check if cancelled - prioritize cancelledAt over paymentStatus
+  const isCancelled = !!reservation.cancelledAt;
+  const status = isCancelled ? "cancelled" : (reservation.paymentStatus || "pending");
 
   // Parse time - it might be in "HH:MM" format or already a range
   let activityDate: Date;
