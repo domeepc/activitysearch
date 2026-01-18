@@ -26,7 +26,6 @@ import {
   useEffect,
   useRef,
   useState,
-  useMemo,
   type ComponentPropsWithoutRef,
   type ReactNode,
 } from "react"
@@ -228,7 +227,7 @@ export function MultiSelectValue({
               variant="outline"
               data-selected-item
               data-category={value}
-              className="group flex items-center gap-1"
+              className="group flex cursor-pointer items-center gap-1"
               key={value}
               style={{
                 backgroundColor: colorScheme.bgHex,
@@ -326,6 +325,7 @@ export function MultiSelectItem({
   return (
     <CommandItem
       {...props}
+      className={cn("cursor-pointer", props.className)}
       onSelect={() => {
         toggleValue(value)
         onSelect?.(value)

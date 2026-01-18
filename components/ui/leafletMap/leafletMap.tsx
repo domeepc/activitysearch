@@ -5,7 +5,8 @@ import MarkerClusterGroup from "react-leaflet-cluster";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import ActivityCard from "./activityCard";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { ActivityData } from "@/lib/types/activity";
 
 // Add styles to make Leaflet popups invisible
 if (typeof document !== "undefined") {
@@ -53,32 +54,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl:
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
-
-export interface ActivityData {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  tags?: string[];
-  location: {
-    name: string;
-    address: string;
-    coordinates: {
-      lat: number;
-      lng: number;
-    };
-  };
-  price: {
-    amount: number;
-    currency: string;
-    type: string;
-  };
-  duration: string;
-  difficulty: string;
-  rating: number;
-  reviewCount: number;
-  images?: string[];
-}
 
 // Component to handle popup close with map access
 const PopupContent = ({ activity }: { activity: ActivityData }) => {
@@ -134,37 +109,42 @@ const CustomMarker = ({ activity }: { activity: ActivityData }) => {
 // Component to handle map updates
 const MapUpdater = ({
   selectedActivity,
+  clusterGroupRef,
 }: {
   selectedActivity: ActivityData | null;
+  clusterGroupRef: React.RefObject<L.LayerGroup | null>;
 }) => {
   const map = useMap();
 
   useEffect(() => {
-    if (selectedActivity) {
-      map.flyTo(
-        [
-          selectedActivity.location.coordinates.lat,
-          selectedActivity.location.coordinates.lng,
-        ],
-        15,
-        { duration: 1.5 }
-      );
-
-      // Open the popup for the selected activity
-      map.eachLayer((layer) => {
-        if (layer instanceof L.Marker) {
-          const marker = layer as L.Marker;
-          const position = marker.getLatLng();
-          if (
-            position.lat === selectedActivity.location.coordinates.lat &&
-            position.lng === selectedActivity.location.coordinates.lng
-          ) {
-            marker.openPopup();
-          }
-        }
-      });
+    if (!selectedActivity) {
+      map.closePopup();
+      return;
     }
-  }, [selectedActivity, map]);
+
+    const { lat, lng } = selectedActivity.location.coordinates;
+
+    map.flyTo([lat, lng], 15, { duration: 1.5 });
+
+    const onMoveEnd = () => {
+      const cluster = clusterGroupRef?.current;
+      if (!cluster) return;
+      const layers = cluster.getLayers();
+      const marker = layers.find((layer) => {
+        if (layer instanceof L.Marker) {
+          const pos = layer.getLatLng();
+          return pos && pos.lat === lat && pos.lng === lng;
+        }
+        return false;
+      }) as L.Marker | undefined;
+      if (marker) marker.openPopup();
+    };
+
+    map.once("moveend", onMoveEnd);
+    return () => {
+      map.off("moveend", onMoveEnd);
+    };
+  }, [selectedActivity, map, clusterGroupRef]);
 
   return null;
 };
@@ -177,6 +157,7 @@ export default function OpenStreetMapComponent({
   selectedActivity?: ActivityData | null;
 }) {
   const defaultCenter: [number, number] = [43.5113657, 16.4688471];
+  const clusterGroupRef = useRef<L.LayerGroup | null>(null);
 
   return (
     <MapContainer
@@ -186,8 +167,9 @@ export default function OpenStreetMapComponent({
       attributionControl={false}
     >
       <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
-      <MapUpdater selectedActivity={selectedActivity} />
+      <MapUpdater selectedActivity={selectedActivity} clusterGroupRef={clusterGroupRef} />
       <MarkerClusterGroup
+        ref={clusterGroupRef as React.Ref<L.LayerGroup>}
         chunkedLoading
         maxClusterRadius={50}
         // Disable spiderfy on max zoom to avoid spider-leg lines; prefer zoom-to-bounds

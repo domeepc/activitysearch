@@ -19,6 +19,8 @@ type CarouselProps = {
   plugins?: CarouselPlugin
   orientation?: "horizontal" | "vertical"
   setApi?: (api: CarouselApi) => void
+  /** When true, disables drag and keyboard; use with auto-scroll only. */
+  noManualControl?: boolean
 }
 
 type CarouselContextProps = {
@@ -47,6 +49,7 @@ function Carousel({
   opts,
   setApi,
   plugins,
+  noManualControl,
   className,
   children,
   ...props
@@ -55,6 +58,7 @@ function Carousel({
     {
       ...opts,
       axis: orientation === "horizontal" ? "x" : "y",
+      ...(noManualControl ? { watchDrag: false } : {}),
     },
     plugins
   )
@@ -119,7 +123,7 @@ function Carousel({
       }}
     >
       <div
-        onKeyDownCapture={handleKeyDown}
+        onKeyDownCapture={noManualControl ? undefined : handleKeyDown}
         className={cn("relative", className)}
         role="region"
         aria-roledescription="carousel"
@@ -186,7 +190,7 @@ function CarouselPrevious({
       variant={variant}
       size={size}
       className={cn(
-        "absolute size-8 rounded-full",
+        "absolute size-8 rounded-full border-2 border-border",
         orientation === "horizontal"
           ? "top-1/2 -left-12 -translate-y-1/2"
           : "-top-12 left-1/2 -translate-x-1/2 rotate-90",

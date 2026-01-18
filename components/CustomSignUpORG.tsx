@@ -1,8 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSignUp } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { useMutation } from "convex/react";
+import { useMutation, useAction } from "convex/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,97 +15,233 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp";
+import { EmailVerificationDialog } from "@/components/auth/EmailVerificationDialog";
+import { Stepper } from "@/components/ui/stepper";
 import { api } from "@/convex/_generated/api";
+import { validateEmail, validateIBAN, validateContact, validateURL } from "@/lib/validation";
+import { extractErrorMessage } from "@/lib/errors";
+import { cn } from "@/lib/utils";
+import { Eye, EyeOff, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DateOfBirthCalendar } from "@/components/ui/date-of-birth-calendar";
+import { format } from "date-fns";
+import { Textarea } from "@/components/ui/textarea";
+import { loadStripe, Stripe } from "@stripe/stripe-js";
+
+const STEPS = [
+  { label: "Personal Info", description: "Your account details" },
+  { label: "Organisation", description: "Organisation details" },
+  { label: "Business Info", description: "Business & payment" },
+  { label: "Review", description: "Review & create" },
+];
+
+// Initialize Stripe
+const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
 
 export default function CustomSignUpORG() {
   const { isLoaded, signUp, setActive } = useSignUp();
   const createOrganisation = useMutation(api.organisation.createOrganisation);
+  const createStripeAccount = useAction(api.stripe.createConnectAccountWithDetails);
+  const [stripe, setStripe] = useState<Stripe | null>(null);
+
+  // Form state
+  const [currentPage, setCurrentPage] = useState(0);
+  const [direction, setDirection] = useState<"forward" | "backward">("forward");
+  const [isInitialRender, setIsInitialRender] = useState(true);
   const [userEmail, setUserEmail] = useState("");
-  const [organizationEmail, setOrganizationEmail] = useState("");
+  const [organisationEmail, setOrganisationEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [username, setUsername] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [address, setAddress] = useState("");
+  // Stripe address fields
+  const [addressLine1, setAddressLine1] = useState("");
+  const [addressLine2, setAddressLine2] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [postalCode, setPostalCode] = useState("");
   const [IBAN, setIBAN] = useState("");
-  const [organizationName, setOrganizationName] = useState("");
+  const [IBANConfirm, setIBANConfirm] = useState("");
+  const [organisationName, setOrganisationName] = useState("");
+  const [organisationDescription, setOrganisationDescription] = useState("");
   const [contact, setContact] = useState("");
+  const [country] = useState("HR"); // Always Croatia
+  const [taxId] = useState("");
+  // Additional Stripe required fields
+  const [dateOfBirth, setDateOfBirth] = useState<Date | undefined>(undefined);
+  const [businessWebsite, setBusinessWebsite] = useState("");
+  const [industry, setIndustry] = useState("Other entertainment and recreation");
+  const [tosAccepted, setTosAccepted] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  // Validation functions
-  const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+  // Load Stripe on mount with error handling
+  useEffect(() => {
+    if (stripePublishableKey) {
+      loadStripe(stripePublishableKey)
+        .then((stripeInstance) => {
+          setStripe(stripeInstance);
+        })
+        .catch((error) => {
+          // Handle Stripe initialization errors gracefully
+          // Stripe will be null, and we'll handle it in the form submission
+          if (process.env.NODE_ENV === "development") {
+            console.warn("Failed to initialize Stripe:", error);
+          }
+        });
+    }
+  }, []);
 
-  const validateIBAN = (iban: string): boolean => {
-    // Remove spaces and convert to uppercase
-    const cleaned = iban.replace(/\s/g, "").toUpperCase();
-    // Basic IBAN validation: should be 15-34 characters, start with 2 letters, then 2 digits, then alphanumeric
-    const ibanRegex = /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/;
-    return ibanRegex.test(cleaned);
-  };
-
-  const validateContact = (contact: string): boolean => {
-    // Remove spaces, dashes, and plus signs for validation
-    const cleaned = contact.replace(/[\s\-+]/g, "");
-    // Should contain only digits and be between 7-15 digits
-    return /^\d{7,15}$/.test(cleaned);
-  };
-
-  const validateOrganizationData = (): string | null => {
+  // Page validation functions
+  const validatePage1 = (): string | null => {
+    if (!username || username.trim().length < 2) {
+      return "Username must be at least 2 characters";
+    }
+    if (!firstName || firstName.trim().length < 1) {
+      return "First name is required";
+    }
+    if (!lastName || lastName.trim().length < 1) {
+      return "Last name is required";
+    }
     if (!userEmail || !validateEmail(userEmail)) {
       return "Please enter a valid user email address";
     }
-    if (!organizationEmail || !validateEmail(organizationEmail)) {
-      return "Please enter a valid organization email address";
+    if (!password || password.length < 8) {
+      return "Password must be at least 8 characters long";
     }
-    if (userEmail === organizationEmail) {
-      return "User email and organization email must be different";
-    }
-    if (!organizationName || organizationName.trim().length < 2) {
-      return "Organization name must be at least 2 characters long";
-    }
-    if (organizationName.length > 100) {
-      return "Organization name must be less than 100 characters";
-    }
-    if (!address || address.trim().length < 5) {
-      return "Please enter a valid address (at least 5 characters)";
-    }
-    if (!IBAN || !validateIBAN(IBAN)) {
-      return "Please enter a valid IBAN (e.g., DE89 3704 0044 0532 0130 00)";
-    }
-    if (!contact || !validateContact(contact)) {
-      return "Please enter a valid contact number (7-15 digits)";
+    if (password !== confirmPassword) {
+      return "Passwords do not match";
     }
     return null;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isLoaded) return;
+  const validatePage2 = (): string | null => {
+    if (!organisationName || organisationName.trim().length < 2) {
+      return "Organisation name must be at least 2 characters long";
+    }
+    if (organisationName.length > 100) {
+      return "Organisation name must be less than 100 characters";
+    }
+    if (!organisationEmail || !validateEmail(organisationEmail)) {
+      return "Please enter a valid organisation email address";
+    }
+    if (userEmail === organisationEmail) {
+      return "User email and organisation email must be different";
+    }
+    if (!organisationDescription || organisationDescription.trim().length < 10) {
+      return "Please enter an organisation description (at least 10 characters)";
+    }
 
-    // Validate passwords match
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
+    if (businessWebsite && !validateURL(businessWebsite)) {
+      return "Please enter a valid website URL (starting with http:// or https://)";
+    }
+    if (!addressLine1 || addressLine1.trim().length < 3) {
+      return "Please enter a street address";
+    }
+    if (!city || city.trim().length < 2) {
+      return "Please enter a city";
+    }
+    if (!state || state.trim().length < 2) {
+      return "Please enter a state/region";
+    }
+    if (!postalCode || postalCode.trim().length < 3) {
+      return "Please enter a postal code";
+    }
+    if (!country || country.trim().length === 0) {
+      return "Please select a country";
+    }
+    return null;
+  };
+
+  const validatePage3 = (): string | null => {
+    if (!contact || !validateContact(contact)) {
+      return "Please enter a valid contact number in E.164 format (e.g., +1234567890)";
+    }
+    if (!IBAN || !validateIBAN(IBAN)) {
+      return "Please enter a valid IBAN (e.g., DE89 3704 0044 0532 0130 00)";
+    }
+    if (!IBANConfirm || !validateIBAN(IBANConfirm)) {
+      return "Please confirm your IBAN";
+    }
+    if (IBAN !== IBANConfirm) {
+      return "IBAN and confirmation IBAN do not match";
+    }
+    // Currency and bankCountry are automatically set, no validation needed
+    if (!industry || industry.trim() === "") {
+      return "Please select your industry";
+    }
+    if (!dateOfBirth) {
+      return "Please enter your date of birth";
+    }
+    // Validate date of birth format and age (must be 18+)
+    const today = new Date();
+    const age = today.getFullYear() - dateOfBirth.getFullYear();
+    const monthDiff = today.getMonth() - dateOfBirth.getMonth();
+    const actualAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < dateOfBirth.getDate()) ? age - 1 : age;
+    if (actualAge < 18) {
+      return "You must be at least 18 years old";
+    }
+    return null;
+  };
+
+  const canProceedToNext = (): boolean => {
+    if (currentPage === 0) return validatePage1() === null;
+    if (currentPage === 1) return validatePage2() === null;
+    if (currentPage === 2) return validatePage3() === null && tosAccepted;
+    if (currentPage === 3) {
+      // On review page, validate all pages
+      return validatePage1() === null && validatePage2() === null && validatePage3() === null && tosAccepted;
+    }
+    return false;
+  };
+
+  const handleNext = () => {
+    const validationError =
+      currentPage === 0 ? validatePage1() :
+        currentPage === 1 ? validatePage2() :
+          currentPage === 2 ? validatePage3() :
+            null;
+
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
-    // Validate organization data
-    const validationError = validateOrganizationData();
-    if (validationError) {
-      setError(validationError);
+    setError("");
+    if (currentPage < STEPS.length - 1) {
+      setIsInitialRender(false);
+      setDirection("forward");
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handlePrevious = () => {
+    setError("");
+    if (currentPage > 0) {
+      setIsInitialRender(false);
+      setDirection("backward");
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleCreateAccount = async () => {
+    if (!isLoaded) return;
+
+    // Final validation
+    const page1Error = validatePage1();
+    const page2Error = validatePage2();
+    const page3Error = validatePage3();
+
+    if (page1Error || page2Error || page3Error) {
+      setError(page1Error || page2Error || page3Error || "Please complete all fields");
       return;
     }
 
@@ -127,10 +263,7 @@ export default function CustomSignUpORG() {
       // Set verifying to true to show the verification form
       setVerifying(true);
     } catch (err: unknown) {
-      const error = err as { errors?: Array<{ message: string }> };
-      setError(
-        error.errors?.[0]?.message || "An error occurred. Please try again."
-      );
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -152,21 +285,94 @@ export default function CustomSignUpORG() {
         await setActive({ session: completeSignUp.createdSessionId });
 
         // Wait for Clerk webhook to sync user to Convex
-        // Retry logic to wait for user to be created in Convex
         const maxRetries = 10;
-        const retryDelay = 500; // ms
+        const retryDelay = 500;
         let retryCount = 0;
         let orgCreated = false;
 
         while (retryCount < maxRetries && !orgCreated) {
           try {
-            await createOrganisation({
-              name: organizationName,
-              email: organizationEmail,
-              address,
+            // Combine address fields for storage
+            const fullAddress = `${addressLine1}${addressLine2 ? `, ${addressLine2}` : ""}, ${city}, ${state} ${postalCode}, ${country}`;
+
+            const organisationId = await createOrganisation({
+              name: organisationName,
+              email: organisationEmail,
+              description: organisationDescription || "",
+              address: fullAddress,
               IBAN,
-              ownerExternalId: completeSignUp.createdUserId!, // Pass Clerk user ID
+              ownerExternalId: completeSignUp.createdUserId!,
+              country,
+              businessType: "company",
+              taxId,
             });
+
+            // Create Stripe Connect account with business details
+            if (organisationId) {
+              try {
+                // Create bank account token from IBAN if IBAN is provided
+                let bankAccountToken: string | undefined = undefined;
+
+                if (IBAN && IBAN.trim() && stripe && stripePublishableKey) {
+                  try {
+                    // Clean IBAN (remove spaces and convert to uppercase)
+                    const cleanedIBAN = IBAN.replace(/\s/g, "").toUpperCase();
+
+                    // Create bank account token using Stripe.js
+                    const tokenResult = await stripe.createToken("bank_account", {
+                      country: "HR", // Croatia
+                      currency: "eur",
+                      account_number: cleanedIBAN,
+                      account_holder_name: `${firstName} ${lastName}`.trim(),
+                      account_holder_type: "individual",
+                    });
+
+                    if (tokenResult.error) {
+                      console.error("Error creating bank account token:", tokenResult.error);
+                      throw new Error(`Failed to create bank account token: ${tokenResult.error.message}`);
+                    }
+
+                    if (tokenResult.token) {
+                      bankAccountToken = tokenResult.token.id;
+                    }
+                  } catch (tokenError) {
+                    console.error("Error creating bank token:", tokenError);
+                    // Continue without token - backend can still use IBAN directly
+                    console.warn("Continuing with IBAN instead of token");
+                  }
+                }
+
+                await createStripeAccount({
+                  organisationId,
+                  country,
+                  businessType: "individual",
+                  email: organisationEmail,
+                  phone: contact,
+                  addressLine1,
+                  addressLine2,
+                  city,
+                  state,
+                  postalCode,
+                  dateOfBirth: dateOfBirth ? `${dateOfBirth.getFullYear()}-${String(dateOfBirth.getMonth() + 1).padStart(2, '0')}-${String(dateOfBirth.getDate()).padStart(2, '0')}` : "",
+                  firstName,
+                  lastName,
+                  industry,
+                  businessWebsite: businessWebsite || undefined,
+                  businessDescription: organisationDescription,
+                  IBAN: bankAccountToken ? undefined : IBAN, // Send IBAN only if no token
+                  externalAccountToken: bankAccountToken, // Send token if created
+                  currency: "EUR", // Always send EUR to Stripe
+                  bankCountry: "HR", // Always send HR (Croatia) to Stripe
+                });
+              } catch (stripeError) {
+                console.error("Error creating Stripe account:", stripeError);
+                const errorMessage = stripeError instanceof Error
+                  ? stripeError.message
+                  : "Failed to create Stripe account";
+                setError(`Account created but Stripe setup failed: ${errorMessage}. You can set up Stripe later from your organisation page.`);
+                // Continue anyway - user can set up Stripe later
+              }
+            }
             orgCreated = true;
           } catch (orgError: unknown) {
             const error = orgError as { message?: string };
@@ -174,17 +380,14 @@ export default function CustomSignUpORG() {
               error.message?.includes("User not found") &&
               retryCount < maxRetries - 1
             ) {
-              // Wait and retry
               retryCount++;
               await new Promise((resolve) => setTimeout(resolve, retryDelay));
             } else {
-              // Final error after retries or different error
-              console.error("Failed to create organization:", error);
+              console.error("Failed to create organisation:", error);
               setError(
-                "Account created but organization setup failed. Please contact support or try creating an organization from your profile."
+                "Account created but organisation setup failed. Please contact support or try creating an organisation from your profile."
               );
               setLoading(false);
-              // Still redirect to home after a delay
               setTimeout(() => router.push("/"), 2000);
               return;
             }
@@ -193,7 +396,7 @@ export default function CustomSignUpORG() {
 
         if (!orgCreated) {
           setError(
-            "Account created but organization setup is taking longer than expected. You can create it from your profile."
+            "Account created but organisation setup is taking longer than expected. You can create it from your profile."
           );
           setTimeout(() => router.push("/"), 2000);
           return;
@@ -204,185 +407,36 @@ export default function CustomSignUpORG() {
         setError("Verification incomplete. Please try again.");
       }
     } catch (err: unknown) {
-      const error = err as { errors?: Array<{ message: string }> };
-      setError(error.errors?.[0]?.message || "Invalid verification code.");
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
-  const signUpWith = async (
-    strategy: "oauth_google" | "oauth_microsoft" | "oauth_facebook"
-  ) => {
-    if (!isLoaded) return;
-
-    try {
-      // Store the current page URL so we can return to it after OAuth
-      if (typeof window !== "undefined") {
-        const returnUrl = window.location.pathname + window.location.search;
-        // Only store if we're not already on the sign-up page
-        if (
-          returnUrl !== "/sign-up/organisator-sign-up" &&
-          returnUrl !== "/sign-up/organisator-sign-up/"
-        ) {
-          sessionStorage.setItem("oauth_return_url", returnUrl);
-        } else {
-          // If on organization sign-up page, return to home
-          sessionStorage.setItem("oauth_return_url", "/");
-        }
-      }
-
-      await signUp.authenticateWithRedirect({
-        strategy,
-        redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/",
-      });
-    } catch (err: unknown) {
-      console.error("OAuth error:", err);
-      const error = err as { errors?: Array<{ message: string }> };
-      setError(error.errors?.[0]?.message || "Failed to sign up with OAuth.");
-    }
-  };
-
   if (verifying) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold">
-              Verify your email
-            </CardTitle>
-            <CardDescription>We sent a code to {userEmail}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleVerify} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="code">Verification Code</Label>
-                <div className="flex justify-center">
-                  <InputOTP
-                    maxLength={6}
-                    value={code}
-                    onChange={(value) => setCode(value)}
-                  >
-                    <InputOTPGroup>
-                      <InputOTPSlot index={0} />
-                      <InputOTPSlot index={1} />
-                      <InputOTPSlot index={2} />
-                      <InputOTPSlot index={3} />
-                      <InputOTPSlot index={4} />
-                      <InputOTPSlot index={5} />
-                    </InputOTPGroup>
-                  </InputOTP>
-                </div>
-              </div>
-              {error && <div className="text-sm text-destructive">{error}</div>}
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Verifying..." : "Verify Email"}
-              </Button>
-            </form>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-2">
-            <div className="text-sm text-muted-foreground text-center">
-              Didn&apos;t receive a code?{" "}
-              <button
-                onClick={() =>
-                  signUp?.prepareEmailAddressVerification({
-                    strategy: "email_code",
-                  })
-                }
-                className="text-primary hover:underline"
-              >
-                Resend
-              </button>
-            </div>
-          </CardFooter>
-        </Card>
-      </div>
+      <EmailVerificationDialog
+        email={userEmail}
+        code={code}
+        onCodeChange={setCode}
+        onVerify={handleVerify}
+        onResend={() =>
+          signUp?.prepareEmailAddressVerification({
+            strategy: "email_code",
+          })
+        }
+        error={error}
+        loading={loading}
+      />
     );
   }
 
-  return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">
-            Create an account
-          </CardTitle>
-          <CardDescription>
-            Choose your preferred sign up method
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-3 gap-3">
-            <Button
-              variant="outline"
-              type="button"
-              onClick={() => signUpWith("oauth_google")}
-              disabled={loading}
-              className="flex flex-col gap-2 h-auto py-3"
-            >
-              <svg className="h-5 w-5" viewBox="0 0 24 24">
-                <path
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  fill="#4285F4"
-                />
-                <path
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  fill="#34A853"
-                />
-                <path
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                  fill="#FBBC05"
-                />
-                <path
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                  fill="#EA4335"
-                />
-              </svg>
-              <span className="text-xs">Google</span>
-            </Button>
-            <Button
-              variant="outline"
-              type="button"
-              onClick={() => signUpWith("oauth_microsoft")}
-              disabled={loading}
-              className="flex flex-col gap-2 h-auto py-3"
-            >
-              <svg className="h-5 w-5" viewBox="0 0 23 23">
-                <path fill="#f3f3f3" d="M0 0h23v23H0z" />
-                <path fill="#f35325" d="M1 1h10v10H1z" />
-                <path fill="#81bc06" d="M12 1h10v10H12z" />
-                <path fill="#05a6f0" d="M1 12h10v10H1z" />
-                <path fill="#ffba08" d="M12 12h10v10H12z" />
-              </svg>
-              <span className="text-xs">Microsoft</span>
-            </Button>
-            <Button
-              variant="outline"
-              type="button"
-              onClick={() => signUpWith("oauth_facebook")}
-              disabled={loading}
-              className="flex flex-col gap-2 h-auto py-3"
-            >
-              <svg className="h-5 w-5" fill="#1877F2" viewBox="0 0 24 24">
-                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-              </svg>
-              <span className="text-xs">Facebook</span>
-            </Button>
-          </div>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <Separator />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
-              </span>
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
+  // Render page content
+  const renderPageContent = () => {
+    switch (currentPage) {
+      case 0:
+        return (
+          <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
               <Input
@@ -447,62 +501,315 @@ export default function CustomSignUpORG() {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="organizationName">Organization Name</Label>
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={loading}
+                  minLength={8}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  disabled={loading}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  disabled={loading}
+                  minLength={8}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  disabled={loading}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Must be at least 8 characters long
+              </p>
+              {password && confirmPassword && password !== confirmPassword && (
+                <p className="text-xs text-destructive">
+                  Passwords do not match
+                </p>
+              )}
+            </div>
+          </div>
+        );
+
+      case 1:
+        return (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="organisationName">Organisation Name</Label>
               <Input
-                id="organizationName"
+                id="organisationName"
                 type="text"
-                placeholder="Your Organization"
-                value={organizationName}
-                onChange={(e) => setOrganizationName(e.target.value)}
+                placeholder="Your Organisation"
+                value={organisationName}
+                onChange={(e) => setOrganisationName(e.target.value)}
                 required
                 disabled={loading}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="organizationEmail">Organization Email</Label>
-              <Input
-                id="organizationEmail"
-                type="email"
-                placeholder="organization@example.com"
-                value={organizationEmail}
-                onChange={(e) => setOrganizationEmail(e.target.value)}
+              <Label htmlFor="organisationDescription">Organisation Description</Label>
+              <Textarea
+                id="organisationDescription"
+                placeholder="Describe your organisation..."
+                value={organisationDescription}
+                onChange={(e) => setOrganisationDescription(e.target.value)}
                 required
                 disabled={loading}
+                rows={4}
+
+                className="flex min-h-[80px] resize-none w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              />
+              <p className="text-xs text-muted-foreground">
+                Provide a brief description of your organisation
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="businessWebsite">Business Website (Optional)</Label>
+              <Input
+                id="businessWebsite"
+                type="url"
+                placeholder="https://example.com"
+                value={businessWebsite}
+                onChange={(e) => setBusinessWebsite(e.target.value)}
+                disabled={loading}
                 className={
-                  organizationEmail &&
-                  (!validateEmail(organizationEmail) ||
-                    organizationEmail === userEmail)
+                  businessWebsite && !validateURL(businessWebsite)
                     ? "border-destructive"
                     : ""
                 }
               />
               <p className="text-xs text-muted-foreground">
-                This email will be used for organization communications
+                If you don&apos;t have a website, we&apos;ll use your organisation description instead
               </p>
-              {organizationEmail && !validateEmail(organizationEmail) && (
+              {businessWebsite && !validateURL(businessWebsite) && (
+                <p className="text-xs text-destructive">
+                  Please enter a valid URL starting with http:// or https://
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="organisationEmail">Organisation Email</Label>
+              <Input
+                id="organisationEmail"
+                type="email"
+                placeholder="organisation@example.com"
+                value={organisationEmail}
+                onChange={(e) => setOrganisationEmail(e.target.value)}
+                required
+                disabled={loading}
+                className={
+                  organisationEmail &&
+                    (!validateEmail(organisationEmail) ||
+                      organisationEmail === userEmail)
+                    ? "border-destructive"
+                    : ""
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                This email will be used for organisation communications
+              </p>
+              {organisationEmail && !validateEmail(organisationEmail) && (
                 <p className="text-xs text-destructive">
                   Please enter a valid email address
                 </p>
               )}
-              {organizationEmail &&
-                validateEmail(organizationEmail) &&
-                organizationEmail === userEmail && (
+              {organisationEmail &&
+                validateEmail(organisationEmail) &&
+                organisationEmail === userEmail && (
                   <p className="text-xs text-destructive">
-                    Organization email must be different from your email
+                    Organisation email must be different from your email
                   </p>
                 )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
+              <Label htmlFor="addressLine1">Street Address <span className="text-destructive">*</span></Label>
               <Input
-                id="address"
+                id="addressLine1"
                 type="text"
-                placeholder="123 Main St, City, Country"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
+                placeholder="123 Main Street"
+                value={addressLine1}
+                onChange={(e) => setAddressLine1(e.target.value)}
                 required
                 disabled={loading}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="addressLine2">Address Line 2 (Optional)</Label>
+              <Input
+                id="addressLine2"
+                type="text"
+                placeholder="Apartment, suite, unit, etc."
+                value={addressLine2}
+                onChange={(e) => setAddressLine2(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="city">City <span className="text-destructive">*</span></Label>
+                <Input
+                  id="city"
+                  type="text"
+                  placeholder="City"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  required
+                  disabled={loading}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="state">State/Region <span className="text-destructive">*</span></Label>
+                <Input
+                  id="state"
+                  type="text"
+                  placeholder="State or Region"
+                  value={state}
+                  onChange={(e) => setState(e.target.value)}
+                  required
+                  disabled={loading}
+                />
+              </div>
+            </div>
+            <div className="space-y-2 flex gap-4 w-full justify-between">
+              <div className="space-y-2 w-full">
+                <Label htmlFor="postalCode">Postal Code <span className="text-destructive">*</span></Label>
+                <Input
+                  id="postalCode"
+                  type="text"
+                  placeholder="12345"
+                  value={postalCode}
+                  onChange={(e) => setPostalCode(e.target.value)}
+                  required
+                  disabled={loading}
+                />
+              </div>
+              <div className="space-y-2 w-full">
+                <Label htmlFor="country">Country</Label>
+                <Input
+                  id="country"
+                  type="text"
+                  value="Croatia (HR)"
+                  disabled
+                  className="bg-muted"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Country is set to Croatia
+                </p>
+              </div>
+            </div>
+            <div className="space-y-2">
+
+            </div>
+          </div>
+        );
+
+      case 2:
+        return (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="dateOfBirth">Date of Birth <span className="text-destructive">*</span></Label>
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal border-border cursor-pointer"
+                    disabled={loading}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateOfBirth ? (
+                      format(dateOfBirth, "PPP")
+                    ) : (
+                      <span>Select date of birth</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <DateOfBirthCalendar
+                    mode="single"
+                    selected={dateOfBirth}
+                    onSelect={(date) => {
+                      setDateOfBirth(date);
+                      setCalendarOpen(false);
+                    }}
+                    captionLayout="dropdown"
+                    disabled={(date) => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      // Disable future dates
+                      if (date > today) return true;
+                      // Disable dates that would make user under 18
+                      const maxDate = new Date();
+                      maxDate.setFullYear(maxDate.getFullYear() - 18);
+                      maxDate.setHours(0, 0, 0, 0);
+                      return date > maxDate;
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              <p className="text-xs text-muted-foreground">
+                Must be at least 18 years old
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="industry">Industry <span className="text-destructive">*</span></Label>
+              <NativeSelect
+                id="industry"
+                value={industry}
+                onChange={(e) => setIndustry(e.target.value)}
+                required
+                disabled={loading}
+              >
+                <NativeSelectOption value="">Select an industry</NativeSelectOption>
+                <NativeSelectOption value="Tourism & Travel">Tourism & Travel</NativeSelectOption>
+                <NativeSelectOption value="Events & Entertainment">Events & Entertainment</NativeSelectOption>
+                <NativeSelectOption value="Sports & Recreation">Sports & Recreation</NativeSelectOption>
+                <NativeSelectOption value="Adventure & Outdoor">Adventure & Outdoor</NativeSelectOption>
+                <NativeSelectOption value="Education & Training">Education & Training</NativeSelectOption>
+                <NativeSelectOption value="Food & Beverage">Food & Beverage</NativeSelectOption>
+                <NativeSelectOption value="Arts & Culture">Arts & Culture</NativeSelectOption>
+                <NativeSelectOption value="Health & Wellness">Health & Wellness</NativeSelectOption>
+                <NativeSelectOption value="Technology & Digital">Technology & Digital</NativeSelectOption>
+                <NativeSelectOption value="Retail & Shopping">Retail & Shopping</NativeSelectOption>
+                <NativeSelectOption value="Hospitality & Accommodation">Hospitality & Accommodation</NativeSelectOption>
+                <NativeSelectOption value="Other entertainment and recreation">Other entertainment and recreation</NativeSelectOption>
+                <NativeSelectOption value="Other">Other</NativeSelectOption>
+              </NativeSelect>
             </div>
             <div className="space-y-2">
               <Label htmlFor="contact">Contact Number</Label>
@@ -516,11 +823,21 @@ export default function CustomSignUpORG() {
                 disabled={loading}
               />
               <p className="text-xs text-muted-foreground">
-                Enter phone number (7-15 digits, with or without country code)
+                Enter phone number in E.164 format (e.g., +1234567890). Must start with + and include country code.
               </p>
+              {contact && !validateContact(contact) && (
+                <p className="text-xs text-destructive">
+                  Please enter a valid contact number in E.164 format (e.g., +1234567890)
+                </p>
+              )}
+              {contact && !contact.startsWith("+") && validateContact(contact) && (
+                <p className="text-xs text-destructive">
+                  Phone number must start with + and include country code (e.g., +1234567890)
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="IBAN">IBAN</Label>
+              <Label htmlFor="IBAN">IBAN <span className="text-destructive">*</span></Label>
               <Input
                 id="IBAN"
                 type="text"
@@ -544,37 +861,349 @@ export default function CustomSignUpORG() {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="IBANConfirm">Confirm IBAN <span className="text-destructive">*</span></Label>
               <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                id="IBANConfirm"
+                type="text"
+                placeholder="DE89 3704 0044 0532 0130 00"
+                value={IBANConfirm}
+                onChange={(e) => setIBANConfirm(e.target.value)}
                 required
                 disabled={loading}
-                minLength={8}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                disabled={loading}
-                minLength={8}
+                className={
+                  IBANConfirm && (!validateIBAN(IBANConfirm) || IBAN !== IBANConfirm)
+                    ? "border-destructive"
+                    : ""
+                }
               />
               <p className="text-xs text-muted-foreground">
-                Must be at least 8 characters long
+                Re-enter your IBAN to confirm
               </p>
+              {IBANConfirm && !validateIBAN(IBANConfirm) && (
+                <p className="text-xs text-destructive">
+                  Please enter a valid IBAN format
+                </p>
+              )}
+              {IBANConfirm && validateIBAN(IBANConfirm) && IBAN !== IBANConfirm && (
+                <p className="text-xs text-destructive">
+                  IBAN and confirmation do not match
+                </p>
+              )}
             </div>
-            {error && <div className="text-sm text-destructive">{error}</div>}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating account..." : "Create account"}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="currency">Currency <span className="text-destructive">*</span></Label>
+                <Input
+                  id="currency"
+                  type="text"
+                  value="EUR - Euro"
+                  readOnly
+                  disabled
+                  className="bg-muted cursor-not-allowed"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Currency is automatically set to EUR - Euro
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bankCountry">Bank Account Country <span className="text-destructive">*</span></Label>
+                <Input
+                  id="bankCountry"
+                  type="text"
+                  value="Croatia"
+                  readOnly
+                  disabled
+                  className="bg-muted cursor-not-allowed"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Bank country is automatically set to Croatia
+                </p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="tosAccepted"
+                  checked={tosAccepted}
+                  onCheckedChange={(checked) => setTosAccepted(checked === true)}
+                  disabled={loading}
+                  className="cursor-pointer"
+                />
+                <Label htmlFor="tosAccepted" className="text-sm font-normal flex flex-wrap">
+                  I accept Stripe&apos;s{" "}
+                  <a
+                    href="https://stripe.com/legal/connect-account"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 font-bold hover:underline"
+                  >
+                    Terms of Service
+                  </a>{" "}
+                  and{" "}
+                  <a
+                    href="https://stripe.com/legal/connect-account"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 font-bold hover:underline"
+                  >
+                    Connected Account Agreement
+                  </a>
+                  <span className="text-destructive">*</span>
+                </Label>
+              </div>
+              {!tosAccepted && (
+                <p className="text-xs text-destructive">
+                  You must accept Stripe&apos;s Terms of Service to continue
+                </p>
+              )}
+            </div>
+          </div>
+        );
+
+      case 3:
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Review Your Information</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Click on any section to edit the information
+              </p>
+
+              <div className="space-y-4">
+                <div
+                  className="border rounded-lg p-4 space-y-2 cursor-pointer hover:bg-accent hover:border-primary transition-colors"
+                  onClick={() => {
+                    setIsInitialRender(false);
+                    setDirection(0 < currentPage ? "backward" : "forward");
+                    setCurrentPage(0);
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setIsInitialRender(false);
+                      setDirection(0 < currentPage ? "backward" : "forward");
+                      setCurrentPage(0);
+                    }
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-sm text-muted-foreground uppercase">Personal Information</h4>
+                    <span className="text-xs text-muted-foreground">Click to edit</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Username:</span> {username}
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Name:</span> {firstName} {lastName}
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Email:</span> {userEmail}
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  className="border rounded-lg p-4 space-y-2 cursor-pointer hover:bg-accent hover:border-primary transition-colors"
+                  onClick={() => {
+                    setIsInitialRender(false);
+                    setDirection(1 < currentPage ? "backward" : "forward");
+                    setCurrentPage(1);
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setIsInitialRender(false);
+                      setDirection(1 < currentPage ? "backward" : "forward");
+                      setCurrentPage(1);
+                    }
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-lg text-muted-foreground uppercase">Organisation Details</h4>
+                    <span className="text-xs text-muted-foreground">Click to edit</span>
+                  </div>
+                  <div className="space-y-1 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Organisation Name:</span> {organisationName}
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Organisation Email:</span> {organisationEmail}
+                    </div>
+                    {organisationDescription && (
+                      <div>
+                        <span className="text-muted-foreground">Description:</span> {organisationDescription}
+                      </div>
+                    )}
+                    {industry && (
+                      <div>
+                        <span className="text-muted-foreground">Industry:</span> {industry}
+                      </div>
+                    )}
+                    {businessWebsite ? (
+                      <div>
+                        <span className="text-muted-foreground">Website:</span> {businessWebsite}
+                      </div>
+                    ) : (
+                      <div>
+                        <span className="text-muted-foreground">Website:</span> <span className="text-muted-foreground italic">Using description instead</span>
+                      </div>
+                    )}
+                    <div>
+                      <span className="text-muted-foreground">Address:</span> {addressLine1}
+                      {addressLine2 && `, ${addressLine2}`}
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">City:</span> {city}
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">State/Region:</span> {state}
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Postal Code:</span> {postalCode}
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Country:</span> {country}
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  className="border rounded-lg p-4 space-y-2 cursor-pointer hover:bg-accent hover:border-primary transition-colors"
+                  onClick={() => {
+                    setIsInitialRender(false);
+                    setDirection(2 < currentPage ? "backward" : "forward");
+                    setCurrentPage(2);
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setIsInitialRender(false);
+                      setDirection(2 < currentPage ? "backward" : "forward");
+                      setCurrentPage(2);
+                    }
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-sm text-muted-foreground uppercase">Business & Payment Info</h4>
+                    <span className="text-xs text-muted-foreground">Click to edit</span>
+                  </div>
+                  <div className="space-y-1 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Date of Birth:</span> {dateOfBirth ? format(dateOfBirth, "PPP") : "Not provided"}
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Contact Number:</span> {contact}
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">IBAN:</span> {IBAN}
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Currency:</span> EUR - Euro
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Bank Country:</span> Croatia
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center p-4 py-8">
+      <Card className="w-full max-w-2xl border-border border-2 shadow-xl translate-y-[-30px] ">
+        <CardHeader className="space-y-1 text-left border-b border-border">
+          <CardTitle className="text-2xl font-bold">
+            Create Organiser Account
+          </CardTitle>
+          <CardDescription className="text-sm text-foreground text-left">
+            {currentPage === 0 && "Choose your preferred sign up method or fill in your personal information"}
+            {currentPage === 1 && "Enter your organisation details"}
+            {currentPage === 2 && "Provide business and payment information"}
+            {currentPage === 3 && "Review your information before creating your account"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Step description */}
+          <div className="text-center">
+            <p className="text-xl text-foreground font-bold text-left">
+              {STEPS[currentPage].description}
+            </p>
+          </div>
+
+          {/* Form content */}
+          <div className="min-h-[400px] relative">
+            <div
+              key={currentPage}
+              className={cn(
+                !isInitialRender && "animate-in fade-in-0 duration-300 ease-in-out",
+                !isInitialRender && direction === "forward" && "slide-in-from-right-4",
+                !isInitialRender && direction === "backward" && "slide-in-from-left-4"
+              )}
+            >
+              {renderPageContent()}
+            </div>
+          </div>
+
+          {/* Error message */}
+          {error && (
+            <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md p-3">
+              {error}
+            </div>
+          )}
+
+          {/* Clerk CAPTCHA */}
+          <div id="clerk-captcha"></div>
+
+          {/* Navigation buttons with stepper */}
+          <div className="flex items-center justify-between gap-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handlePrevious}
+              disabled={currentPage === 0 || loading}
+              className="flex items-center shrink-0 md:gap-2 gap-0 cursor-pointer border-2 border-border"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span className="hidden md:inline">Previous</span>
             </Button>
-          </form>
+            <div className="flex-1 flex justify-center">
+              <Stepper steps={STEPS} currentStep={currentPage + 1} />
+            </div>
+            {currentPage < STEPS.length - 1 ? (
+              <Button
+                type="button"
+                onClick={handleNext}
+                disabled={!canProceedToNext() || loading}
+                className="flex items-center shrink-0 md:gap-2 gap-0 cursor-pointer"
+              >
+                <span className="hidden md:inline">Next</span>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                onClick={handleCreateAccount}
+                disabled={loading || !canProceedToNext()}
+                className="flex items-center gap-2 shrink-0 cursor-pointer"
+              >
+                {loading ? "Creating account..." : "Create Account"}
+              </Button>
+            )}
+          </div>
         </CardContent>
         <CardFooter className="flex flex-col space-y-2">
           <div className="text-sm text-muted-foreground text-center">
