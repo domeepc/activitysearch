@@ -80,7 +80,27 @@ export function AddressAutocomplete({
               (d.address.road || d.address.pedestrian || d.address.footway)
           )
         : [];
-      setSuggestions(filtered.slice(0, 5));
+
+      // Deduplicate suggestions based on formatted address
+      const seenAddresses = new Set<string>();
+      const uniqueSuggestions = filtered.filter((suggestion) => {
+        const addr = suggestion.address ?? {};
+        const house = addr.house_number || addr.house_no || "";
+        const road = addr.road || addr.pedestrian || addr.footway || "";
+        const townName =
+          addr.city || addr.town || addr.village || addr.county || "";
+        
+        // Create a normalized address key for deduplication
+        const addressKey = `${road.toLowerCase().trim()}-${townName.toLowerCase().trim()}-${house}`;
+        
+        if (seenAddresses.has(addressKey)) {
+          return false;
+        }
+        seenAddresses.add(addressKey);
+        return true;
+      });
+
+      setSuggestions(uniqueSuggestions.slice(0, 5));
       setIsLoading(false);
     } catch (err) {
       if ((err as Error)?.name === "AbortError") return;
@@ -110,6 +130,8 @@ export function AddressAutocomplete({
     const townName =
       addr.city || addr.town || addr.village || addr.county || "";
 
+    // Format address: if we have a road, use it; otherwise use display_name
+    // This allows users to manually add/edit house numbers after selection
     const formattedAddress = road
       ? `${house ? house + " " : ""}${road}${townName ? ", " + townName : ""}`
       : suggestion.display_name;
@@ -122,14 +144,13 @@ export function AddressAutocomplete({
     setIsOpen(false);
     setSuggestions([]);
     setHighlightedIndex(-1);
-    inputRef.current?.blur();
+    // Keep focus so user can continue editing (e.g., add house number)
+    // Only blur if user explicitly clicks outside
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // If dropdown is closed, allow normal input (including Enter to submit form)
     if (!isOpen || suggestions.length === 0) {
-      if (e.key === "Enter") {
-        e.preventDefault();
-      }
       return;
     }
 
@@ -207,7 +228,9 @@ export function AddressAutocomplete({
           value={value}
           onChange={(e) => handleInputChange(e.target.value)}
           onFocus={() => {
-            if (suggestions.length > 0 || value.trim()) {
+            // Only show suggestions if there are existing ones or if user is typing
+            // Don't auto-fetch on focus to avoid interfering with manual edits
+            if (suggestions.length > 0) {
               setIsOpen(true);
             }
           }}

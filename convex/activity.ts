@@ -15,6 +15,24 @@ export const getActivityById = query({
     }
 });
 
+export const getActivitiesByIds = query({
+    args: { activityIds: v.array(v.id("activities")) },
+    handler: async (ctx, { activityIds }) => {
+        if (activityIds.length === 0) {
+            return [];
+        }
+        // Fetch all activities by their IDs
+        const activities = await Promise.all(
+            activityIds.map(async (id) => {
+                const activity = await ctx.db.get(id);
+                return activity;
+            })
+        );
+        // Filter out any null results (in case an activity was deleted)
+        return activities.filter((activity) => activity !== null);
+    }
+});
+
 export const getAllTags = query({
     args: {},
     handler: async (ctx) => {
@@ -50,9 +68,10 @@ export const createActivity = mutation({
         reviewCount: v.optional(v.int64()),
         equipment: v.optional(v.array(v.string())),
         images: v.optional(v.array(v.string())),
+        availableTimeSlots: v.optional(v.array(v.string())),
     },
     handler: async (ctx, args) => {
-        // Check if user is authenticated and is an organizer
+        // Check if user is authenticated and is an organiser
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) {
             throw new Error("You must be logged in to create an activity");
@@ -67,8 +86,8 @@ export const createActivity = mutation({
             throw new Error("User not found");
         }
 
-        if (user.role !== "organizer") {
-            throw new Error("Only organizers can create activities");
+        if (user.role !== "organiser") {
+            throw new Error("Only organisers can create activities");
         }
 
         const doc: any = {
@@ -89,14 +108,15 @@ export const createActivity = mutation({
         if (args.minAge !== undefined) doc.minAge = args.minAge;
         if (args.rating !== undefined) doc.rating = args.rating;
         if (args.reviewCount !== undefined) doc.reviewCount = args.reviewCount;
+        if (args.availableTimeSlots !== undefined) doc.availableTimeSlots = args.availableTimeSlots;
 
         const activityId = await ctx.db.insert("activities", doc);
 
         // Add this activity ID to the user's organisation
         try {
-            // Find organisation that contains this user in organizerIDs
+            // Find organisation that contains this user in organisersIDs
             const organisations = await ctx.db.query("organisations").collect();
-            const organisation = organisations.find((o: any) => Array.isArray(o.organizerIDs) && o.organizerIDs.some((id: any) => String(id) === String(user._id)));
+            const organisation = organisations.find((o: any) => Array.isArray(o.organisersIDs) && o.organisersIDs.some((id: any) => String(id) === String(user._id)));
 
             if (organisation) {
                 const existing = Array.isArray(organisation.activityIDs) ? organisation.activityIDs : [];

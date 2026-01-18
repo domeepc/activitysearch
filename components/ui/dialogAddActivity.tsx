@@ -24,6 +24,7 @@ import {
   ActivityDetailsSection,
   TagsEquipmentSection,
   ImagesSection,
+  TimeSlotsSection,
 } from "@/components/activities/ActivityFormSections";
 import { validateActivityField } from "@/lib/validation";
 import { geocodeAddress } from "@/lib/geocoding";
@@ -41,6 +42,7 @@ export default function DialogAddActivity({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string[]>([]);
+  const [imageError, setImageError] = useState<string>("");
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -119,18 +121,42 @@ export default function DialogAddActivity({
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
+    
+    const MAX_FILE_SIZE = 1024 * 1024; // 1MB in bytes
     const arr = Array.from(files);
+    const invalidFiles: string[] = [];
+    
     arr.forEach((file) => {
-      if (!file.type.startsWith("image/")) return;
+      // Check file type
+      if (!file.type.startsWith("image/")) {
+        invalidFiles.push(`${file.name} is not an image file`);
+        return;
+      }
+      
+      // Check file size
+      if (file.size > MAX_FILE_SIZE) {
+        invalidFiles.push(`${file.name} exceeds 1MB limit (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+        return;
+      }
+      
+      // Process valid file
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData((prev) => ({
           ...prev,
           images: [...prev.images, reader.result as string],
         }));
+        setImageError(""); // Clear error on successful upload
       };
       reader.readAsDataURL(file);
     });
+    
+    // Show error if any files were invalid
+    if (invalidFiles.length > 0) {
+      setImageError(invalidFiles.join(", "));
+      setTimeout(() => setImageError(""), 5000); // Clear error after 5 seconds
+    }
+    
     e.currentTarget.value = "";
   };
 
@@ -229,6 +255,9 @@ export default function DialogAddActivity({
           .map((e) => e.trim())
           .filter(Boolean),
         images: formData.images,
+        availableTimeSlots: formData.availableTimeSlots.length > 0
+          ? formData.availableTimeSlots
+          : undefined,
       } as unknown;
 
       await (
@@ -270,8 +299,9 @@ export default function DialogAddActivity({
   };
 
   return (
-    <Dialog open={showDialog} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+    <div className="hidden md:block">
+      <Dialog open={showDialog} onOpenChange={handleOpenChange}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Activity</DialogTitle>
           <DialogDescription>
@@ -307,6 +337,10 @@ export default function DialogAddActivity({
             }}
             onDifficultyChange={handleDifficultyChange}
           />
+          <TimeSlotsSection
+            formData={formData}
+            onFieldChange={updateField}
+          />
           <TagsEquipmentSection
             formData={formData}
             errors={errors}
@@ -316,11 +350,12 @@ export default function DialogAddActivity({
               setErrors((prev) => ({ ...prev, [field]: error }));
             }}
           />
-          <ImagesSection
-            formData={formData}
-            onImageSelect={handleImageSelect}
-            onRemoveImage={removeImage}
-          />
+              <ImagesSection
+                formData={formData}
+                onImageSelect={handleImageSelect}
+                onRemoveImage={removeImage}
+                error={imageError}
+              />
         </div>
 
         <DialogFooter>
@@ -342,5 +377,6 @@ export default function DialogAddActivity({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </div>
   );
 }

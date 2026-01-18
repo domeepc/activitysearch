@@ -1,6 +1,11 @@
 import CustomSignIn from "@/components/CustomSignIn";
+import NoScrollWrapper from "@/components/auth/NoScrollWrapper";
 import "./style.css";
 
 export default function SignInPage() {
-  return <CustomSignIn />;
+  return (
+    <NoScrollWrapper>
+      <CustomSignIn />
+    </NoScrollWrapper>
+  );
 }

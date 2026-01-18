@@ -14,6 +14,11 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 
+/**
+ * EmailVerificationDialog for sign-up flow
+ * This is a full-screen card component used during the authentication sign-up process.
+ * For profile settings email verification, see: components/profile/dialogs/EmailVerificationDialog.tsx
+ */
 interface EmailVerificationDialogProps {
   email: string;
   code: string;
@@ -39,7 +44,9 @@ export function EmailVerificationDialog({
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Verify your email</CardTitle>
+          <CardTitle className="text-2xl font-bold">
+            Verify your email
+          </CardTitle>
           <CardDescription>We sent a code to {email}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -73,9 +80,7 @@ export function EmailVerificationDialog({
               disabled={resendCooldown > 0}
               className="text-primary hover:underline disabled:opacity-50"
             >
-              {resendCooldown > 0
-                ? `Resend (${resendCooldown}s)`
-                : "Resend"}
+              {resendCooldown > 0 ? `Resend (${resendCooldown}s)` : "Resend"}
             </button>
           </div>
         </CardFooter>
@@ -83,4 +88,3 @@ export function EmailVerificationDialog({
     </div>
   );
 }
-

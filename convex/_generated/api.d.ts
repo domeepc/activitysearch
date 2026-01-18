@@ -10,7 +10,11 @@
 
 import type * as activity from "../activity.js";
 import type * as http from "../http.js";
+import type * as messages from "../messages.js";
 import type * as organisation from "../organisation.js";
+import type * as presence from "../presence.js";
+import type * as reservations from "../reservations.js";
+import type * as teams from "../teams.js";
 import type * as users from "../users.js";
 
 import type {
@@ -22,7 +26,11 @@ import type {
 declare const fullApi: ApiFromModules<{
   activity: typeof activity;
   http: typeof http;
+  messages: typeof messages;
   organisation: typeof organisation;
+  presence: typeof presence;
+  reservations: typeof reservations;
+  teams: typeof teams;
   users: typeof users;
 }>;
 

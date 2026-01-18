@@ -1,5 +1,5 @@
-import { defineSchema, defineTable } from 'convex/server';
-import { v } from 'convex/values';
+import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
 
 export default defineSchema({
   users: defineTable({
@@ -14,33 +14,40 @@ export default defineSchema({
     avatar: v.string(),
     totalExp: v.int64(),
     friends: v.array(v.id("users")),
+    blocked: v.optional(v.array(v.id("users"))),
     role: v.optional(v.string()),
-
-  }).index('byExternalId', ['externalId']).index('byUsername', ['username']).index('bySlug', ['slug']),
+    lastActive: v.optional(v.number()),
+  })
+    .index("byExternalId", ["externalId"])
+    .index("byUsername", ["username"])
+    .index("bySlug", ["slug"]),
 
   organisations: defineTable({
-    organizationName: v.string(),
-    organizationEmail: v.string(),
+    organisationName: v.string(),
+    organisationEmail: v.string(),
     address: v.string(),
     longitude: v.float64(),
     latitude: v.float64(),
     description: v.string(),
     IBAN: v.string(),
-    organizerIDs: v.array(v.id("users")),
+    organisersIDs: v.array(v.id("users")),
     activityIDs: v.array(v.id("activities")),
   }),
 
-  team: defineTable({
+  teams: defineTable({
     teamName: v.string(),
     teamDescription: v.string(),
     teammates: v.array(v.id("users")),
-  }),
+    admins: v.optional(v.array(v.id("users"))),
+    createdBy: v.id("users"),
+    slug: v.string(),
+    icon: v.optional(v.string()),
+  }).index("bySlug", ["slug"]),
   payments: defineTable({
     userId: v.id("users"),
-    organizationId: v.id("organizations"),
+    organisationId: v.id("organisations"),
     totalAmount: v.float64(),
     paymentStatus: v.boolean(),
-
   }),
   reviews: defineTable({
     text: v.string(),
@@ -56,25 +63,48 @@ export default defineSchema({
   }),
   reservations: defineTable({
     date: v.string(),
+    time: v.string(),
     userCount: v.int64(),
     activityId: v.id("activities"),
     teamIds: v.array(v.id("teams")),
-
-  }),
+    createdBy: v.id("users"),
+  })
+    .index("byActivity", ["activityId"])
+    .index("byDateTime", ["activityId", "date", "time"]),
+  conversations: defineTable({
+    user1Id: v.id("users"),
+    user2Id: v.id("users"),
+    slug: v.string(),
+    createdAt: v.number(),
+  })
+    .index("bySlug", ["slug"])
+    .index("byUser1", ["user1Id"])
+    .index("byUser2", ["user2Id"]),
   messages: defineTable({
     text: v.string(),
     senderId: v.id("users"),
     receiverId: v.id("users"),
+    timestamp: v.number(),
+    readBy: v.optional(v.array(v.id("users"))),
+    encrypted: v.optional(v.boolean()),
+  })
+    .index("byConversation", ["senderId", "receiverId"])
+    .index("byReceiver", ["receiverId"]),
+  groupMessages: defineTable({
+    text: v.string(),
+    senderId: v.id("users"),
     teamId: v.id("teams"),
-
-  }),
+    timestamp: v.number(),
+    readBy: v.optional(v.array(v.id("users"))),
+    encrypted: v.optional(v.boolean()),
+  }).index("byTeam", ["teamId"]),
   activities: defineTable({
     activityName: v.string(),
     description: v.string(),
     address: v.string(),
     longitude: v.float64(),
     latitude: v.float64(),
-    price : v.float64(),
+    price: v.float64(),
     duration: v.int64(),
     difficulty: v.string(),
     maxParticipants: v.int64(),
@@ -84,6 +114,6 @@ export default defineSchema({
     reviewCount: v.optional(v.int64()),
     equipment: v.array(v.string()),
     images: v.optional(v.array(v.string())),
+    availableTimeSlots: v.optional(v.array(v.string())),
   }),
-
 });
