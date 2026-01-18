@@ -160,7 +160,7 @@ export const getMyTeams = query({
           lastMessage: lastMessage
             ? {
                 text: lastMessage.text,
-                timestamp: lastMessage._creationTime,
+                timestamp: lastMessage.timestamp,
                 senderId: lastMessage.senderId,
               }
             : null,
@@ -259,7 +259,7 @@ export const getTeamMessages = query({
         _id: msg._id,
         text: msg.text,
         senderId: msg.senderId,
-        timestamp: msg._creationTime,
+        timestamp: msg.timestamp,
         sender: sender
           ? {
               _id: sender._id,
@@ -273,8 +273,6 @@ export const getTeamMessages = query({
         readBy: msg.readBy || [],
         status,
         encrypted: msg.encrypted || false,
-        messageType: msg.messageType || "text",
-        reservationCardData: msg.reservationCardData || undefined,
       };
     });
 
@@ -316,53 +314,15 @@ export const sendTeamMessage = mutation({
       throw new Error("Message cannot be empty");
     }
 
+    const timestamp = Date.now();
     const isEncrypted = !!encryptedText;
 
     await ctx.db.insert("groupMessages", {
       teamId,
       senderId: currentUser._id,
       text: messageText.trim(),
+      timestamp,
       encrypted: isEncrypted ? true : undefined,
-      messageType: "text",
-    });
-
-    return { success: true };
-  },
-});
-
-export const sendReservationCardToTeam = mutation({
-  args: {
-    teamId: v.id("teams"),
-    reservationId: v.id("reservations"),
-  },
-  handler: async (ctx, { teamId, reservationId }) => {
-    // Get reservation to verify it exists
-    const reservation = await ctx.db.get(reservationId);
-    if (!reservation) {
-      throw new Error("Reservation not found");
-    }
-
-    // Verify team is part of the reservation
-    if (!reservation.teamIds.includes(teamId)) {
-      throw new Error("Team is not part of this reservation");
-    }
-
-    // Get team to verify it exists
-    const team = await ctx.db.get(teamId);
-    if (!team) {
-      throw new Error("Team not found");
-    }
-
-    // Use system user ID (the creator of the reservation) as sender
-    // This ensures the card appears as a system message
-    await ctx.db.insert("groupMessages", {
-      teamId,
-      senderId: reservation.createdBy,
-      text: "Reservation card", // Placeholder text for reservation card messages
-      messageType: "reservation_card",
-      reservationCardData: {
-        reservationId,
-      },
     });
 
     return { success: true };
@@ -475,16 +435,6 @@ export const markTeamMessageAsRead = mutation({
     }
 
     return { success: true };
-  },
-});
-
-export const getTeamById = query({
-  args: {
-    teamId: v.id("teams"),
-  },
-  handler: async (ctx, { teamId }) => {
-    const team = await ctx.db.get(teamId);
-    return team;
   },
 });
 
@@ -618,7 +568,7 @@ export const getTeamMessagesBySlug = query({
         _id: msg._id,
         text: msg.text,
         senderId: msg.senderId,
-        timestamp: msg._creationTime,
+        timestamp: msg.timestamp,
         sender: sender
           ? {
               _id: sender._id,
@@ -632,8 +582,6 @@ export const getTeamMessagesBySlug = query({
         readBy: msg.readBy || [],
         status,
         encrypted: msg.encrypted || false,
-        messageType: msg.messageType || "text",
-        reservationCardData: msg.reservationCardData || undefined,
       };
     });
 
@@ -818,51 +766,6 @@ export const deleteTeam = mutation({
 
     for (const msg of teamMessages) {
       await ctx.db.delete(msg._id);
-    }
-
-    // Delete all reservations that reference this team
-    const allReservations = await ctx.db.query("reservations").collect();
-    const reservationsWithTeam = allReservations.filter((r) =>
-      r.teamIds.includes(teamId)
-    );
-
-    // Import the helper function (we'll need to make it accessible)
-    // For now, delete conversations inline
-    for (const reservation of reservationsWithTeam) {
-      // Find and delete conversation linked to this reservation
-      const allConversations = await ctx.db.query("conversations").collect();
-      const conversation = allConversations.find(
-        (c) => c.reservationId === reservation._id
-      );
-
-      if (conversation) {
-        // Delete all messages between the two users
-        const sentMessages = await ctx.db
-          .query("messages")
-          .withIndex("byConversation", (q) =>
-            q
-              .eq("senderId", conversation.user1Id)
-              .eq("receiverId", conversation.user2Id)
-          )
-          .collect();
-
-        const receivedMessages = await ctx.db
-          .query("messages")
-          .withIndex("byConversation", (q) =>
-            q
-              .eq("senderId", conversation.user2Id)
-              .eq("receiverId", conversation.user1Id)
-          )
-          .collect();
-
-        const allMessages = [...sentMessages, ...receivedMessages];
-        await Promise.all(allMessages.map((msg) => ctx.db.delete(msg._id)));
-
-        // Delete the conversation
-        await ctx.db.delete(conversation._id);
-      }
-
-      await ctx.db.delete(reservation._id);
     }
 
     // Delete the team

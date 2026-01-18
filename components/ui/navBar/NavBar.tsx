@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import {
+  Calendar,
   Home,
   HomeIcon,
   LogOut,
@@ -17,7 +18,6 @@ import {
   Settings,
   User,
   Building2,
-  Inbox,
 } from "lucide-react";
 
 import Link from "next/link";
@@ -28,15 +28,9 @@ import { Authenticated, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { SignOutButton } from "@clerk/nextjs";
 import { DropdownMenuLabel } from "@radix-ui/react-dropdown-menu";
-import { Badge } from "@/components/ui/badge";
-import { useUnreadReservationCount } from "@/lib/hooks/useReservations";
-import { useUnreadMessageCount } from "@/lib/hooks/useUnreadMessageCount";
 
 export default function Navbar() {
   const user = useQuery(api.users.current);
-  const { count: unreadReservationCount } = useUnreadReservationCount();
-  const { count: unreadMessageCount } = useUnreadMessageCount();
-  const isOrganizer = user?.role === "organiser";
 
   return (
     <nav>
@@ -50,34 +44,18 @@ export default function Navbar() {
             </Link>
           </li>
           <li>
-            <Link href="/chat" className="relative">
+            <Link href="/reservations">
+              <Calendar className="icon" /> Reservations
+            </Link>
+          </li>
+          <li>
+            <Link href="/chat">
               <MessageSquare className="icon" /> Chat
-              {unreadMessageCount > 0 && (
-                <Badge
-                  variant="destructive"
-                  className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full p-0 flex items-center justify-center text-[10px] leading-none"
-                >
-                  {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
-                </Badge>
-              )}
             </Link>
           </li>
         </ul>
 
-        <div className="flex items-center gap-3">
-          {isOrganizer && (
-            <Link href="/reservations" className="relative">
-              <Inbox className="icon" />
-              {unreadReservationCount > 0 && (
-                <Badge
-                  variant="destructive"
-                  className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full p-0 flex items-center justify-center text-[10px] leading-none"
-                >
-                  {unreadReservationCount > 99 ? "99+" : unreadReservationCount}
-                </Badge>
-              )}
-            </Link>
-          )}
+        <div>
           <DropdownMenu>
             <DropdownMenuTrigger className="profile_button">
               <Avatar className="size-10 md:size-8">
@@ -98,7 +76,7 @@ export default function Navbar() {
                     My account
                   </DropdownMenuItem>
                 </Link>
-                {user?.role === "organiser" && (
+                {user?.role === "organizer" && (
                   <Link href="/my-organisation">
                     <DropdownMenuItem>
                       <Building2 className="icon" />
@@ -121,34 +99,16 @@ export default function Navbar() {
                     <HomeIcon className="icon" /> Home
                   </DropdownMenuItem>
                 </Link>
-                <Link href="/chat">
-                  <DropdownMenuItem className="relative">
-                    <MessageSquare className="icon" /> Chat
-                    {unreadMessageCount > 0 && (
-                      <Badge
-                        variant="destructive"
-                        className="ml-auto h-5 min-w-5 rounded-full p-0 flex items-center justify-center text-xs"
-                      >
-                        {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
-                      </Badge>
-                    )}
+                <Link href="/reservations">
+                  <DropdownMenuItem>
+                    <Calendar className="icon" /> Reservations
                   </DropdownMenuItem>
                 </Link>
-                {isOrganizer && (
-                  <Link href="/reservations">
-                    <DropdownMenuItem className="relative">
-                      <Inbox className="icon" /> Reservations
-                      {unreadReservationCount > 0 && (
-                        <Badge
-                          variant="destructive"
-                          className="ml-auto h-5 min-w-5 rounded-full p-0 flex items-center justify-center text-xs"
-                        >
-                          {unreadReservationCount > 99 ? "99+" : unreadReservationCount}
-                        </Badge>
-                      )}
-                    </DropdownMenuItem>
-                  </Link>
-                )}
+                <Link href="/chat">
+                  <DropdownMenuItem>
+                    <MessageSquare className="icon" /> Chat
+                  </DropdownMenuItem>
+                </Link>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="sign_out">

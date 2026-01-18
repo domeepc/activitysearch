@@ -13,7 +13,6 @@ export interface ActivityFormData {
   tags: string;
   equipment: string;
   images: string[];
-  availableTimeSlots: string[];
 }
 
 export interface FormErrors {
@@ -42,6 +41,5 @@ export const initialFormData: ActivityFormData = {
   tags: "",
   equipment: "",
   images: [],
-  availableTimeSlots: [],
 };
 

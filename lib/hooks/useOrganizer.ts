@@ -2,12 +2,12 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
 /**
- * Hook to check if the current user is an organiser
+ * Hook to check if the current user is an organizer
  * @returns Object with isOrganizer boolean and loading state
  */
 export function useOrganizer() {
   const currentUser = useQuery(api.users.current);
-  const isOrganizer = currentUser?.role === "organiser" || false;
+  const isOrganizer = (currentUser?.role === "organizer") ?? false;
 
   return {
     isOrganizer,

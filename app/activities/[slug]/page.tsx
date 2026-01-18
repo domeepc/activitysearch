@@ -1,14 +1,11 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Button } from "@/components/ui/button";
-import { ReservationDialog } from "@/components/activities/ReservationDialog";
-import { useMyTeamsAsCreator } from "@/lib/hooks/useReservations";
 import {
   Card,
   CardContent,
@@ -52,10 +49,6 @@ export default function ActivityPage({
 
   // Fetch all unique tags from database for color assignment
   const databaseTags = useQuery(api.activity.getAllTags);
-  
-  // Check if user has teams as creator
-  const { hasTeams } = useMyTeamsAsCreator();
-  const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false);
 
   useEffect(() => {
     if (activity === null) {
@@ -217,29 +210,16 @@ export default function ActivityPage({
                 {displayActivity.description}
               </CardDescription>
             </div>
-            <div className="flex flex-col gap-3">
-              {/* Rating */}
-              <div className="flex items-center gap-2">
-                <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                <span className="text-lg font-semibold">
-                  {displayActivity.rating.toFixed(1)}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  ({displayActivity.reviewCount}{" "}
-                  {displayActivity.reviewCount === 1 ? "review" : "reviews"})
-                </span>
-              </div>
-              {/* Reservation Button */}
-              {hasTeams && (
-                <Button
-                  onClick={() => setIsReservationDialogOpen(true)}
-                  variant="secondary"
-                  className="w-full md:w-auto"
-                >
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Reserve Activity
-                </Button>
-              )}
+            {/* Rating */}
+            <div className="flex items-center gap-2">
+              <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
+              <span className="text-lg font-semibold">
+                {displayActivity.rating.toFixed(1)}
+              </span>
+              <span className="text-sm text-muted-foreground">
+                ({displayActivity.reviewCount}{" "}
+                {displayActivity.reviewCount === 1 ? "review" : "reviews"})
+              </span>
             </div>
           </div>
         </CardHeader>
@@ -413,15 +393,6 @@ export default function ActivityPage({
             </>
           )}
         </CardContent>
-        
-        {/* Reservation Dialog */}
-        {hasTeams && (
-          <ReservationDialog
-            activityId={activityId}
-            open={isReservationDialogOpen}
-            onOpenChange={setIsReservationDialogOpen}
-          />
-        )}
       </Card>
     </div>
   );

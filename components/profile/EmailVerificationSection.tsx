@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Check, Mail } from "lucide-react";
 import type { EmailVerificationStatus } from "@/lib/types/profile";
 
