@@ -18,8 +18,8 @@ export async function generateMetadata({
 
     if (activity) {
       return {
-        title: `${activity.title} - ActivitySearch`,
-        description: activity.description || `View details and book ${activity.title} on ActivitySearch.`,
+        title: `${activity.activityName} - ActivitySearch`,
+        description: activity.description || `View details and book ${activity.activityName} on ActivitySearch.`,
       };
     }
   } catch (error) {
