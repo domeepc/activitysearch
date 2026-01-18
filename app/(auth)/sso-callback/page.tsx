@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useSignUp, useSignIn } from "@clerk/nextjs";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +27,6 @@ export default function SSOCallback() {
     setActive: setActiveSignIn,
   } = useSignIn();
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [showDialog, setShowDialog] = React.useState(false);
   const [username, setUsername] = React.useState("");
@@ -128,6 +127,10 @@ export default function SSOCallback() {
     setActiveSignIn,
     router,
     getReturnUrl,
+    signUp?.createdSessionId,
+    signUp?.username,
+    signIn?.firstFactorVerification,
+    signIn?.createdSessionId,
   ]);
 
   const handleComplete = async (e: React.FormEvent) => {

@@ -123,4 +123,9 @@
   header {
     @apply sticky top-0 z-50 w-full bg-white;
   }
+
+  body.auth-page-no-scroll-body {
+    overflow: hidden;
+    height: 100vh;
+  }
 }

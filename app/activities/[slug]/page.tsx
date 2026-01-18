@@ -1,10 +1,14 @@
 "use client";
 
-import { use, useEffect } from "react";
+import { use, useEffect, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { ReservationDialog } from "@/components/activities/ReservationDialog";
+import { useMyTeamsAsCreator } from "@/lib/hooks/useReservations";
 import {
   Card,
   CardContent,
@@ -48,6 +52,10 @@ export default function ActivityPage({
 
   // Fetch all unique tags from database for color assignment
   const databaseTags = useQuery(api.activity.getAllTags);
+  
+  // Check if user has teams as creator
+  const { hasTeams } = useMyTeamsAsCreator();
+  const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false);
 
   useEffect(() => {
     if (activity === null) {
@@ -154,16 +162,17 @@ export default function ActivityPage({
                       className="h-full pl-0 pr-2 basis-1/2 md:basis-1/3"
                     >
                       <div className="relative w-full h-full rounded-lg overflow-hidden">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
+                        <Image
                           src={image}
                           alt={`${displayActivity.title} - Image ${index + 1}`}
-                          className="w-full h-full object-cover"
+                          fill
+                          className="object-cover"
                           draggable={false}
                           onDragStart={(e) => e.preventDefault()}
                           onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                            const parent = e.currentTarget.parentElement;
+                            const target = e.currentTarget;
+                            target.style.display = "none";
+                            const parent = target.parentElement;
                             if (
                               parent &&
                               !parent.querySelector(".error-message")
@@ -208,16 +217,29 @@ export default function ActivityPage({
                 {displayActivity.description}
               </CardDescription>
             </div>
-            {/* Rating */}
-            <div className="flex items-center gap-2">
-              <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-              <span className="text-lg font-semibold">
-                {displayActivity.rating.toFixed(1)}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                ({displayActivity.reviewCount}{" "}
-                {displayActivity.reviewCount === 1 ? "review" : "reviews"})
-              </span>
+            <div className="flex flex-col gap-3">
+              {/* Rating */}
+              <div className="flex items-center gap-2">
+                <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
+                <span className="text-lg font-semibold">
+                  {displayActivity.rating.toFixed(1)}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  ({displayActivity.reviewCount}{" "}
+                  {displayActivity.reviewCount === 1 ? "review" : "reviews"})
+                </span>
+              </div>
+              {/* Reservation Button */}
+              {hasTeams && (
+                <Button
+                  onClick={() => setIsReservationDialogOpen(true)}
+                  variant="secondary"
+                  className="w-full md:w-auto"
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Reserve Activity
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -375,10 +397,11 @@ export default function ActivityPage({
                       key={index}
                       className="relative w-full h-48 overflow-hidden rounded-lg"
                     >
-                      <img
+                      <Image
                         src={image}
                         alt={`${displayActivity.title} - Image ${index + 2}`}
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
                         onError={(e) => {
                           e.currentTarget.style.display = "none";
                         }}
@@ -390,6 +413,15 @@ export default function ActivityPage({
             </>
           )}
         </CardContent>
+        
+        {/* Reservation Dialog */}
+        {hasTeams && (
+          <ReservationDialog
+            activityId={activityId}
+            open={isReservationDialogOpen}
+            onOpenChange={setIsReservationDialogOpen}
+          />
+        )}
       </Card>
     </div>
   );

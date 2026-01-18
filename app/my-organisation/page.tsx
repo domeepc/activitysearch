@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import {
   Card,
   CardContent,
@@ -17,9 +18,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { validateOrganizationField, validateEmail } from "@/lib/validation";
+import { extractErrorMessage } from "@/lib/errors";
+import ActivityListSection from "@/components/organisation/activityListSection";
+import { StripeConnectButton } from "@/components/organisation/StripeConnectButton";
+import { useAction } from "convex/react";
 
 export default function MyOrganisationPage() {
   const router = useRouter();
+  const { isSignedIn, isLoaded: clerkLoaded } = useUser();
   const [isEditing, setIsEditing] = useState(false);
   const [errors, setErrors] = useState({
     name: "",
@@ -27,103 +34,68 @@ export default function MyOrganisationPage() {
     address: "",
     IBAN: "",
   });
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    description: "",
-    address: "",
-    IBAN: "",
-  });
-
   const currentUser = useQuery(api.users.current);
   const organisation = useQuery(
     api.organisation.getOrganisationByOwnerId,
-    currentUser?._id
-      ? { ownerId: currentUser._id as Id<"users"> }
-      : "skip"
+    currentUser?._id ? { ownerId: currentUser._id as Id<"users"> } : "skip"
   );
   const updateOrganisation = useMutation(api.organisation.updateOrganisation);
+  const updateStripeAccount = useAction(api.stripe.updateStripeAccountFromOrganization);
 
-  const isOrganizer = currentUser?.role === "organizer";
+  const isOrganizer = currentUser?.role === "organiser";
 
-  // Redirect if not authenticated
+  // Compute form data from organisation when not editing
+  const organisationFormData = useMemo(
+    () => ({
+      name: organisation?.organisationName || "",
+      email: organisation?.organisationEmail || "",
+      description: organisation?.description || "",
+      address: organisation?.address || "",
+      IBAN: organisation?.IBAN || "",
+    }),
+    [organisation]
+  );
+
+  const [editedFormData, setEditedFormData] = useState(
+    () => organisationFormData
+  );
+
+  // Use edited data when editing, otherwise use organisation data
+  const formData = isEditing ? editedFormData : organisationFormData;
+
+  // Redirect if not authenticated in Clerk (only redirect if Clerk has loaded and user is definitely not signed in)
   useEffect(() => {
-    if (currentUser === null) {
+    if (clerkLoaded && !isSignedIn) {
       router.push("/sign-in");
     }
-  }, [currentUser, router]);
-
-  // Load organization data into form
-  useEffect(() => {
-    if (organisation) {
-      setFormData({
-        name: organisation.organizationName || "",
-        email: organisation.organizationEmail || "",
-        description: organisation.description || "",
-        address: organisation.address || "",
-        IBAN: organisation.IBAN || "",
-      });
-    }
-  }, [organisation]);
+  }, [clerkLoaded, isSignedIn, router]);
 
   const validateField = (name: string, value: string) => {
-    const newErrors = { ...errors };
-
-    if (name === "name" && !value.trim()) {
-      newErrors.name = "Organization name is required";
-    } else if (name === "name") {
-      newErrors.name = "";
-    }
-
-    if (name === "email") {
-      if (!value.trim()) {
-        newErrors.email = "Email is required";
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-        newErrors.email = "Please enter a valid email";
-      } else {
-        newErrors.email = "";
-      }
-    }
-
-    if (name === "address" && !value.trim()) {
-      newErrors.address = "Address is required";
-    } else if (name === "address") {
-      newErrors.address = "";
-    }
-
-    if (name === "IBAN" && !value.trim()) {
-      newErrors.IBAN = "IBAN is required";
-    } else if (name === "IBAN") {
-      newErrors.IBAN = "";
-    }
-
-    setErrors(newErrors);
+    const error = validateOrganizationField(name, value);
+    setErrors((prev) => ({ ...prev, [name]: error }));
   };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
+    setEditedFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
 
-    if (name === "name" || name === "email" || name === "address" || name === "IBAN") {
+    if (
+      name === "name" ||
+      name === "email" ||
+      name === "address" ||
+      name === "IBAN"
+    ) {
       validateField(name, value);
     }
   };
 
   const handleCancel = () => {
-    if (organisation) {
-      setFormData({
-        name: organisation.organizationName || "",
-        email: organisation.organizationEmail || "",
-        description: organisation.description || "",
-        address: organisation.address || "",
-        IBAN: organisation.IBAN || "",
-      });
-    }
+    setEditedFormData(organisationFormData);
     setErrors({ name: "", email: "", address: "", IBAN: "" });
     setIsEditing(false);
   };
@@ -145,7 +117,7 @@ export default function MyOrganisationPage() {
 
     if (!formData.email.trim()) {
       newErrors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    } else if (!validateEmail(formData.email)) {
       newErrors.email = "Please enter a valid email";
     }
 
@@ -160,7 +132,12 @@ export default function MyOrganisationPage() {
     setErrors(newErrors);
 
     // Check if there are any errors
-    if (newErrors.name || newErrors.email || newErrors.address || newErrors.IBAN) {
+    if (
+      newErrors.name ||
+      newErrors.email ||
+      newErrors.address ||
+      newErrors.IBAN
+    ) {
       return;
     }
 
@@ -173,13 +150,28 @@ export default function MyOrganisationPage() {
         address: formData.address,
         IBAN: formData.IBAN,
       });
+
+      // Sync updates to Stripe if account exists
+      if (organisation.stripeAccountId) {
+        try {
+          await updateStripeAccount({
+            organisationId: organisation._id,
+          });
+          console.log("Stripe account synced successfully");
+        } catch (stripeError) {
+          console.error("Failed to sync to Stripe:", stripeError);
+          // Don't fail the entire update if Stripe sync fails
+          // User can manually update Stripe later if needed
+        }
+      }
+
       setIsEditing(false);
       setErrors({ name: "", email: "", address: "", IBAN: "" });
     } catch (error: unknown) {
       console.error("Failed to update organization:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to update organization";
-      // You could set a general error state here if needed
+      const errorMessage = extractErrorMessage(error);
+      // Could set a general error state here if needed
+      console.error("Error message:", errorMessage);
     }
   };
 
@@ -229,17 +221,65 @@ export default function MyOrganisationPage() {
     );
   }
 
-  // Not authenticated or not an organizer
-  if (currentUser === null || !isOrganizer) {
+  // Wait for Clerk to load before making decisions
+  if (!clerkLoaded) {
+    return (
+      <div className="container mx-auto p-4 md:p-6 max-w-4xl">
+        <Card>
+          <CardContent className="flex items-center justify-center py-8">
+            <div className="text-muted-foreground">Loading...</div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Not authenticated in Clerk - redirect will happen in useEffect
+  if (!isSignedIn) {
+    return null;
+  }
+
+  // Wait for Convex user to load
+  if (currentUser === undefined) {
+    return (
+      <div className="container mx-auto p-4 md:p-6 max-w-4xl">
+        <Card>
+          <CardContent className="flex items-center justify-center py-8">
+            <div className="text-muted-foreground">Loading...</div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Not an organiser (but authenticated)
+  if (currentUser !== null && !isOrganizer) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
         <Card>
           <CardHeader>
             <CardTitle>Access Denied</CardTitle>
             <CardDescription>
-              {currentUser === null
-                ? "Please sign in to access this page."
-                : "You must be an organizer to access this page."}
+              You must be an organiser to access this page.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => router.push("/")}>Go to Home</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // User authenticated but not found in Convex (shouldn't happen normally, but handle gracefully)
+  if (currentUser === null && isSignedIn) {
+    return (
+      <div className="container mx-auto p-4 md:p-6 max-w-4xl">
+        <Card>
+          <CardHeader>
+            <CardTitle>Setting Up</CardTitle>
+            <CardDescription>
+              Your account is being set up. Please wait a moment and refresh the page.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -258,7 +298,7 @@ export default function MyOrganisationPage() {
           <CardHeader>
             <CardTitle>No Organization Found</CardTitle>
             <CardDescription>
-              You don't have an organization associated with your account.
+              You don&apos;t have an organization associated with your account.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -270,7 +310,7 @@ export default function MyOrganisationPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6 max-w-4xl">
+    <div className="container mx-auto p-4 md:p-6 max-w-4xl space-y-6">
       <Card>
         <CardHeader>
           <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
@@ -289,7 +329,10 @@ export default function MyOrganisationPage() {
                   <Button
                     onClick={handleSave}
                     disabled={
-                      errors.name || errors.email || errors.address || errors.IBAN
+                      errors.name ||
+                        errors.email ||
+                        errors.address ||
+                        errors.IBAN
                         ? true
                         : false
                     }
@@ -298,7 +341,12 @@ export default function MyOrganisationPage() {
                   </Button>
                 </>
               ) : (
-                <Button onClick={() => setIsEditing(true)}>
+                <Button
+                  onClick={() => {
+                    setEditedFormData(organisationFormData);
+                    setIsEditing(true);
+                  }}
+                >
                   Edit Organisation
                 </Button>
               )}
@@ -429,7 +477,11 @@ export default function MyOrganisationPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Stripe Connect Section */}
+      <StripeConnectButton organisationId={organisation._id} />
+
+      <ActivityListSection activityIDs={organisation.activityIDs || []} />
     </div>
   );
 }
-

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useQuery } from "convex/react";
 import { api as convexApi } from "@/convex/_generated/api";
 import { useEffect, useState, useRef } from "react";
@@ -14,8 +15,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Star, MapPin, Clock, DollarSign, Users } from "lucide-react";
+import { Star, MapPin, Clock, DollarSign, Users, Calendar } from "lucide-react";
 import { getTagColorScheme, getDifficultyColorScheme } from "@/lib/tagColors";
+import { ReservationDialog } from "@/components/activities/ReservationDialog";
+import { useMyTeamsAsCreator } from "@/lib/hooks/useReservations";
+import { Id } from "@/convex/_generated/dataModel";
 import {
   Carousel,
   CarouselContent,
@@ -67,6 +71,10 @@ export default function ActivityCard({
 
   // Fetch all unique tags from database for color assignment
   const databaseTags = useQuery(convexApi.activity.getAllTags);
+  
+  // Check if user has teams as creator
+  const { hasTeams } = useMyTeamsAsCreator();
+  const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false);
 
   // Carousel auto-rotation
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
@@ -120,46 +128,46 @@ export default function ActivityCard({
     <Card
       className={`${cardWidth} relative border-0 shadow-none transition-all duration-200  pointer-events-auto`}
     >
+      <button
+        className="absolute! top-2 right-2 z-50 bg-white w-8 h-8 flex justify-center items-center rounded-full p-1.5 hover:bg-gray-100 shadow-md focus:outline-none transition-colors pointer-events-auto cursor-pointer"
+        onClick={handleClosePopup}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+        onMouseUp={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+        onTouchStart={(e) => {
+          e.stopPropagation();
+        }}
+        aria-label="Close popup"
+        tabIndex={0}
+        type="button"
+      >
+        <svg width={16} height={16} viewBox="0 0 20 20" fill="none">
+          <path
+            d="M6 6l8 8M14 6l-8 8"
+            stroke="#333"
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+        </svg>
+      </button>
       {images.length > 0 && (
         <>
-          <button
-            className="absolute! top-2 right-2 z-50 bg-white w-8 h-8 flex justify-center items-center rounded-full p-1.5 hover:bg-gray-100 shadow-md focus:outline-none transition-colors pointer-events-auto cursor-pointer"
-            onClick={handleClosePopup}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-            }}
-            onMouseUp={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-            }}
-            onTouchStart={(e) => {
-              e.stopPropagation();
-            }}
-            aria-label="Close popup"
-            tabIndex={0}
-            type="button"
-          >
-            <svg width={16} height={16} viewBox="0 0 20 20" fill="none">
-              <path
-                d="M6 6l8 8M14 6l-8 8"
-                stroke="#333"
-                strokeWidth={2}
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
           <div className="z-0 w-full h-48 overflow-hidden rounded-t-xl -mt-6 mb-0 relative">
             <Carousel setApi={setCarouselApi} className="w-full h-full">
               <CarouselContent className="h-full ml-0!">
                 {images.map((image, index) => (
                   <CarouselItem key={index} className="h-full pl-0 basis-full">
                     <div className="relative w-full h-full">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
+                      <Image
                         src={image}
                         alt={`${activity.title} - Image ${index + 1}`}
-                        className="w-full h-full object-cover z-0 relative"
+                        fill
+                        className="object-cover z-0"
                         onError={(e) => {
                           e.currentTarget.style.display = "none";
                         }}
@@ -172,35 +180,7 @@ export default function ActivityCard({
           </div>
         </>
       )}
-      {images.length === 0 && (
-        <button
-          className="absolute z-50 top-2 right-2 bg-white w-8 h-8 flex justify-center items-center rounded-full p-1.5 hover:bg-gray-100 shadow-md focus:outline-none transition-colors pointer-events-auto cursor-pointer"
-          onClick={handleClosePopup}
-          onMouseDown={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-          }}
-          onMouseUp={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-          }}
-          onTouchStart={(e) => {
-            e.stopPropagation();
-          }}
-          aria-label="Close popup"
-          tabIndex={0}
-          type="button"
-        >
-          <svg width={16} height={16} viewBox="0 0 20 20" fill="none">
-            <path
-              d="M6 6l8 8M14 6l-8 8"
-              stroke="#333"
-              strokeWidth={2}
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
-      )}
+
       <CardHeader className="px-4 pt-1 pb-3">
         <CardTitle className="text-base leading-tight line-clamp-2">
           {activity.title}
@@ -302,15 +282,37 @@ export default function ActivityCard({
 
         <Separator className="my-2" />
 
-        {/* Visit Button */}
-        <Button
-          onClick={handleVisitPage}
-          className="w-full h-8 text-xs"
-          variant="default"
-        >
-          Visit Activity Page
-        </Button>
+        {/* Visit Button and Reservation Button */}
+        <div className="flex gap-2">
+          <Button
+            onClick={handleVisitPage}
+            className="flex-1 h-8 text-xs"
+            variant="default"
+          >
+            Visit Activity Page
+          </Button>
+          {hasTeams && (
+            <Button
+              onClick={() => setIsReservationDialogOpen(true)}
+              className="h-8 w-8 p-0"
+              variant="outline"
+              size="icon"
+              aria-label="Reserve activity"
+            >
+              <Calendar className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </CardContent>
+      
+      {/* Reservation Dialog */}
+      {hasTeams && (
+        <ReservationDialog
+          activityId={activity.id as Id<"activities">}
+          open={isReservationDialogOpen}
+          onOpenChange={setIsReservationDialogOpen}
+        />
+      )}
     </Card>
   );
 }
