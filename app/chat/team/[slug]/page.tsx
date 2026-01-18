@@ -62,7 +62,6 @@ export default function TeamChatPage({
     <ChatView
       type="team"
       teamId={messagesData.team._id}
-      teamSlug={slug}
       messages={messages}
       teamName={messagesData.team.teamName}
       teamIcon={messagesData.team.icon}

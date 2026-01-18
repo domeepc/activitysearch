@@ -24,6 +24,7 @@ import {
   ActivityDetailsSection,
   TagsEquipmentSection,
   ImagesSection,
+  TimeSlotsSection,
 } from "@/components/activities/ActivityFormSections";
 import { validateActivityField } from "@/lib/validation";
 import { geocodeAddress } from "@/lib/geocoding";
@@ -254,6 +255,9 @@ export default function DialogAddActivity({
           .map((e) => e.trim())
           .filter(Boolean),
         images: formData.images,
+        availableTimeSlots: formData.availableTimeSlots.length > 0
+          ? formData.availableTimeSlots
+          : undefined,
       } as unknown;
 
       await (
@@ -332,6 +336,10 @@ export default function DialogAddActivity({
               setErrors((prev) => ({ ...prev, [field]: error }));
             }}
             onDifficultyChange={handleDifficultyChange}
+          />
+          <TimeSlotsSection
+            formData={formData}
+            onFieldChange={updateField}
           />
           <TagsEquipmentSection
             formData={formData}
