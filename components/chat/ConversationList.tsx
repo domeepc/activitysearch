@@ -98,9 +98,8 @@ export function ConversationList({
   // Get the other user ID from the current conversation
   const currentConversationOtherUserId = currentConversationData?.otherUser?._id || null;
 
-  // Teams query - Convex automatically updates when data changes
-  // No need to manually manage fetching state as Convex handles reactivity
-  const teams = useQuery(api.teams.getMyTeams);
+  // Teams query - skip when not authenticated to avoid "Can't get current user"
+  const teams = useQuery(api.teams.getMyTeams, currentUser ? {} : "skip");
 
   const removeFriend = useMutation(api.users.removeFriend);
   const blockUser = useMutation(api.users.blockUser);

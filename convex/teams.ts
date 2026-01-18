@@ -1,6 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { getCurrentUserOrThrow } from "./users";
+import { getCurrentUser, getCurrentUserOrThrow } from "./users";
 
 // Helper function to generate secure random hash for team slug
 function generateSecureHash(): string {
@@ -59,7 +59,8 @@ export const createTeam = mutation({
 export const getMyTeams = query({
   args: {},
   handler: async (ctx) => {
-    const currentUser = await getCurrentUserOrThrow(ctx);
+    const currentUser = await getCurrentUser(ctx);
+    if (!currentUser) return [];
 
     // Get all teams where current user is a teammate
     // Note: Without an index on array fields, we must query all and filter
@@ -272,8 +273,9 @@ export const getTeamMessages = query({
         isFromCurrentUser: msg.senderId === currentUser._id,
         readBy: msg.readBy || [],
         status,
-        encrypted: msg.encrypted || false,
-        messageType: msg.messageType || "text",
+          encrypted: msg.encrypted || false,
+          encryptionVersion: msg.encryptionVersion || (msg.encrypted ? "symmetric" : undefined),
+          messageType: msg.messageType || "text",
         reservationCardData: msg.reservationCardData || undefined,
       };
     });
@@ -296,8 +298,9 @@ export const sendTeamMessage = mutation({
     teamId: v.id("teams"),
     text: v.optional(v.string()),
     encryptedText: v.optional(v.string()),
+    encryptionVersion: v.optional(v.union(v.literal("symmetric"), v.literal("asymmetric"))),
   },
-  handler: async (ctx, { teamId, text, encryptedText }) => {
+  handler: async (ctx, { teamId, text, encryptedText, encryptionVersion }) => {
     const currentUser = await getCurrentUserOrThrow(ctx);
 
     // Verify user is part of the team
@@ -323,6 +326,7 @@ export const sendTeamMessage = mutation({
       senderId: currentUser._id,
       text: messageText.trim(),
       encrypted: isEncrypted ? true : undefined,
+      encryptionVersion: isEncrypted && encryptionVersion ? encryptionVersion : undefined,
       messageType: "text",
     });
 
@@ -534,7 +538,8 @@ export const getTeamMessagesBySlug = query({
     slug: v.string(),
   },
   handler: async (ctx, { slug }) => {
-    const currentUser = await getCurrentUserOrThrow(ctx);
+    const currentUser = await getCurrentUser(ctx);
+    if (!currentUser) return null;
 
     // Get team by slug
     const team = await ctx.db
@@ -631,8 +636,9 @@ export const getTeamMessagesBySlug = query({
         isFromCurrentUser: msg.senderId === currentUser._id,
         readBy: msg.readBy || [],
         status,
-        encrypted: msg.encrypted || false,
-        messageType: msg.messageType || "text",
+          encrypted: msg.encrypted || false,
+          encryptionVersion: msg.encryptionVersion || (msg.encrypted ? "symmetric" : undefined),
+          messageType: msg.messageType || "text",
         reservationCardData: msg.reservationCardData || undefined,
       };
     });
@@ -721,9 +727,11 @@ export const migrateTeamMessageToEncrypted = mutation({
     }
 
     // Update message with encrypted text
+    // Migration uses asymmetric encryption (new default)
     await ctx.db.patch(messageId, {
       text: encryptedText,
       encrypted: true,
+      encryptionVersion: "asymmetric",
     });
 
     return { success: true };
@@ -868,6 +876,72 @@ export const deleteTeam = mutation({
     // Delete the team
     await ctx.db.delete(teamId);
 
+    return { success: true };
+  },
+});
+
+/**
+ * Get a team's public key for encryption
+ */
+export const getTeamPublicKey = query({
+  args: {
+    teamId: v.id("teams"),
+  },
+  handler: async (ctx, { teamId }) => {
+    const currentUser = await getCurrentUser(ctx);
+    if (!currentUser) {
+      return null;
+    }
+
+    const team = await ctx.db.get(teamId);
+    if (!team) {
+      // Return null instead of throwing - team might not exist or user might not have access
+      return null;
+    }
+
+    // Verify user is part of the team
+    if (!team.teammates.includes(currentUser._id)) {
+      // User doesn't have access to this team
+      return null;
+    }
+
+    return team.teamPublicKey || null;
+  },
+});
+
+/**
+ * Set or update a team's public key
+ * Only team creator or admins can set the team public key
+ */
+export const setTeamPublicKey = mutation({
+  args: {
+    teamId: v.id("teams"),
+    publicKey: v.string(),
+  },
+  handler: async (ctx, { teamId, publicKey }) => {
+    const currentUser = await getCurrentUserOrThrow(ctx);
+    const team = await ctx.db.get(teamId);
+    
+    if (!team) {
+      throw new Error("Team not found");
+    }
+    
+    // Only creator can set team public key
+    if (team.createdBy !== currentUser._id) {
+      throw new Error("Only team creator can set the team public key");
+    }
+    
+    // Validate that publicKey is a valid JWK string
+    try {
+      JSON.parse(publicKey);
+    } catch {
+      throw new Error("Invalid public key format. Expected JWK JSON string.");
+    }
+    
+    await ctx.db.patch(teamId, {
+      teamPublicKey: publicKey,
+    });
+    
     return { success: true };
   },
 });

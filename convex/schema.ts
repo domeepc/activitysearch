@@ -17,6 +17,7 @@ export default defineSchema({
     blocked: v.optional(v.array(v.id("users"))),
     role: v.optional(v.string()),
     lastActive: v.optional(v.number()),
+    publicKey: v.optional(v.string()),
   })
     .index("byExternalId", ["externalId"])
     .index("byUsername", ["username"])
@@ -44,6 +45,7 @@ export default defineSchema({
     createdBy: v.id("users"),
     slug: v.string(),
     icon: v.optional(v.string()),
+    teamPublicKey: v.optional(v.string()),
   }).index("bySlug", ["slug"]),
   payments: defineTable({
     userId: v.id("users"),
@@ -122,6 +124,7 @@ export default defineSchema({
     receiverId: v.id("users"),
     readBy: v.optional(v.array(v.id("users"))),
     encrypted: v.optional(v.boolean()),
+    encryptionVersion: v.optional(v.union(v.literal("symmetric"), v.literal("asymmetric"))),
   })
     .index("byConversation", ["senderId", "receiverId"])
     .index("byReceiver", ["receiverId"]),
@@ -131,6 +134,7 @@ export default defineSchema({
     teamId: v.id("teams"),
     readBy: v.optional(v.array(v.id("users"))),
     encrypted: v.optional(v.boolean()),
+    encryptionVersion: v.optional(v.union(v.literal("symmetric"), v.literal("asymmetric"))),
     messageType: v.optional(
       v.union(v.literal("text"), v.literal("reservation_card"))
     ),

@@ -60,6 +60,7 @@ interface ProfileViewProps {
     slug: string;
     avatar: string;
   }>;
+  hasBlockedYou?: boolean;
 }
 
 export function ProfileView({
@@ -73,6 +74,7 @@ export function ProfileView({
   onUnblock,
   onDeleteAccount,
   blockedUsers,
+  hasBlockedYou = false,
 }: ProfileViewProps) {
   const { user: clerkUser } = useUser();
 
@@ -115,6 +117,7 @@ export function ProfileView({
         username={user.username}
         isFriend={isFriend || false}
         isBlocked={isBlocked}
+        hasBlockedYou={hasBlockedYou}
         onAddFriend={onAddFriend}
         onRemoveFriend={onRemoveFriend}
         onBlock={onBlock}
@@ -129,6 +132,15 @@ export function ProfileView({
             <Badge variant="destructive" className="text-sm py-2 px-4">
               <Ban className="h-4 w-4 mr-2" />
               This user is blocked
+            </Badge>
+          </div>
+        )}
+        {/* Has Blocked You Badge */}
+        {hasBlockedYou && !isOwnProfile && (
+          <div className="flex justify-center">
+            <Badge variant="destructive" className="text-sm py-2 px-4">
+              <Ban className="h-4 w-4 mr-2" />
+              This user has blocked you
             </Badge>
           </div>
         )}

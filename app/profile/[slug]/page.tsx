@@ -29,7 +29,7 @@ export default function ProfilePage({
   const unblockUser = useMutation(api.users.unblockUser);
   const friends = useQuery(
     api.users.getUsersByIds,
-    user?.friends && user.friends.length > 0
+    currentUser && user?.friends && user.friends.length > 0
       ? { userIds: user.friends }
       : "skip"
   );
@@ -132,6 +132,9 @@ export default function ProfilePage({
     return null; // useEffect will handle redirect
   }
 
+  // Check if the user has blocked the current user
+  const hasBlockedYou = user.blocked?.includes(currentUser._id) ?? false;
+
   return (
     <div className="container mx-auto p-4 md:p-6 max-w-4xl">
       <ProfileView
@@ -143,6 +146,7 @@ export default function ProfilePage({
         onRemoveFriend={() => setShowRemoveDialog(true)}
         onBlock={() => setShowBlockDialog(true)}
         onUnblock={handleUnblock}
+        hasBlockedYou={hasBlockedYou}
         blockedUsers={blockedUsers?.map((u) => ({
           _id: u._id,
           name: u.name,

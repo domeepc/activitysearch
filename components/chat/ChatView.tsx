@@ -24,6 +24,7 @@ interface ChatViewProps {
     senderAvatar?: string;
     status?: "sent" | "delivered" | "read";
     encrypted?: boolean;
+    encryptionVersion?: "symmetric" | "asymmetric";
     messageType?: "text" | "reservation_card";
     reservationCardData?: {
       reservationId: Id<"reservations">;
@@ -93,6 +94,7 @@ export function ChatView({
       senderAvatar?: string;
       status?: "sent" | "delivered" | "read";
       decryptionError?: boolean;
+      encryptionVersion?: "symmetric" | "asymmetric";
       messageType?: "text" | "reservation_card";
       reservationCardData?: {
         reservationId: Id<"reservations">;
@@ -127,14 +129,26 @@ export function ChatView({
 
           if (msg.encrypted && isEncryptionAvailable) {
             try {
-              const decryptedText = await decryptMessage(msg.text, true);
+              // Use encryptionVersion from message, default to symmetric for backward compatibility
+              const encryptionVersion = msg.encryptionVersion || "symmetric";
+              const decryptedText = await decryptMessage(msg.text, true, encryptionVersion);
               return {
                 ...msg,
                 text: decryptedText,
                 decryptionError: false,
+                encryptionVersion,
               };
             } catch (error) {
-              console.error("Failed to decrypt message:", error);
+              // Log as warning since we're handling it gracefully in the UI
+              // Only log detailed info in development
+              if (process.env.NODE_ENV === "development") {
+                console.warn("Failed to decrypt message (handled gracefully):", {
+                  messageId: msg._id,
+                  error: error instanceof Error ? error.message : "Unknown error",
+                  isFromCurrentUser: msg.isFromCurrentUser,
+                  encryptionVersion: msg.encryptionVersion,
+                });
+              }
               return {
                 ...msg,
                 text: "Unable to decrypt this message",
@@ -255,9 +269,12 @@ export function ChatView({
       const messageText = text;
       let encryptedText: string | undefined;
 
+      let encryptionVersion: "symmetric" | "asymmetric" | undefined = undefined;
       if (isEncryptionAvailable && isEncryptionReady) {
         try {
-          encryptedText = await encryptMessage(text);
+          // Use asymmetric encryption by default
+          encryptedText = await encryptMessage(text, "asymmetric");
+          encryptionVersion = "asymmetric";
         } catch (error) {
           console.error("Failed to encrypt message:", error);
           // Fallback to unencrypted if encryption fails
@@ -267,12 +284,12 @@ export function ChatView({
       if (type === "individual" && individualUserId) {
         await sendMessage({
           receiverId: individualUserId,
-          ...(encryptedText ? { encryptedText } : { text: messageText }),
+          ...(encryptedText ? { encryptedText, encryptionVersion } : { text: messageText }),
         });
       } else if (type === "team" && teamId) {
         await sendTeamMessage({
           teamId,
-          ...(encryptedText ? { encryptedText } : { text: messageText }),
+          ...(encryptedText ? { encryptedText, encryptionVersion } : { text: messageText }),
         });
       }
       // Update presence when message is sent
@@ -292,7 +309,7 @@ export function ChatView({
       : teamName || "Team Chat";
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden relative">
       <ChatHeader
         displayName={displayName}
         username={type === "individual" ? otherUser?.username : undefined}
@@ -302,6 +319,7 @@ export function ChatView({
       />
 
       {/* Messages - Scrollable */}
+      
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 min-h-0 bg-gray-200 relative">
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -334,18 +352,16 @@ export function ChatView({
 
       </div>
 
-      {isEncryptionAvailable && (
-        <div className="sticky w-max bottom-0 left-1/2 transform -translate-x-1/2 -translate-y-full cursor-default select-none flex items-center gap-1.5 text-xs text-muted-foreground/60 bg-background/80 px-2 py-1 rounded-full backdrop-blur-sm mb-1">
-          <Lock className="h-3 w-3" />
-          <span>End-to-end encrypted</span>
-        </div>
-      )}
-
 
       {/* Message Input Section with E2E Encryption Badge */}
       <div className="relative shrink-0">
 
-
+      {isEncryptionAvailable && (
+        <div className="absolute -top-1/2 left-1/2 transform -translate-x-1/2 cursor-default select-none flex items-center gap-1.5 text-xs text-muted-foreground/60 bg-background/80 px-2 py-1 rounded-full backdrop-blur-sm">
+          <Lock className="h-3 w-3" />
+          <span>End-to-end encrypted</span>
+        </div>
+      )}
         <ChatInput onSend={handleSend} />
       </div>
     </div>

@@ -258,7 +258,8 @@ export const getUsersByIds = query({
       return [];
     }
 
-    const currentUser = await getCurrentUserOrThrow(ctx);
+    const currentUser = await getCurrentUser(ctx);
+    if (!currentUser) return [];
     const blocked = currentUser.blocked || [];
 
     // Filter out blocked users before fetching
@@ -304,7 +305,8 @@ export const unblockUser = mutation({
       throw new Error("User is not blocked");
     }
 
-    // Remove from blocked list
+    // Remove userId from the unblocker's blocked list only. Do NOT modify the
+    // other account's blocked list: if they had blocked you, that stays.
     await ctx.db.patch(currentUser._id, {
       blocked: blocked.filter((id) => id !== userId),
     });
@@ -347,6 +349,7 @@ export const searchUsers = query({
         slug: user.slug,
         avatar: user.avatar,
         isBlocked: blocked.includes(user._id),
+        hasBlockedYou: user.blocked?.includes(currentUser._id) ?? false,
       }));
   },
 });
@@ -872,5 +875,54 @@ export const deleteAccount = action({
     }
 
     // Delete from local database will be handled by the deleteFromClerk webhook
+  },
+});
+
+/**
+ * Get a user's public key for encryption
+ */
+export const getUserPublicKey = query({
+  args: {
+    userId: v.id("users"),
+  },
+  handler: async (ctx, { userId }) => {
+    const currentUser = await getCurrentUser(ctx);
+    if (!currentUser) {
+      return null;
+    }
+
+    const user = await ctx.db.get(userId);
+    if (!user) {
+      // Return null instead of throwing - user might not exist
+      return null;
+    }
+
+    // Public keys are public information, so any authenticated user can access them
+    return user.publicKey || null;
+  },
+});
+
+/**
+ * Set or update a user's public key
+ */
+export const setUserPublicKey = mutation({
+  args: {
+    publicKey: v.string(),
+  },
+  handler: async (ctx, { publicKey }) => {
+    const user = await getCurrentUserOrThrow(ctx);
+    
+    // Validate that publicKey is a valid JWK string
+    try {
+      JSON.parse(publicKey);
+    } catch {
+      throw new Error("Invalid public key format. Expected JWK JSON string.");
+    }
+    
+    await ctx.db.patch(user._id, {
+      publicKey,
+    });
+    
+    return { success: true };
   },
 });

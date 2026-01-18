@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { EncryptionService } from "@/lib/encryption";
 import { Id } from "@/convex/_generated/dataModel";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 interface UseEncryptionOptions {
   otherUserId?: Id<"users">;
@@ -10,18 +12,16 @@ interface UseEncryptionOptions {
 }
 
 interface UseEncryptionReturn {
-  encryptMessage: (text: string) => Promise<string>;
-  decryptMessage: (encryptedText: string, isEncrypted: boolean) => Promise<string>;
+  encryptMessage: (text: string, encryptionVersion?: "symmetric" | "asymmetric") => Promise<string>;
+  decryptMessage: (encryptedText: string, isEncrypted: boolean, encryptionVersion?: "symmetric" | "asymmetric") => Promise<string>;
   isEncryptionReady: boolean;
   isEncryptionAvailable: boolean;
   encryptionError: string | null;
 }
 
 /**
- * Hook for managing end-to-end encryption in chat components
- * 
- * @param options - Either otherUserId (for individual chats) or teamId (for team chats)
- * @returns Encryption functions and state
+ * Hook for managing end-to-end encryption in chat components (LEGACY)
+ * @deprecated Use useEncryptionWithUser instead
  */
 export function useEncryption({
   otherUserId,
@@ -32,7 +32,7 @@ export function useEncryption({
   const [conversationKey, setConversationKey] = useState<CryptoKey | null>(null);
   const isEncryptionAvailable = EncryptionService.isEncryptionAvailable();
 
-  // Initialize encryption key
+  // Initialize encryption key (legacy symmetric)
   useEffect(() => {
     let cancelled = false;
 
@@ -48,17 +48,11 @@ export function useEncryption({
         let key: CryptoKey;
 
         if (teamId) {
-          // Team chat encryption
-          key = await EncryptionService.getOrCreateTeamKey(teamId);
+          key = await EncryptionService.getOrCreateTeamKey(String(teamId));
         } else if (otherUserId) {
-          // Individual chat encryption - we need current user ID
-          // For now, we'll get it from the key name pattern
-          // The key will be created/retrieved when we have both user IDs
-          // We'll need to get current user ID from context or props
-          // For now, we'll initialize with a placeholder and update when we have current user
           key = await EncryptionService.getOrCreateConversationKey(
-            "current_user", // This will be replaced with actual user ID
-            otherUserId
+            "current_user",
+            String(otherUserId)
           );
         } else {
           setIsEncryptionReady(false);
@@ -86,9 +80,6 @@ export function useEncryption({
     };
   }, [otherUserId, teamId, isEncryptionAvailable]);
 
-  /**
-   * Encrypt a message before sending
-   */
   const encryptMessage = useCallback(
     async (text: string): Promise<string> => {
       if (!isEncryptionAvailable) {
@@ -110,12 +101,8 @@ export function useEncryption({
     [conversationKey, isEncryptionAvailable]
   );
 
-  /**
-   * Decrypt a message after receiving
-   */
   const decryptMessage = useCallback(
     async (encryptedText: string, isEncrypted: boolean): Promise<string> => {
-      // If message is not encrypted, return as-is
       if (!isEncrypted) {
         return encryptedText;
       }
@@ -150,7 +137,7 @@ export function useEncryption({
 
 /**
  * Hook variant that accepts current user ID for individual chats
- * This is needed because we need both user IDs to generate the correct key
+ * Uses asymmetric ECDH encryption with public/private key pairs
  */
 export function useEncryptionWithUser({
   currentUserId,
@@ -163,53 +150,140 @@ export function useEncryptionWithUser({
 }): UseEncryptionReturn {
   const [isEncryptionReady, setIsEncryptionReady] = useState(false);
   const [encryptionError, setEncryptionError] = useState<string | null>(null);
-  const [conversationKey, setConversationKey] = useState<CryptoKey | null>(null);
+  const [userKeyPair, setUserKeyPair] = useState<CryptoKeyPair | null>(null);
+  const [receiverPublicKey, setReceiverPublicKey] = useState<CryptoKey | null>(null);
+  const [teamPublicKey, setTeamPublicKey] = useState<CryptoKey | null>(null);
   const isEncryptionAvailable = EncryptionService.isEncryptionAvailable();
 
-  // Initialize encryption key
+  // Fetch receiver's public key from database
+  const receiverPublicKeyJWK = useQuery(
+    api.users.getUserPublicKey,
+    otherUserId ? { userId: otherUserId } : "skip"
+  );
+
+  // Fetch team's public key from database
+  const teamPublicKeyJWK = useQuery(
+    api.teams.getTeamPublicKey,
+    teamId ? { teamId } : "skip"
+  );
+
+  // Mutation to set user's public key
+  const setUserPublicKeyMutation = useMutation(api.users.setUserPublicKey);
+
+  // Mutation to set team's public key
+  const setTeamPublicKeyMutation = useMutation(api.teams.setTeamPublicKey);
+
+  // Initialize user's private key pair and fetch receiver's public key
   useEffect(() => {
     let cancelled = false;
 
-    const initializeKey = async () => {
+    const initializeEncryption = async () => {
       if (!isEncryptionAvailable) {
         setIsEncryptionReady(false);
         setEncryptionError("Encryption is not available in this browser");
         return;
       }
 
+      if (!currentUserId) {
+        setIsEncryptionReady(false);
+        return;
+      }
+
       try {
         setEncryptionError(null);
-        let key: CryptoKey;
 
-        if (teamId) {
-          // Team chat encryption
-          // Convert Convex ID to string explicitly to ensure consistent key derivation
-          key = await EncryptionService.getOrCreateTeamKey(String(teamId));
-        } else if (otherUserId && currentUserId) {
-          // Individual chat encryption
-          // Convert Convex IDs to strings explicitly to ensure consistent key derivation
-          // This ensures the same key is generated on all devices for the same conversation
-          const currentUserIdStr = String(currentUserId);
-          const otherUserIdStr = String(otherUserId);
-          
-          if (!currentUserIdStr || !otherUserIdStr) {
-            setIsEncryptionReady(false);
-            setEncryptionError("User IDs are required for encryption");
-            return;
-          }
-          
-          key = await EncryptionService.getOrCreateConversationKey(
-            currentUserIdStr,
-            otherUserIdStr
-          );
-        } else {
-          setIsEncryptionReady(false);
-          return;
+        // Generate or load user's private key pair
+        const keyPair = await EncryptionService.getOrCreateUserKeyPair(String(currentUserId));
+        
+        // Export and upload public key to database if not already there
+        const publicKeyJWK = await EncryptionService.exportPublicKeyAsJWK(keyPair);
+        
+        // Upload public key (this is idempotent - won't fail if already exists)
+        try {
+          await setUserPublicKeyMutation({ publicKey: publicKeyJWK });
+        } catch (error) {
+          // Ignore errors if key already exists or user doesn't have permission
+          console.warn("Failed to upload public key:", error);
         }
 
         if (!cancelled) {
-          setConversationKey(key);
-          setIsEncryptionReady(true);
+          setUserKeyPair(keyPair);
+        }
+
+        // For individual chats: fetch receiver's public key
+        if (otherUserId && !teamId) {
+          if (receiverPublicKeyJWK) {
+            try {
+              const receiverKey = await EncryptionService.importPublicKeyFromJWK(receiverPublicKeyJWK);
+              if (!cancelled) {
+                setReceiverPublicKey(receiverKey);
+                setIsEncryptionReady(true);
+              }
+            } catch (error) {
+              if (!cancelled) {
+                setEncryptionError(
+                  `Failed to import receiver's public key: ${error instanceof Error ? error.message : "Unknown error"}`
+                );
+                setIsEncryptionReady(false);
+              }
+            }
+          } else if (receiverPublicKeyJWK === null) {
+            // Receiver doesn't have a public key yet
+            if (!cancelled) {
+              setEncryptionError("Receiver's public key not available. They may need to enable encryption.");
+              setIsEncryptionReady(false);
+            }
+          }
+        }
+
+        // For team chats: fetch team's public key or generate it
+        if (teamId) {
+          if (teamPublicKeyJWK) {
+            try {
+              const teamKey = await EncryptionService.importPublicKeyFromJWK(teamPublicKeyJWK);
+              if (!cancelled) {
+                setTeamPublicKey(teamKey);
+                setIsEncryptionReady(true);
+              }
+            } catch (error) {
+              if (!cancelled) {
+                setEncryptionError(
+                  `Failed to import team's public key: ${error instanceof Error ? error.message : "Unknown error"}`
+                );
+                setIsEncryptionReady(false);
+              }
+            }
+          } else if (teamPublicKeyJWK === null) {
+            // Team doesn't have a public key yet - generate one
+            try {
+              const teamKeyPair = await EncryptionService.getOrCreateTeamKeyPair(String(teamId));
+              const teamPublicKeyJWK = await EncryptionService.exportPublicKeyAsJWK(teamKeyPair);
+              
+              // Upload team public key
+              try {
+                await setTeamPublicKeyMutation({ teamId, publicKey: teamPublicKeyJWK });
+                const teamKey = await EncryptionService.importPublicKeyFromJWK(teamPublicKeyJWK);
+                if (!cancelled) {
+                  setTeamPublicKey(teamKey);
+                  setIsEncryptionReady(true);
+                }
+              } catch (error) {
+                console.warn("Failed to upload team public key:", error);
+                // Still use the key locally
+                if (!cancelled) {
+                  setTeamPublicKey(teamKeyPair.publicKey);
+                  setIsEncryptionReady(true);
+                }
+              }
+            } catch (error) {
+              if (!cancelled) {
+                setEncryptionError(
+                  `Failed to generate team key pair: ${error instanceof Error ? error.message : "Unknown error"}`
+                );
+                setIsEncryptionReady(false);
+              }
+            }
+          }
         }
       } catch (error) {
         if (!cancelled) {
@@ -221,42 +295,74 @@ export function useEncryptionWithUser({
       }
     };
 
-    initializeKey();
+    initializeEncryption();
 
     return () => {
       cancelled = true;
     };
-  }, [currentUserId, otherUserId, teamId, isEncryptionAvailable]);
+  }, [
+    currentUserId,
+    otherUserId,
+    teamId,
+    isEncryptionAvailable,
+    receiverPublicKeyJWK,
+    teamPublicKeyJWK,
+    setUserPublicKeyMutation,
+    setTeamPublicKeyMutation,
+  ]);
 
   /**
    * Encrypt a message before sending
+   * Uses asymmetric encryption with receiver's public key
    */
   const encryptMessage = useCallback(
-    async (text: string): Promise<string> => {
+    async (text: string, encryptionVersion: "symmetric" | "asymmetric" = "asymmetric"): Promise<string> => {
       if (!isEncryptionAvailable) {
         throw new Error("Encryption is not available");
       }
 
-      if (!conversationKey) {
-        throw new Error("Encryption key not ready");
+      // Use legacy symmetric encryption if requested (for backward compatibility)
+      if (encryptionVersion === "symmetric") {
+        if (!currentUserId || (!otherUserId && !teamId)) {
+          throw new Error("User IDs required for symmetric encryption");
+        }
+        const key = teamId
+          ? await EncryptionService.getOrCreateTeamKey(String(teamId))
+          : await EncryptionService.getOrCreateConversationKey(String(currentUserId), String(otherUserId!));
+        return await EncryptionService.encryptMessage(text, key);
+      }
+
+      // Asymmetric encryption
+      if (!userKeyPair) {
+        throw new Error("Encryption key pair not ready");
+      }
+
+      const publicKey = teamId ? teamPublicKey : receiverPublicKey;
+      if (!publicKey) {
+        throw new Error("Receiver's public key not available");
       }
 
       try {
-        return await EncryptionService.encryptMessage(text, conversationKey);
+        return await EncryptionService.encryptMessageAsymmetric(text, publicKey);
       } catch (error) {
         throw new Error(
           `Encryption failed: ${error instanceof Error ? error.message : "Unknown error"}`
         );
       }
     },
-    [conversationKey, isEncryptionAvailable]
+    [userKeyPair, receiverPublicKey, teamPublicKey, isEncryptionAvailable, currentUserId, otherUserId, teamId]
   );
 
   /**
    * Decrypt a message after receiving
+   * Uses asymmetric decryption with user's private key
    */
   const decryptMessage = useCallback(
-    async (encryptedText: string, isEncrypted: boolean): Promise<string> => {
+    async (
+      encryptedText: string,
+      isEncrypted: boolean,
+      encryptionVersion: "symmetric" | "asymmetric" = "asymmetric"
+    ): Promise<string> => {
       // If message is not encrypted, return as-is
       if (!isEncrypted) {
         return encryptedText;
@@ -266,19 +372,43 @@ export function useEncryptionWithUser({
         throw new Error("Encryption is not available - cannot decrypt message");
       }
 
-      if (!conversationKey) {
-        throw new Error("Encryption key not ready - cannot decrypt message");
+      // Use legacy symmetric decryption if requested (for backward compatibility)
+      if (encryptionVersion === "symmetric") {
+        if (!currentUserId || (!otherUserId && !teamId)) {
+          throw new Error("Cannot decrypt: Missing user IDs");
+        }
+        const key = teamId
+          ? await EncryptionService.getOrCreateTeamKey(String(teamId))
+          : await EncryptionService.getOrCreateConversationKey(String(currentUserId), String(otherUserId!));
+        return await EncryptionService.decryptMessage(encryptedText, key);
+      }
+
+      // Asymmetric decryption
+      if (!userKeyPair) {
+        throw new Error("Encryption key pair not ready - cannot decrypt message");
       }
 
       try {
-        return await EncryptionService.decryptMessage(encryptedText, conversationKey);
+        return await EncryptionService.decryptMessageAsymmetric(encryptedText, userKeyPair.privateKey);
       } catch (error) {
+        // Try legacy symmetric decryption as fallback
+        try {
+          if (currentUserId && (otherUserId || teamId)) {
+            const key = teamId
+              ? await EncryptionService.getOrCreateTeamKey(String(teamId))
+              : await EncryptionService.getOrCreateConversationKey(String(currentUserId), String(otherUserId!));
+            return await EncryptionService.decryptMessage(encryptedText, key);
+          }
+        } catch (fallbackError) {
+          // Both failed
+        }
+
         throw new Error(
           `Decryption failed: ${error instanceof Error ? error.message : "Unknown error"}`
         );
       }
     },
-    [conversationKey, isEncryptionAvailable]
+    [userKeyPair, isEncryptionAvailable, currentUserId, otherUserId, teamId]
   );
 
   return {

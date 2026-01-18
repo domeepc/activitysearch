@@ -8,8 +8,9 @@ export const sendMessage = mutation({
     receiverId: v.id("users"),
     text: v.optional(v.string()),
     encryptedText: v.optional(v.string()),
+    encryptionVersion: v.optional(v.union(v.literal("symmetric"), v.literal("asymmetric"))),
   },
-  handler: async (ctx, { receiverId, text, encryptedText }) => {
+  handler: async (ctx, { receiverId, text, encryptedText, encryptionVersion }) => {
     const sender = await getCurrentUserOrThrow(ctx);
 
     if (sender._id === receiverId) {
@@ -70,6 +71,7 @@ export const sendMessage = mutation({
       receiverId,
       text: messageText.trim(),
       encrypted: isEncrypted ? true : undefined,
+      encryptionVersion: isEncrypted && encryptionVersion ? encryptionVersion : undefined,
     });
 
     return { success: true, conversationId };
@@ -291,6 +293,7 @@ export const getMessages = query({
           readBy: msg.readBy || [],
           status,
           encrypted: msg.encrypted || false,
+          encryptionVersion: msg.encryptionVersion || (msg.encrypted ? "symmetric" : undefined),
         };
       }),
       otherUser: {
@@ -339,7 +342,8 @@ export const getMessagesByConversationId = query({
     conversationId: v.id("conversations"),
   },
   handler: async (ctx, { conversationId }) => {
-    const currentUser = await getCurrentUserOrThrow(ctx);
+    const currentUser = await getCurrentUser(ctx);
+    if (!currentUser) return null;
 
     // Get conversation by ID
     const conversation = await ctx.db.get(conversationId);
@@ -425,6 +429,7 @@ export const getMessagesByConversationId = query({
           readBy: msg.readBy || [],
           status,
           encrypted: msg.encrypted || false,
+          encryptionVersion: msg.encryptionVersion || (msg.encrypted ? "symmetric" : undefined),
         };
       }),
       otherUser: {
@@ -546,9 +551,11 @@ export const migrateMessageToEncrypted = mutation({
     }
 
     // Update message with encrypted text
+    // Migration uses asymmetric encryption (new default)
     await ctx.db.patch(messageId, {
       text: encryptedText,
       encrypted: true,
+      encryptionVersion: "asymmetric",
     });
 
     return { success: true };
