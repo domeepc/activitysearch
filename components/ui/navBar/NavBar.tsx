@@ -10,8 +10,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import {
-  Home,
-  HomeIcon,
   LogOut,
   MessageSquare,
   User,
@@ -20,6 +18,7 @@ import {
 } from "lucide-react";
 
 import Link from "next/link";
+import Image from "next/image";
 
 import "./style.css";
 import { AvatarImage, Avatar } from "@/components/ui/avatar";
@@ -40,36 +39,40 @@ export default function Navbar() {
 
   return (
     <nav>
-      <h1>NavBar</h1>
+      <Link href="/" className="logo-link">
+        <Image
+          src="/full-logo.svg"
+          alt="ActivitySearch"
+          width={200}
+          height={50}
+          className="hidden md:block logo-desktop"
+          priority
+        />
+        <Image
+          src="/mobile-logo.svg"
+          alt="ActivitySearch"
+          width={50}
+          height={50}
+          className="block md:hidden logo-mobile"
+          priority
+        />
+      </Link>
 
       <Authenticated>
-        <ul className="md:flex hidden">
-          <li>
-            <Link href="/">
-              <Home className="icon" /> Home
-            </Link>
-          </li>
-          <li>
-            <Link href="/chat">
-              <span className="relative inline-block">
-                <MessageSquare className="icon" />
-                {unreadMessageCount > 0 && (
-                  <Badge
-                    variant="destructive"
-                    className="absolute -top-1 -right-1 h-4 w-max aspect-square rounded-full p-1.5 flex items-center justify-center text-xs leading-none"
-                  >
-                    {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
-                  </Badge>
-                )}
-              </span>
-              Chat
-            </Link>
-          </li>
-        </ul>
-
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-center gap-4">
+          <Link href="/chat" className="relative inline-block">
+            <MessageSquare className="icon" />
+            {unreadMessageCount > 0 && (
+              <Badge
+                variant="destructive"
+                className="absolute -top-1 -right-1 h-4 w-max aspect-square rounded-full p-1.5 flex items-center justify-center text-xs leading-none"
+              >
+                {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
+              </Badge>
+            )}
+          </Link>
           {isOrganiser && (
-            <Link href="/reservations">
+            <Link className="flex items-center justify-center" href="/reservations">
               <span className="relative inline-block">
                 <Inbox className="icon" />
                 {unreadReservationCount > 0 && (
@@ -115,11 +118,6 @@ export default function Navbar() {
 
               <DropdownMenuGroup className="block md:hidden">
                 <DropdownMenuSeparator />
-                <Link href="/">
-                  <DropdownMenuItem>
-                    <HomeIcon className="icon" /> Home
-                  </DropdownMenuItem>
-                </Link>
                 <Link href="/chat">
                   <DropdownMenuItem className="relative">
                     <MessageSquare className="icon" /> Chat

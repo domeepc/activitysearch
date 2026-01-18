@@ -26,6 +26,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'ActivitySearch - Discover and Book Activities',
   description: 'Find and book activities, connect with organisers, and manage your reservations all in one place.',
+  icons: {
+    icon: '/adress-bar-logo.svg',
+    shortcut: '/adress-bar-logo.svg',
+    apple: '/adress-bar-logo.svg',
+  },
 };
 
 export default function RootLayout({

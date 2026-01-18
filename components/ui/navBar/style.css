@@ -7,12 +7,37 @@ nav {
   padding: 1rem 2rem;
 }
 
-nav > ul {
+.logo-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.logo-link:hover {
+  opacity: 0.8;
+}
+
+.logo-desktop,
+.logo-mobile {
+  height: auto;
+  object-fit: contain;
+}
+
+.logo-desktop {
+  max-height: 3rem;
+}
+
+.logo-mobile {
+  max-height: 2.5rem;
+}
+
+nav>ul {
   gap: 1.5rem;
   list-style: none;
 }
 
-nav > ul > li > * {
+nav>ul>li>* {
   display: flex;
   color: #000;
   align-items: center;
@@ -36,15 +61,16 @@ nav > ul > li > * {
   border-radius: 0.375rem;
   cursor: pointer;
 }
+
 .profile_menu {
-  width: 10rem;
+  width: 12rem;
 }
 
-.profile_menu > * {
+.profile_menu>* {
   font-size: 1rem;
 }
 
-.sign_out > * {
+.sign_out>* {
   font-weight: 500;
 }
 
