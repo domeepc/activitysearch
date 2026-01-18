@@ -28,7 +28,6 @@ import {
 } from "@/components/activities/ActivityFormSections";
 import { validateActivityField } from "@/lib/validation";
 import { geocodeAddress } from "@/lib/geocoding";
-import { Stepper } from "@/components/ui/stepper";
 
 export default function DialogAddActivity({
   showDialog,
@@ -44,13 +43,6 @@ export default function DialogAddActivity({
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string[]>([]);
   const [imageError, setImageError] = useState<string>("");
-  const [currentStep, setCurrentStep] = useState(1);
-
-  const steps = [
-    { label: "Basic Info" },
-    { label: "Details" },
-    { label: "Finalize" },
-  ];
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -182,7 +174,6 @@ export default function DialogAddActivity({
     setIsSubmitting(false);
     setIsGeocoding(false);
     setSelectedDifficulty([]);
-    setCurrentStep(1);
   }, []);
 
   // Handle dialog open change
@@ -319,70 +310,52 @@ export default function DialogAddActivity({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4">
-          <Stepper steps={steps} currentStep={currentStep} className="mb-6" />
-          
-          <div className="grid gap-6">
-            {currentStep === 1 && (
-              <>
-                <BasicInformationSection
-                  formData={formData}
-                  errors={errors}
-                  onFieldChange={updateField}
-                  onFieldBlur={(field, value) => {
-                    const error = validateActivityField(field, value);
-                    setErrors((prev) => ({ ...prev, [field]: error }));
-                  }}
-                />
-                <LocationSection
-                  formData={formData}
-                  errors={errors}
-                  onAddressChange={handleAddressChange}
-                  onAddressSelect={handleAddressSelect}
-                />
-              </>
-            )}
-            
-            {currentStep === 2 && (
-              <>
-                <ActivityDetailsSection
-                  formData={formData}
-                  errors={errors}
-                  selectedDifficulty={selectedDifficulty}
-                  onFieldChange={updateField}
-                  onFieldBlur={(field, value) => {
-                    const error = validateActivityField(field, value);
-                    setErrors((prev) => ({ ...prev, [field]: error }));
-                  }}
-                  onDifficultyChange={handleDifficultyChange}
-                />
-                <TimeSlotsSection
-                  formData={formData}
-                  onFieldChange={updateField}
-                />
-              </>
-            )}
-            
-            {currentStep === 3 && (
-              <>
-                <TagsEquipmentSection
-                  formData={formData}
-                  errors={errors}
-                  onFieldChange={updateField}
-                  onFieldBlur={(field, value) => {
-                    const error = validateActivityField(field, value);
-                    setErrors((prev) => ({ ...prev, [field]: error }));
-                  }}
-                />
-                <ImagesSection
-                  formData={formData}
-                  onImageSelect={handleImageSelect}
-                  onRemoveImage={removeImage}
-                  error={imageError}
-                />
-              </>
-            )}
-          </div>
+        <div className="grid gap-6 py-4">
+          <BasicInformationSection
+            formData={formData}
+            errors={errors}
+            onFieldChange={updateField}
+            onFieldBlur={(field, value) => {
+              const error = validateActivityField(field, value);
+              setErrors((prev) => ({ ...prev, [field]: error }));
+            }}
+          />
+          <LocationSection
+            formData={formData}
+            errors={errors}
+            onAddressChange={handleAddressChange}
+            onAddressSelect={handleAddressSelect}
+          />
+          <ActivityDetailsSection
+            formData={formData}
+            errors={errors}
+            selectedDifficulty={selectedDifficulty}
+            onFieldChange={updateField}
+            onFieldBlur={(field, value) => {
+              const error = validateActivityField(field, value);
+              setErrors((prev) => ({ ...prev, [field]: error }));
+            }}
+            onDifficultyChange={handleDifficultyChange}
+          />
+          <TimeSlotsSection
+            formData={formData}
+            onFieldChange={updateField}
+          />
+          <TagsEquipmentSection
+            formData={formData}
+            errors={errors}
+            onFieldChange={updateField}
+            onFieldBlur={(field, value) => {
+              const error = validateActivityField(field, value);
+              setErrors((prev) => ({ ...prev, [field]: error }));
+            }}
+          />
+              <ImagesSection
+                formData={formData}
+                onImageSelect={handleImageSelect}
+                onRemoveImage={removeImage}
+                error={imageError}
+              />
         </div>
 
         <DialogFooter>
@@ -394,33 +367,13 @@ export default function DialogAddActivity({
           >
             Cancel
           </Button>
-          {currentStep > 1 && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setCurrentStep(currentStep - 1)}
-              disabled={isSubmitting}
-            >
-              Previous
-            </Button>
-          )}
-          {currentStep < 3 ? (
-            <Button
-              type="button"
-              onClick={() => setCurrentStep(currentStep + 1)}
-              disabled={isSubmitting}
-            >
-              Next
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              onClick={handleSubmit}
-              disabled={!isFormValid()}
-            >
-              {isSubmitting ? "Creating..." : "Create Activity"}
-            </Button>
-          )}
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!isFormValid()}
+          >
+            {isSubmitting ? "Creating..." : "Create Activity"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

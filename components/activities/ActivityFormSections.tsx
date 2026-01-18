@@ -5,14 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Upload,
-  X,
-  AlertCircle,
-  Image as ImageIcon,
-  Clock,
-  Plus,
-} from "lucide-react";
+import { Upload, X, AlertCircle, Image as ImageIcon, Clock, Plus } from "lucide-react";
 import {
   AddressAutocomplete,
   AddressCoordinates,
@@ -327,20 +320,12 @@ export function TimeSlotsSection({
   const formatTime = (minutes: number): string => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    return `${hours.toString().padStart(2, "0")}:${mins
-      .toString()
-      .padStart(2, "0")}`;
+    return `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`;
   };
 
   const handleAddTime = () => {
     const trimmedTime = timeInput.trim();
     setTimeError("");
-
-    // Check if duration is set first
-    if (!formData.duration || formData.duration.trim() === "") {
-      setTimeError("Please enter activity duration first");
-      return;
-    }
 
     if (!trimmedTime) {
       setTimeError("Please enter a time");
@@ -357,12 +342,10 @@ export function TimeSlotsSection({
       return;
     }
 
-    // Get duration in minutes
-    const durationMinutes = parseInt(formData.duration, 10);
-    if (isNaN(durationMinutes) || durationMinutes <= 0) {
-      setTimeError("Please enter a valid duration first");
-      return;
-    }
+    // Get duration in minutes (default to 0 if not set)
+    const durationMinutes = formData.duration
+      ? parseInt(formData.duration, 10)
+      : 0;
     const bufferMinutes = 10;
     const minInterval = durationMinutes + bufferMinutes;
 
@@ -384,9 +367,7 @@ export function TimeSlotsSection({
           );
         } else {
           setTimeError(
-            `Time must be at least ${minInterval} minutes (${durationMinutes}min activity + ${bufferMinutes}min buffer) after ${existingTime}. Next available: ${formatTime(
-              nextAvailableTime
-            )}`
+            `Time must be at least ${minInterval} minutes (${durationMinutes}min activity + ${bufferMinutes}min buffer) after ${existingTime}. Next available: ${formatTime(nextAvailableTime)}`
           );
         }
         return;
@@ -429,24 +410,15 @@ export function TimeSlotsSection({
     }
   };
 
-  const isDurationSet =
-    formData.duration &&
-    formData.duration.trim() !== "" &&
-    !isNaN(parseInt(formData.duration, 10)) &&
-    parseInt(formData.duration, 10) > 0;
-
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-semibold text-foreground">
         Available Time Slots
       </h3>
       <div className="space-y-2">
-        <Label htmlFor="timeSlot">Time Slots (HH:MM format)</Label>
-        {!isDurationSet && (
-          <p className="text-xs text-muted-foreground p-3 bg-muted rounded-md">
-            Please enter activity duration first before adding time slots.
-          </p>
-        )}
+        <Label htmlFor="timeSlot">
+          Time Slots (HH:MM format)
+        </Label>
         <div className="flex gap-2">
           <Input
             id="timeSlot"
@@ -456,17 +428,12 @@ export function TimeSlotsSection({
             onKeyPress={handleKeyPress}
             placeholder="09:00"
             className="flex-1"
-            disabled={!isDurationSet}
           />
           <Button
             type="button"
             variant="outline"
             onClick={handleAddTime}
-            disabled={
-              !isDurationSet ||
-              !timeInput.trim() ||
-              !validateTime(timeInput.trim())
-            }
+            disabled={!timeInput.trim() || !validateTime(timeInput.trim())}
           >
             <Plus className="h-4 w-4 mr-2" />
             Add
@@ -479,9 +446,7 @@ export function TimeSlotsSection({
           </p>
         )}
         <p className="text-xs text-muted-foreground">
-          Define the available time slots for reservations. Time slots must be
-          at least (activity duration + 10 minutes) apart. Max reservations per
-          day equals the number of time slots.
+          Define the available time slots for reservations. Time slots must be at least (activity duration + 10 minutes) apart. Max reservations per day equals the number of time slots.
         </p>
         {formData.availableTimeSlots.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-2">
