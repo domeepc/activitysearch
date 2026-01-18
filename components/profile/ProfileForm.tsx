@@ -38,7 +38,7 @@ export function ProfileForm({
     !!usernameError || !!errors.name || !!errors.lastname || hasEmailError;
 
   return (
-    <Card>
+    <Card className="border-border border-2 shadow-xl">
       <CardHeader>
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div>

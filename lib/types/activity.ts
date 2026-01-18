@@ -29,6 +29,7 @@ export interface ActivityFilterProps {
   selectedCategories: string[];
   onCategoryChange: (categories: string[]) => void;
   onActivitySelect: (activity: ActivityData) => void;
+  onClearSelection?: () => void;
 }
 
 export interface ActivityMappingOptions {

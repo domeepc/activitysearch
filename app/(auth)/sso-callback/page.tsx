@@ -44,23 +44,32 @@ export default function SSOCallback() {
     return "/";
   }, []);
 
+  // Get OAuth origin (sign-up or sign-in) from sessionStorage
+  // Don't remove it immediately - we'll remove it after handling
+  const getOAuthOrigin = React.useCallback(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("oauth_origin") || "sign-in"; // Default to sign-in for safety
+    }
+    return "sign-in";
+  }, []);
+  
+  // Remove OAuth origin after use
+  const clearOAuthOrigin = React.useCallback(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("oauth_origin");
+    }
+  }, []);
+
   React.useEffect(() => {
     if (!signUpLoaded || !signInLoaded) return;
 
     const handleCallback = async () => {
       try {
-        console.log("=== OAuth Callback Debug ===");
-        console.log("SignUp status:", signUp?.status);
-        console.log("SignIn status:", signIn?.status);
-        console.log(
-          "SignIn firstFactorVerification:",
-          signIn?.firstFactorVerification
-        );
-        console.log("SignUp missingFields:", signUp?.missingFields);
+        const oauthOrigin = getOAuthOrigin();
 
         // Priority 1: Check for completed sign-in (existing user)
         if (signIn?.status === "complete") {
-          console.log("✓ Sign in complete - existing user authenticated");
+          clearOAuthOrigin();
           await setActiveSignIn({ session: signIn.createdSessionId! });
           const returnUrl = getReturnUrl();
           router.push(returnUrl);
@@ -69,17 +78,51 @@ export default function SSOCallback() {
 
         // Priority 2: Check for completed sign-up (new user completed registration)
         if (signUp?.status === "complete") {
-          console.log("✓ Sign up complete - new user registered");
+          clearOAuthOrigin();
           await setActiveSignUp({ session: signUp.createdSessionId! });
           const returnUrl = getReturnUrl();
           router.push(returnUrl);
           return;
         }
 
-        // Priority 3: Sign-up needs additional info (username)
+        // Priority 3: Check if we have a sign-in object when coming from sign-up
+        // This indicates user already has an account (OAuth succeeded but account exists)
+        // If coming from sign-up flow and we have signIn, user already has account → redirect to homepage
+        // If coming from sign-in flow and signIn needs completion, handle accordingly
+        if (oauthOrigin === "sign-up" && signIn && !signUp) {
+          // User tried to sign up but Clerk created a sign-in instead
+          // This means the account already exists
+          clearOAuthOrigin();
+          const returnUrl = getReturnUrl();
+          router.push(returnUrl || "/");
+          return;
+        }
+        
+        // Priority 3b: Handle sign-in that needs completion (user doesn't have account)
+        // This would be when coming from sign-in flow but account doesn't exist
+        if (oauthOrigin === "sign-in" && signIn && signIn.firstFactorVerification && !signUp) {
+          // User tried to sign in but doesn't have account → prompt for username to create account
+          clearOAuthOrigin();
+          setIsSignIn(true);
+          setShowDialog(true);
+          return;
+        }
+
+        // Priority 4: Sign-up needs additional info (username)
+        // BUT: If this sign-up came from OAuth sign-up flow and we also have a signIn object,
+        // it means user already has account, so redirect to homepage instead
         if (signUp?.status === "missing_requirements") {
+          // Check if we also have a signIn object from sign-up flow
+          // This handles the case where Clerk creates both signUp and signIn objects
+          if (signIn && oauthOrigin === "sign-up") {
+            // User already has account, redirect to homepage
+            clearOAuthOrigin();
+            const returnUrl = getReturnUrl();
+            router.push(returnUrl || "/");
+            return;
+          }
+          
           const missingFields = signUp.missingFields || [];
-          console.log("⚠ Sign-up missing fields:", missingFields);
 
           if (missingFields.length > 0) {
             // Pre-fill username if available
@@ -89,26 +132,13 @@ export default function SSOCallback() {
             return;
           } else {
             // No missing fields, complete sign-up
-            console.log("✓ No missing fields, completing sign up");
+            clearOAuthOrigin();
             await setActiveSignUp({ session: signUp.createdSessionId! });
             const returnUrl = getReturnUrl();
             router.push(returnUrl);
             return;
           }
         }
-
-        // Priority 4: Transferable sign-in (new user from sign-in flow)
-        if (signIn?.firstFactorVerification?.status === "transferable") {
-          console.log(
-            "⚠ Transferable sign-in - new user needs account creation"
-          );
-          setIsSignIn(true);
-          setShowDialog(true);
-          return;
-        }
-
-        // Priority 5: Still processing - wait for Clerk
-        console.log("⏳ OAuth flow still processing...");
       } catch (err) {
         console.error("❌ OAuth callback error:", err);
         router.push("/sign-in");
@@ -119,6 +149,8 @@ export default function SSOCallback() {
   }, [
     signUpLoaded,
     signInLoaded,
+    signUp,
+    signIn,
     signUp?.status,
     signIn?.status,
     signIn?.firstFactorVerification?.status,
@@ -127,6 +159,8 @@ export default function SSOCallback() {
     setActiveSignIn,
     router,
     getReturnUrl,
+    getOAuthOrigin,
+    clearOAuthOrigin,
     signUp?.createdSessionId,
     signUp?.username,
     signIn?.firstFactorVerification,
@@ -146,11 +180,6 @@ export default function SSOCallback() {
 
     try {
       if (isSignIn && signIn) {
-        console.log(
-          "Completing OAuth sign-in, creating account with username:",
-          username
-        );
-
         // Create a new sign-up with the transferable OAuth data
         try {
           const newSignUp = await signUp!.create({
@@ -158,20 +187,15 @@ export default function SSOCallback() {
             transfer: true,
           });
 
-          console.log("SignUp creation result:", newSignUp);
-
           if (newSignUp.status === "complete") {
-            console.log("Account created successfully, setting active session");
             if (setActiveSignUp) {
               await setActiveSignUp({ session: newSignUp.createdSessionId! });
             }
             const returnUrl = getReturnUrl();
             router.push(returnUrl);
           } else if (newSignUp.status === "missing_requirements") {
-            console.log("Still missing requirements:", newSignUp.missingFields);
             setError(`Please provide: ${newSignUp.missingFields?.join(", ")}`);
           } else {
-            console.log("Unexpected status:", newSignUp.status);
             setError("Unable to complete account setup. Please try again.");
           }
         } catch (createError: unknown) {
@@ -186,26 +210,18 @@ export default function SSOCallback() {
           setError(errorMessage);
         }
       } else if (signUp) {
-        console.log("Updating sign up with username:", username);
-
         // Update the sign up with the username
         const result = await signUp.update({
           username: username,
         });
 
-        console.log("Update result:", result);
-        console.log("SignUp status after update:", result.status);
-
         if (result.status === "complete") {
-          console.log("Sign up complete, setting active session");
           await setActiveSignUp({ session: result.createdSessionId! });
           const returnUrl = getReturnUrl();
           router.push(returnUrl);
         } else if (result.status === "missing_requirements") {
-          console.log("Still missing requirements:", result.missingFields);
           setError(`Still missing: ${result.missingFields?.join(", ")}`);
         } else {
-          console.log("Unexpected status:", result.status);
           setError("Unable to complete profile. Please try again.");
         }
       } else {
@@ -220,7 +236,6 @@ export default function SSOCallback() {
         error.errors?.[0]?.longMessage ||
         error.errors?.[0]?.message ||
         "An error occurred. Please try again.";
-      console.error("Error details:", error);
       setError(errorMessage);
     } finally {
       setLoading(false);

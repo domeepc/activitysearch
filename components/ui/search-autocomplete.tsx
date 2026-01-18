@@ -8,6 +8,7 @@ import { ActivityData } from "@/lib/types/activity";
 interface SearchAutocompleteProps {
   activities: ActivityData[];
   onActivitySelect: (activity: ActivityData) => void;
+  onClearSelection?: () => void;
   placeholder?: string;
   className?: string;
 }
@@ -21,6 +22,7 @@ interface SearchResult {
 export default function SearchAutocomplete({
   activities,
   onActivitySelect,
+  onClearSelection,
   placeholder = "Search by activity or location...",
   className = "",
 }: SearchAutocompleteProps) {
@@ -86,6 +88,19 @@ export default function SearchAutocomplete({
 
   // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle Enter even when dropdown is closed - select first/highlighted result
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (results.length > 0) {
+        const idx =
+          isOpen && highlightedIndex >= 0 && highlightedIndex < results.length
+            ? highlightedIndex
+            : 0;
+        handleSelect(results[idx].activity);
+      }
+      return;
+    }
+
     if (!isOpen) return;
 
     switch (e.key) {
@@ -98,15 +113,6 @@ export default function SearchAutocomplete({
       case "ArrowUp":
         e.preventDefault();
         setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : prev));
-        break;
-      case "Enter":
-        e.preventDefault();
-        if (highlightedIndex >= 0 && highlightedIndex < results.length) {
-          handleSelect(results[highlightedIndex].activity);
-        } else if (results.length > 0) {
-          // If no item is highlighted, select the first result
-          handleSelect(results[0].activity);
-        }
         break;
       case "Escape":
         setIsOpen(false);
@@ -149,6 +155,7 @@ export default function SearchAutocomplete({
             setSearchTerm(e.target.value);
             setHighlightedIndex(-1);
             setIsOpen(true);
+            onClearSelection?.();
           }}
           onFocus={() => results.length > 0 && setIsOpen(true)}
           onKeyDown={handleKeyDown}

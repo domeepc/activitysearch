@@ -36,7 +36,7 @@ export default function Navbar() {
   const user = useQuery(api.users.current);
   const { count: unreadReservationCount } = useUnreadReservationCount();
   const { count: unreadMessageCount } = useUnreadMessageCount();
-  const isOrganizer = user?.role === "organiser";
+  const isOrganiser = user?.role === "organiser";
 
   return (
     <nav>
@@ -65,7 +65,7 @@ export default function Navbar() {
         </ul>
 
         <div className="flex items-center gap-3">
-          {isOrganizer && (
+          {isOrganiser && (
             <Link href="/reservations" className="relative">
               <Inbox className="icon" />
               {unreadReservationCount > 0 && (
@@ -134,7 +134,7 @@ export default function Navbar() {
                     )}
                   </DropdownMenuItem>
                 </Link>
-                {isOrganizer && (
+                {isOrganiser && (
                   <Link href="/reservations">
                     <DropdownMenuItem className="relative">
                       <Inbox className="icon" /> Reservations

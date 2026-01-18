@@ -33,7 +33,7 @@ export function PasswordRequiredDialog({
         }
       }}
     >
-      <DialogContent>
+      <DialogContent className="border-border border-2 shadow-xl">
         <DialogHeader>
           <DialogTitle>Password Required</DialogTitle>
           <DialogDescription>

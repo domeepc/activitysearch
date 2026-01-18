@@ -17,6 +17,7 @@ export default function ActivityFilters({
   selectedCategories,
   onCategoryChange,
   onActivitySelect,
+  onClearSelection,
 }: ActivityFilterProps) {
   const uniqueCategories = getUniqueCategories(activities);
 
@@ -25,25 +26,28 @@ export default function ActivityFilters({
       <SearchAutocomplete
         activities={activities}
         onActivitySelect={onActivitySelect}
+        onClearSelection={onClearSelection}
         placeholder="Search by activity or location..."
       />
-      <MultiSelect
-        values={selectedCategories}
-        onValuesChange={onCategoryChange}
-      >
-        <MultiSelectTrigger className="w-full max-w-62">
-          <MultiSelectValue placeholder="Select category..." />
-        </MultiSelectTrigger>
-        <MultiSelectContent search={false} className="filter_tab_content">
-          <MultiSelectGroup>
-            {uniqueCategories.map((category) => (
-              <MultiSelectItem key={category} value={category}>
-                {category}
-              </MultiSelectItem>
-            ))}
-          </MultiSelectGroup>
-        </MultiSelectContent>
-      </MultiSelect>
+      {uniqueCategories.length > 0 && (
+        <MultiSelect
+          values={selectedCategories}
+          onValuesChange={onCategoryChange}
+        >
+          <MultiSelectTrigger className="w-full max-w-62">
+            <MultiSelectValue placeholder="Select category..." />
+          </MultiSelectTrigger>
+          <MultiSelectContent search={false} className="filter_tab_content">
+            <MultiSelectGroup>
+              {uniqueCategories.map((category) => (
+                <MultiSelectItem key={category} value={category}>
+                  {category}
+                </MultiSelectItem>
+              ))}
+            </MultiSelectGroup>
+          </MultiSelectContent>
+        </MultiSelect>
+      )}
     </>
   );
 }

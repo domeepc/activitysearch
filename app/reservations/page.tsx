@@ -1,21 +1,21 @@
 "use client";
 
-import { useOrganizerReservations, useUnreadReservationCount, useMarkReservationsAsRead } from "@/lib/hooks/useReservations";
+import { useOrganiserReservations, useUnreadReservationCount, useMarkReservationsAsRead } from "@/lib/hooks/useReservations";
 import { ReservationTable } from "@/components/reservations/ReservationTable";
 import { PaymentSection } from "@/components/reservations/PaymentSection";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Inbox, Filter, CreditCard } from "lucide-react";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useOrganizer } from "@/lib/hooks/useOrganizer";
+import { useOrganiser } from "@/lib/hooks/useOrganiser";
 import { Spinner } from "@/components/ui/spinner";
 
 type StatusFilter = "all" | "active" | "cancelled";
 type ViewMode = "reservations" | "payments";
 
 export default function ReservationsPage() {
-  const { isOrganizer } = useOrganizer();
-  const { reservations, isLoading } = useOrganizerReservations();
+  const { isOrganiser } = useOrganiser();
+  const { reservations, isLoading } = useOrganiserReservations();
   const { count: unreadCount } = useUnreadReservationCount();
   const { markReservationsAsRead } = useMarkReservationsAsRead();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -24,11 +24,11 @@ export default function ReservationsPage() {
 
   // Mark reservations as read when page loads (only once)
   useEffect(() => {
-    if (isOrganizer && !isLoading && !hasMarkedAsRead.current) {
+    if (isOrganiser && !isLoading && !hasMarkedAsRead.current) {
       hasMarkedAsRead.current = true;
       markReservationsAsRead().catch(console.error);
     }
-  }, [isOrganizer, isLoading, markReservationsAsRead]);
+  }, [isOrganiser, isLoading, markReservationsAsRead]);
 
   // Filter reservations by status
   const filteredReservations = useMemo(() => {
@@ -44,13 +44,13 @@ export default function ReservationsPage() {
     return reservations;
   }, [reservations, statusFilter]);
 
-  if (!isOrganizer) {
+  if (!isOrganiser) {
     return (
       <div className="container mx-auto py-8 px-4">
         <div className="text-center py-12">
           <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
           <p className="text-muted-foreground">
-            You must be an organizer to view reservations.
+            You must be an organiser to view reservations.
           </p>
         </div>
       </div>

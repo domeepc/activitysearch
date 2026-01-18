@@ -77,8 +77,8 @@ export function useReservationStatus(
   };
 }
 
-export function useOrganizerReservations() {
-  const reservations = useQuery(api.reservations.getReservationsForOrganizer);
+export function useOrganiserReservations() {
+  const reservations = useQuery(api.reservations.getReservationsForOrganiser);
 
   return {
     reservations: reservations ?? [],

@@ -28,7 +28,6 @@ export default function CustomSignUp() {
   const [password, setPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
   const [username, setUsername] = React.useState("");
   const [firstName, setFirstName] = React.useState("");
   const [lastName, setLastName] = React.useState("");
@@ -140,7 +139,7 @@ export default function CustomSignUp() {
 
   return (
     <div className="flex h-screen items-center justify-center p-4 overflow-hidden">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md border-border border-2 shadow-xl">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">
             Create an account
@@ -251,7 +250,7 @@ export default function CustomSignUp() {
               <div className="relative">
                 <Input
                   id="confirmPassword"
-                  type={showConfirmPassword ? "text" : "password"}
+                  type={showPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
@@ -261,11 +260,11 @@ export default function CustomSignUp() {
                 />
                 <button
                   type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   disabled={loading}
                 >
-                  {showConfirmPassword ? (
+                  {showPassword ? (
                     <EyeOff className="h-4 w-4" />
                   ) : (
                     <Eye className="h-4 w-4" />

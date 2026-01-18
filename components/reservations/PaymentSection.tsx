@@ -11,7 +11,7 @@ import { format } from "date-fns";
 import { StripeDashboard } from "./StripeDashboard";
 
 export function PaymentSection() {
-  const paymentDetails = useQuery(api.reservations.getPaymentDetailsForOrganizer);
+  const paymentDetails = useQuery(api.reservations.getPaymentDetailsForOrganiser);
   const [paymentFilter, setPaymentFilter] = useState<
     "all" | "pending" | "on_hold" | "fulfilled"
   >("all");

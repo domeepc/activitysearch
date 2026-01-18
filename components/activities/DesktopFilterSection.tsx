@@ -9,8 +9,9 @@ interface DesktopFilterSectionProps {
   selectedCategories: string[];
   onCategoryChange: (categories: string[]) => void;
   onActivitySelect: (activity: ActivityData) => void;
+  onClearSelection?: () => void;
   onAddActivity: () => void;
-  isOrganizer: boolean;
+  isOrganiser: boolean;
 }
 
 export default function DesktopFilterSection({
@@ -18,8 +19,9 @@ export default function DesktopFilterSection({
   selectedCategories,
   onCategoryChange,
   onActivitySelect,
+  onClearSelection,
   onAddActivity,
-  isOrganizer,
+  isOrganiser,
 }: DesktopFilterSectionProps) {
   return (
     <section className="hidden md:block">
@@ -29,8 +31,9 @@ export default function DesktopFilterSection({
           selectedCategories={selectedCategories}
           onCategoryChange={onCategoryChange}
           onActivitySelect={onActivitySelect}
+          onClearSelection={onClearSelection}
         />
-        {isOrganizer && (
+        {isOrganiser && (
           <AddActivityButton
             onClick={onAddActivity}
             className="mt-4 w-full bg-blue-600 hover:bg-blue-700"

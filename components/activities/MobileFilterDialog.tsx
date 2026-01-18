@@ -17,6 +17,7 @@ interface MobileFilterDialogProps {
   selectedCategories: string[];
   onCategoryChange: (categories: string[]) => void;
   onActivitySelect: (activity: ActivityData) => void;
+  onClearSelection?: () => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSearch: () => void;
@@ -27,6 +28,7 @@ export default function MobileFilterDialog({
   selectedCategories,
   onCategoryChange,
   onActivitySelect,
+  onClearSelection,
   open,
   onOpenChange,
   onSearch,
@@ -50,6 +52,7 @@ export default function MobileFilterDialog({
               selectedCategories={selectedCategories}
               onCategoryChange={onCategoryChange}
               onActivitySelect={onActivitySelect}
+              onClearSelection={onClearSelection}
             />
           </div>
           <DialogFooter className="flex gap-2">

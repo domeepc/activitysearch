@@ -22,6 +22,10 @@ export function handleOAuthRedirect(
       // If on auth page, return to default path
       sessionStorage.setItem("oauth_return_url", defaultReturnPath);
     }
+    
+    // Store OAuth origin (sign-up or sign-in) for callback handling
+    const isSignUpFlow = currentPath.includes("/sign-up");
+    sessionStorage.setItem("oauth_origin", isSignUpFlow ? "sign-up" : "sign-in");
   }
   return strategy;
 }

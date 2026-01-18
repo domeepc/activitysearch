@@ -46,32 +46,32 @@ function DateOfBirthCalendar({
         ...formatters,
       }}
       classNames={{
-        root: cn("w-fit", defaultClassNames.root),
+        root: cn("w-fit min-w-[20rem]", defaultClassNames.root),
         months: cn(
           "flex gap-4 flex-col md:flex-row relative",
           defaultClassNames.months
         ),
         month: cn("flex flex-col w-full gap-4", defaultClassNames.month),
         nav: cn(
-          "flex items-center w-full absolute top-0 inset-x-0 justify-between h-(--cell-size)",
+          "flex items-center gap-4 w-full absolute top-0 inset-x-0 justify-between h-(--cell-size) min-w-0",
           defaultClassNames.nav
         ),
         button_previous: cn(
           buttonVariants({ variant: buttonVariant }),
-          "h-(--cell-size) w-(--cell-size) min-h-(--cell-size) flex items-center justify-center aria-disabled:opacity-50 p-0 m-0 select-none [&>svg]:block",
+          "h-(--cell-size) w-(--cell-size) min-h-(--cell-size) min-w-(--cell-size) flex items-center justify-center aria-disabled:opacity-50 p-0 m-0 select-none shrink-0 [&>svg]:block",
           defaultClassNames.button_previous
         ),
         button_next: cn(
           buttonVariants({ variant: buttonVariant }),
-          "h-(--cell-size) w-(--cell-size) min-h-(--cell-size) flex items-center justify-center aria-disabled:opacity-50 p-0 m-0 select-none [&>svg]:block",
+          "h-(--cell-size) w-(--cell-size) min-h-(--cell-size) min-w-(--cell-size) flex items-center justify-center aria-disabled:opacity-50 p-0 m-0 select-none shrink-0 [&>svg]:block",
           defaultClassNames.button_next
         ),
         month_caption: cn(
-          "flex items-center justify-center h-(--cell-size) w-full px-(--cell-size)",
+          "flex items-center justify-center h-(--cell-size) min-w-0 flex-1 px-6",
           defaultClassNames.month_caption
         ),
         dropdowns: cn(
-          "w-full flex items-center text-sm font-medium justify-center h-(--cell-size) gap-1.5",
+          "w-full min-w-0 flex items-center text-sm font-medium justify-center h-(--cell-size) gap-1.5",
           defaultClassNames.dropdowns
         ),
         dropdown_root: cn(

@@ -11,6 +11,7 @@ interface ProfileHeaderProps {
   username: string;
   isFriend: boolean;
   isBlocked?: boolean;
+  hasBlockedYou?: boolean;
   onAddFriend?: () => void;
   onRemoveFriend?: () => void;
   onBlock?: () => void;
@@ -25,6 +26,7 @@ export function ProfileHeader({
   username,
   isFriend,
   isBlocked = false,
+  hasBlockedYou = false,
   onAddFriend,
   onRemoveFriend,
   onBlock,
@@ -56,9 +58,9 @@ export function ProfileHeader({
                 </Button>
               )}
               {settingsUrl && (
-                <Link href={settingsUrl}>
-                  <Button className="w-full md:w-auto">Edit Profile</Button>
-                </Link>
+                <Button asChild className="w-full md:w-auto">
+                  <Link href={settingsUrl}>Edit Profile</Link>
+                </Button>
               )}
             </>
           ) : (
@@ -109,7 +111,9 @@ export function ProfileHeader({
                 <>
                   <Button
                     onClick={onAddFriend}
+                    disabled={hasBlockedYou}
                     className="w-full md:w-auto"
+                    title={hasBlockedYou ? "This user has blocked you" : "Add friend"}
                   >
                     <UserPlus className="h-4 w-4 mr-2" />
                     Add Friend

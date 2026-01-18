@@ -54,7 +54,7 @@ export function PasswordDialog({
         }
       }}
     >
-      <DialogContent>
+      <DialogContent className="border-border border-2 shadow-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Lock className="h-5 w-5" />
@@ -109,7 +109,13 @@ export function PasswordDialog({
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onCancel}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              onOpenChange(false);
+              onCancel();
+            }}
+          >
             Cancel
           </Button>
           <Button onClick={onConfirm} disabled={settingPassword}>

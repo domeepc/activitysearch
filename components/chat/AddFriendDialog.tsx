@@ -136,6 +136,12 @@ export function AddFriendDialog({
                             Blocked
                           </Badge>
                         )}
+                        {user.hasBlockedYou && (
+                          <Badge variant="destructive" className="text-xs">
+                            <Ban className="h-3 w-3 mr-1" />
+                            Blocked You
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground">
                         @{user.username}
@@ -147,10 +153,12 @@ export function AddFriendDialog({
                         e.stopPropagation();
                         handleAddFriend(user._id);
                       }}
-                      disabled={user.isBlocked}
+                      disabled={user.isBlocked || user.hasBlockedYou}
                       title={
                         user.isBlocked
                           ? "Cannot add blocked user. Unblock them first."
+                          : user.hasBlockedYou
+                          ? "This user has blocked you"
                           : "Add friend"
                       }
                     >

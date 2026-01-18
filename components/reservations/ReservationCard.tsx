@@ -122,7 +122,7 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
   };
 
   return (
-    <Card className="w-full md:w-full sm:w-3/4 lg:w-2/3 xl:w-1/3 overflow-hidden">
+    <Card className="w-full md:w-full sm:w-3/4 lg:w-2/3 xl:w-1/3 overflow-hidden border-border border-2 shadow-xl">
       <CardHeader className="pb-3 px-4 sm:px-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
           <h3 className="text-base sm:text-lg font-semibold leading-tight">
@@ -151,7 +151,7 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
         </div>
 
         {/* Payment Progress Section */}
-        <div className="rounded-lg border bg-muted/50 p-3 sm:p-4 space-y-2.5 sm:space-y-3">
+        <div className="rounded-lg border border-border bg-muted/50 p-3 sm:p-4 space-y-2.5 sm:space-y-3">
           <div className="flex items-center gap-2">
             <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
             <span className="text-xs text-muted-foreground">

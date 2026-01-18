@@ -15,13 +15,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { OAuthButtons } from "@/components/auth/OAuthButtons";
 import { EmailVerificationDialog } from "@/components/auth/EmailVerificationDialog";
 import { Stepper } from "@/components/ui/stepper";
 import { api } from "@/convex/_generated/api";
 import { validateEmail, validateIBAN, validateContact, validateURL } from "@/lib/validation";
-import { handleOAuthRedirect } from "@/lib/auth/oauth";
 import { extractErrorMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import { Eye, EyeOff, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
@@ -35,7 +32,7 @@ import { loadStripe, Stripe } from "@stripe/stripe-js";
 
 const STEPS = [
   { label: "Personal Info", description: "Your account details" },
-  { label: "Organization", description: "Organization details" },
+  { label: "Organisation", description: "Organisation details" },
   { label: "Business Info", description: "Business & payment" },
   { label: "Review", description: "Review & create" },
 ];
@@ -54,11 +51,10 @@ export default function CustomSignUpORG() {
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
   const [isInitialRender, setIsInitialRender] = useState(true);
   const [userEmail, setUserEmail] = useState("");
-  const [organizationEmail, setOrganizationEmail] = useState("");
+  const [organisationEmail, setOrganisationEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [username, setUsername] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -70,17 +66,15 @@ export default function CustomSignUpORG() {
   const [postalCode, setPostalCode] = useState("");
   const [IBAN, setIBAN] = useState("");
   const [IBANConfirm, setIBANConfirm] = useState("");
-  const [organizationName, setOrganizationName] = useState("");
-  const [organizationDescription, setOrganizationDescription] = useState("");
+  const [organisationName, setOrganisationName] = useState("");
+  const [organisationDescription, setOrganisationDescription] = useState("");
   const [contact, setContact] = useState("");
   const [country] = useState("HR"); // Always Croatia
-  const [taxId, setTaxId] = useState("");
+  const [taxId] = useState("");
   // Additional Stripe required fields
   const [dateOfBirth, setDateOfBirth] = useState<Date | undefined>(undefined);
   const [businessWebsite, setBusinessWebsite] = useState("");
   const [industry, setIndustry] = useState("Other entertainment and recreation");
-  const [currency, setCurrency] = useState("EUR");
-  const [bankCountry, setBankCountry] = useState("HR");
   const [tosAccepted, setTosAccepted] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -89,12 +83,20 @@ export default function CustomSignUpORG() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  // Load Stripe on mount
+  // Load Stripe on mount with error handling
   useEffect(() => {
     if (stripePublishableKey) {
-      loadStripe(stripePublishableKey).then((stripeInstance) => {
-        setStripe(stripeInstance);
-      });
+      loadStripe(stripePublishableKey)
+        .then((stripeInstance) => {
+          setStripe(stripeInstance);
+        })
+        .catch((error) => {
+          // Handle Stripe initialization errors gracefully
+          // Stripe will be null, and we'll handle it in the form submission
+          if (process.env.NODE_ENV === "development") {
+            console.warn("Failed to initialize Stripe:", error);
+          }
+        });
     }
   }, []);
 
@@ -122,20 +124,20 @@ export default function CustomSignUpORG() {
   };
 
   const validatePage2 = (): string | null => {
-    if (!organizationName || organizationName.trim().length < 2) {
-      return "Organization name must be at least 2 characters long";
+    if (!organisationName || organisationName.trim().length < 2) {
+      return "Organisation name must be at least 2 characters long";
     }
-    if (organizationName.length > 100) {
-      return "Organization name must be less than 100 characters";
+    if (organisationName.length > 100) {
+      return "Organisation name must be less than 100 characters";
     }
-    if (!organizationEmail || !validateEmail(organizationEmail)) {
-      return "Please enter a valid organization email address";
+    if (!organisationEmail || !validateEmail(organisationEmail)) {
+      return "Please enter a valid organisation email address";
     }
-    if (userEmail === organizationEmail) {
-      return "User email and organization email must be different";
+    if (userEmail === organisationEmail) {
+      return "User email and organisation email must be different";
     }
-    if (!organizationDescription || organizationDescription.trim().length < 10) {
-      return "Please enter an organization description (at least 10 characters)";
+    if (!organisationDescription || organisationDescription.trim().length < 10) {
+      return "Please enter an organisation description (at least 10 characters)";
     }
 
     if (businessWebsite && !validateURL(businessWebsite)) {
@@ -294,8 +296,9 @@ export default function CustomSignUpORG() {
             const fullAddress = `${addressLine1}${addressLine2 ? `, ${addressLine2}` : ""}, ${city}, ${state} ${postalCode}, ${country}`;
 
             const organisationId = await createOrganisation({
-              name: organizationName,
-              email: organizationEmail,
+              name: organisationName,
+              email: organisationEmail,
+              description: organisationDescription || "",
               address: fullAddress,
               IBAN,
               ownerExternalId: completeSignUp.createdUserId!,
@@ -331,7 +334,6 @@ export default function CustomSignUpORG() {
 
                     if (tokenResult.token) {
                       bankAccountToken = tokenResult.token.id;
-                      console.log("Bank account token created successfully");
                     }
                   } catch (tokenError) {
                     console.error("Error creating bank token:", tokenError);
@@ -344,7 +346,7 @@ export default function CustomSignUpORG() {
                   organisationId,
                   country,
                   businessType: "individual",
-                  email: organizationEmail,
+                  email: organisationEmail,
                   phone: contact,
                   addressLine1,
                   addressLine2,
@@ -356,19 +358,18 @@ export default function CustomSignUpORG() {
                   lastName,
                   industry,
                   businessWebsite: businessWebsite || undefined,
-                  businessDescription: organizationDescription,
+                  businessDescription: organisationDescription,
                   IBAN: bankAccountToken ? undefined : IBAN, // Send IBAN only if no token
                   externalAccountToken: bankAccountToken, // Send token if created
                   currency: "EUR", // Always send EUR to Stripe
                   bankCountry: "HR", // Always send HR (Croatia) to Stripe
                 });
-                console.log("Stripe account created successfully");
               } catch (stripeError) {
                 console.error("Error creating Stripe account:", stripeError);
                 const errorMessage = stripeError instanceof Error
                   ? stripeError.message
                   : "Failed to create Stripe account";
-                setError(`Account created but Stripe setup failed: ${errorMessage}. You can set up Stripe later from your organization page.`);
+                setError(`Account created but Stripe setup failed: ${errorMessage}. You can set up Stripe later from your organisation page.`);
                 // Continue anyway - user can set up Stripe later
               }
             }
@@ -382,9 +383,9 @@ export default function CustomSignUpORG() {
               retryCount++;
               await new Promise((resolve) => setTimeout(resolve, retryDelay));
             } else {
-              console.error("Failed to create organization:", error);
+              console.error("Failed to create organisation:", error);
               setError(
-                "Account created but organization setup failed. Please contact support or try creating an organization from your profile."
+                "Account created but organisation setup failed. Please contact support or try creating an organisation from your profile."
               );
               setLoading(false);
               setTimeout(() => router.push("/"), 2000);
@@ -395,7 +396,7 @@ export default function CustomSignUpORG() {
 
         if (!orgCreated) {
           setError(
-            "Account created but organization setup is taking longer than expected. You can create it from your profile."
+            "Account created but organisation setup is taking longer than expected. You can create it from your profile."
           );
           setTimeout(() => router.push("/"), 2000);
           return;
@@ -409,29 +410,6 @@ export default function CustomSignUpORG() {
       setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
-    }
-  };
-
-  const signUpWith = async (
-    strategy: "oauth_google" | "oauth_microsoft" | "oauth_facebook"
-  ) => {
-    if (!isLoaded) return;
-
-    try {
-      const currentPath =
-        typeof window !== "undefined"
-          ? window.location.pathname + window.location.search
-          : "/";
-      handleOAuthRedirect(strategy, currentPath, "/");
-
-      await signUp.authenticateWithRedirect({
-        strategy,
-        redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/",
-      });
-    } catch (err: unknown) {
-      console.error("OAuth error:", err);
-      setError(extractErrorMessage(err));
     }
   };
 
@@ -554,7 +532,7 @@ export default function CustomSignUpORG() {
               <div className="relative">
                 <Input
                   id="confirmPassword"
-                  type={showConfirmPassword ? "text" : "password"}
+                  type={showPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
@@ -564,11 +542,11 @@ export default function CustomSignUpORG() {
                 />
                 <button
                   type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   disabled={loading}
                 >
-                  {showConfirmPassword ? (
+                  {showPassword ? (
                     <EyeOff className="h-4 w-4" />
                   ) : (
                     <Eye className="h-4 w-4" />
@@ -591,24 +569,24 @@ export default function CustomSignUpORG() {
         return (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="organizationName">Organization Name</Label>
+              <Label htmlFor="organisationName">Organisation Name</Label>
               <Input
-                id="organizationName"
+                id="organisationName"
                 type="text"
-                placeholder="Your Organization"
-                value={organizationName}
-                onChange={(e) => setOrganizationName(e.target.value)}
+                placeholder="Your Organisation"
+                value={organisationName}
+                onChange={(e) => setOrganisationName(e.target.value)}
                 required
                 disabled={loading}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="organizationDescription">Organization Description</Label>
+              <Label htmlFor="organisationDescription">Organisation Description</Label>
               <Textarea
-                id="organizationDescription"
-                placeholder="Describe your organization..."
-                value={organizationDescription}
-                onChange={(e) => setOrganizationDescription(e.target.value)}
+                id="organisationDescription"
+                placeholder="Describe your organisation..."
+                value={organisationDescription}
+                onChange={(e) => setOrganisationDescription(e.target.value)}
                 required
                 disabled={loading}
                 rows={4}
@@ -616,7 +594,7 @@ export default function CustomSignUpORG() {
                 className="flex min-h-[80px] resize-none w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
               <p className="text-xs text-muted-foreground">
-                Provide a brief description of your organization
+                Provide a brief description of your organisation
               </p>
             </div>
 
@@ -636,7 +614,7 @@ export default function CustomSignUpORG() {
                 }
               />
               <p className="text-xs text-muted-foreground">
-                If you don&apos;t have a website, we&apos;ll use your organization description instead
+                If you don&apos;t have a website, we&apos;ll use your organisation description instead
               </p>
               {businessWebsite && !validateURL(businessWebsite) && (
                 <p className="text-xs text-destructive">
@@ -645,36 +623,36 @@ export default function CustomSignUpORG() {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="organizationEmail">Organization Email</Label>
+              <Label htmlFor="organisationEmail">Organisation Email</Label>
               <Input
-                id="organizationEmail"
+                id="organisationEmail"
                 type="email"
-                placeholder="organization@example.com"
-                value={organizationEmail}
-                onChange={(e) => setOrganizationEmail(e.target.value)}
+                placeholder="organisation@example.com"
+                value={organisationEmail}
+                onChange={(e) => setOrganisationEmail(e.target.value)}
                 required
                 disabled={loading}
                 className={
-                  organizationEmail &&
-                    (!validateEmail(organizationEmail) ||
-                      organizationEmail === userEmail)
+                  organisationEmail &&
+                    (!validateEmail(organisationEmail) ||
+                      organisationEmail === userEmail)
                     ? "border-destructive"
                     : ""
                 }
               />
               <p className="text-xs text-muted-foreground">
-                This email will be used for organization communications
+                This email will be used for organisation communications
               </p>
-              {organizationEmail && !validateEmail(organizationEmail) && (
+              {organisationEmail && !validateEmail(organisationEmail) && (
                 <p className="text-xs text-destructive">
                   Please enter a valid email address
                 </p>
               )}
-              {organizationEmail &&
-                validateEmail(organizationEmail) &&
-                organizationEmail === userEmail && (
+              {organisationEmail &&
+                validateEmail(organisationEmail) &&
+                organisationEmail === userEmail && (
                   <p className="text-xs text-destructive">
-                    Organization email must be different from your email
+                    Organisation email must be different from your email
                   </p>
                 )}
             </div>
@@ -769,7 +747,7 @@ export default function CustomSignUpORG() {
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-start text-left font-normal"
+                    className="w-full justify-start text-left font-normal border-border cursor-pointer"
                     disabled={loading}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -1046,19 +1024,19 @@ export default function CustomSignUpORG() {
                   }}
                 >
                   <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-lg text-muted-foreground uppercase">Organization Details</h4>
+                    <h4 className="font-medium text-lg text-muted-foreground uppercase">Organisation Details</h4>
                     <span className="text-xs text-muted-foreground">Click to edit</span>
                   </div>
                   <div className="space-y-1 text-sm">
                     <div>
-                      <span className="text-muted-foreground">Organization Name:</span> {organizationName}
+                      <span className="text-muted-foreground">Organisation Name:</span> {organisationName}
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Organization Email:</span> {organizationEmail}
+                      <span className="text-muted-foreground">Organisation Email:</span> {organisationEmail}
                     </div>
-                    {organizationDescription && (
+                    {organisationDescription && (
                       <div>
-                        <span className="text-muted-foreground">Description:</span> {organizationDescription}
+                        <span className="text-muted-foreground">Description:</span> {organisationDescription}
                       </div>
                     )}
                     {industry && (
@@ -1149,39 +1127,16 @@ export default function CustomSignUpORG() {
       <Card className="w-full max-w-2xl border-border border-2 shadow-xl translate-y-[-30px] ">
         <CardHeader className="space-y-1 text-left border-b border-border">
           <CardTitle className="text-2xl font-bold">
-            Create Organizer Account
+            Create Organiser Account
           </CardTitle>
           <CardDescription className="text-sm text-foreground text-left">
             {currentPage === 0 && "Choose your preferred sign up method or fill in your personal information"}
-            {currentPage === 1 && "Enter your organization details"}
+            {currentPage === 1 && "Enter your organisation details"}
             {currentPage === 2 && "Provide business and payment information"}
             {currentPage === 3 && "Review your information before creating your account"}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* OAuth buttons - only show on first page */}
-          {currentPage === 0 && (
-            <>
-              <OAuthButtons
-                onGoogleClick={() => signUpWith("oauth_google")}
-                onMicrosoftClick={() => signUpWith("oauth_microsoft")}
-                onFacebookClick={() => signUpWith("oauth_facebook")}
-                disabled={loading}
-              />
-
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <Separator />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
-                    Or continue with
-                  </span>
-                </div>
-              </div>
-            </>
-          )}
-
           {/* Step description */}
           <div className="text-center">
             <p className="text-xl text-foreground font-bold text-left">
@@ -1220,7 +1175,7 @@ export default function CustomSignUpORG() {
               variant="outline"
               onClick={handlePrevious}
               disabled={currentPage === 0 || loading}
-              className="flex items-center shrink-0 md:gap-2 gap-0"
+              className="flex items-center shrink-0 md:gap-2 gap-0 cursor-pointer"
             >
               <ChevronLeft className="h-4 w-4" />
               <span className="hidden md:inline">Previous</span>
@@ -1233,7 +1188,7 @@ export default function CustomSignUpORG() {
                 type="button"
                 onClick={handleNext}
                 disabled={!canProceedToNext() || loading}
-                className="flex items-center shrink-0 md:gap-2 gap-0"
+                className="flex items-center shrink-0 md:gap-2 gap-0 cursor-pointer"
               >
                 <span className="hidden md:inline">Next</span>
                 <ChevronRight className="h-4 w-4" />
@@ -1243,7 +1198,7 @@ export default function CustomSignUpORG() {
                 type="button"
                 onClick={handleCreateAccount}
                 disabled={loading || !canProceedToNext()}
-                className="flex items-center gap-2 shrink-0"
+                className="flex items-center gap-2 shrink-0 cursor-pointer"
               >
                 {loading ? "Creating account..." : "Create Account"}
               </Button>
