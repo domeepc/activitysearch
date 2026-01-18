@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { validateOrganizationField } from "@/lib/validation";
+import { extractErrorMessage } from "@/lib/errors";
 
 export default function MyOrganisationPage() {
   const router = useRouter();
@@ -67,37 +69,8 @@ export default function MyOrganisationPage() {
   }, [organisation]);
 
   const validateField = (name: string, value: string) => {
-    const newErrors = { ...errors };
-
-    if (name === "name" && !value.trim()) {
-      newErrors.name = "Organization name is required";
-    } else if (name === "name") {
-      newErrors.name = "";
-    }
-
-    if (name === "email") {
-      if (!value.trim()) {
-        newErrors.email = "Email is required";
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-        newErrors.email = "Please enter a valid email";
-      } else {
-        newErrors.email = "";
-      }
-    }
-
-    if (name === "address" && !value.trim()) {
-      newErrors.address = "Address is required";
-    } else if (name === "address") {
-      newErrors.address = "";
-    }
-
-    if (name === "IBAN" && !value.trim()) {
-      newErrors.IBAN = "IBAN is required";
-    } else if (name === "IBAN") {
-      newErrors.IBAN = "";
-    }
-
-    setErrors(newErrors);
+    const error = validateOrganizationField(name, value);
+    setErrors((prev) => ({ ...prev, [name]: error }));
   };
 
   const handleChange = (
@@ -177,8 +150,7 @@ export default function MyOrganisationPage() {
       setErrors({ name: "", email: "", address: "", IBAN: "" });
     } catch (error: unknown) {
       console.error("Failed to update organization:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to update organization";
+      extractErrorMessage(error);
       // You could set a general error state here if needed
     }
   };
