@@ -15,8 +15,6 @@ interface ChatViewProps {
   type: "individual" | "team";
   individualUserId?: Id<"users">;
   teamId?: Id<"teams">;
-  conversationSlug?: string;
-  teamSlug?: string;
   messages: Array<{
     _id: string;
     text: string;
@@ -41,8 +39,6 @@ export function ChatView({
   type,
   individualUserId,
   teamId,
-  conversationSlug,
-  teamSlug,
   messages,
   otherUser,
   teamName,
@@ -65,7 +61,11 @@ export function ChatView({
   );
   const { updatePresence } = useUpdatePresence();
 
-  // Initialize encryption using conversation or team slug
+  // Get current user for encryption
+  const currentUser = useQuery(api.users.current);
+  const currentUserId = currentUser?._id;
+
+  // Initialize encryption
   const {
     encryptMessage,
     decryptMessage,
@@ -73,8 +73,9 @@ export function ChatView({
     isEncryptionAvailable,
     encryptionError,
   } = useEncryptionWithUser({
-    conversationSlug,
-    teamSlug,
+    currentUserId,
+    otherUserId: individualUserId,
+    teamId,
   });
 
   // Decrypt messages

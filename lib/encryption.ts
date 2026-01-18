@@ -203,26 +203,15 @@ export class EncryptionService {
         ["encrypt", "decrypt"]
       );
 
-    // Derive key using PBKDF2
-    return await crypto.subtle.deriveKey(
-      {
-        name: "PBKDF2",
-        salt: salt,
-        iterations: 100000,
-        hash: "SHA-256",
-      },
-      keyMaterial,
-      {
-        name: ALGORITHM, // "AES-GCM"
-        length: KEY_LENGTH, // 256
-      },
-      true, // extractable
-      ["encrypt", "decrypt"]
-    );
+      return key;
+    } catch (error) {
+      console.error(`Failed to load key ${keyName}:`, error);
+      return null;
+    }
   }
 
   /**
-   * Check if encryption is available (Web Crypto API)
+   * Check if encryption is available (Web Crypto API and localStorage)
    */
   static isEncryptionAvailable(): boolean {
     if (typeof window === "undefined") {
@@ -233,7 +222,18 @@ export class EncryptionService {
       return false;
     }
 
-    return true;
+    try {
+      if (!window.localStorage) {
+        return false;
+      }
+      // Test localStorage
+      const testKey = "__encryption_test__";
+      localStorage.setItem(testKey, "test");
+      localStorage.removeItem(testKey);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /**

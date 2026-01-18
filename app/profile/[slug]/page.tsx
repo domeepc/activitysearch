@@ -39,12 +39,8 @@ export default function ProfilePage({
   );
 
   // Redirect to sign-in if not authenticated or user not found
-  // Only redirect if queries have finished loading AND returned null
   useEffect(() => {
-    if (
-      (currentUser !== undefined && currentUser === null) ||
-      (user !== undefined && user === null)
-    ) {
+    if (currentUser === null || user === null) {
       window.location.replace("/sign-in");
     }
   }, [currentUser, user]);

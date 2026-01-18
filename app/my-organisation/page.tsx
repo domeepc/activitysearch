@@ -37,7 +37,7 @@ export default function MyOrganisationPage() {
   );
   const updateOrganisation = useMutation(api.organisation.updateOrganisation);
 
-  const isOrganizer = currentUser?.role === "organizer";
+  const isOrganizer = currentUser?.role === "organiser";
 
   // Compute form data from organisation when not editing
   const organisationFormData = useMemo(
@@ -201,7 +201,7 @@ export default function MyOrganisationPage() {
     );
   }
 
-  // Not authenticated or not an organizer
+  // Not authenticated or not an organiser
   if (currentUser === null || !isOrganizer) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
@@ -211,7 +211,7 @@ export default function MyOrganisationPage() {
             <CardDescription>
               {currentUser === null
                 ? "Please sign in to access this page."
-                : "You must be an organizer to access this page."}
+                : "You must be an organiser to access this page."}
             </CardDescription>
           </CardHeader>
           <CardContent>

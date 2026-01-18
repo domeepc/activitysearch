@@ -2,7 +2,7 @@
 
 import { Authenticated } from "convex/react";
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import "./home.css";
 import { ActivityData } from "@/lib/types/activity";
 import DialogAddActivity from "@/components/ui/dialogAddActivity";
@@ -13,6 +13,8 @@ import MobileAddActivityFAB from "@/components/activities/MobileAddActivityFAB";
 import { useActivities } from "@/lib/hooks/useActivities";
 import { useActivityFilters } from "@/lib/hooks/useActivityFilters";
 import { useOrganizer } from "@/lib/hooks/useOrganizer";
+import { QueueNotificationDialog } from "@/components/reservations/QueueNotificationDialog";
+import { useMyQueueNotifications } from "@/lib/hooks/useReservations";
 
 const OpenStreetMapComponent = dynamic(
   () => import("@/components/ui/leafletMap/leafletMap"),
@@ -38,6 +40,37 @@ export default function Home() {
     activities,
     selectedCategories
   );
+  const { notifications: queueNotifications } = useMyQueueNotifications();
+  const [showQueueNotification, setShowQueueNotification] = useState(false);
+  const [shownNotificationId, setShownNotificationId] = useState<string | null>(
+    null
+  );
+
+  // Derive current notification from queueNotifications (first notified one we haven't shown)
+  const currentNotification = useMemo(() => {
+    if (queueNotifications && queueNotifications.length > 0) {
+      const latestNotification = queueNotifications[0];
+      if (
+        latestNotification.notifiedAt &&
+        latestNotification._id !== shownNotificationId
+      ) {
+        return latestNotification;
+      }
+    }
+    return null;
+  }, [queueNotifications, shownNotificationId]);
+
+  // Auto-open dialog when a new notification appears (defer state update to avoid synchronous setState)
+  useEffect(() => {
+    if (currentNotification) {
+      // Defer state updates to next tick to avoid synchronous setState in effect
+      const timeoutId = setTimeout(() => {
+        setShownNotificationId(currentNotification._id);
+        setShowQueueNotification(true);
+      }, 0);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [currentNotification]);
 
   // Handle activity selection from search
   const handleActivitySelect = (activity: ActivityData) => {
@@ -98,6 +131,22 @@ export default function Home() {
           selectedActivity={selectedActivity}
         />
       </div>
+      {/* Queue Notification Dialog */}
+      {currentNotification && (
+        <QueueNotificationDialog
+          notification={currentNotification}
+          open={showQueueNotification}
+          onOpenChange={(open) => {
+            setShowQueueNotification(open);
+          }}
+          onAccept={() => {
+            setShowQueueNotification(false);
+          }}
+          onDecline={() => {
+            setShowQueueNotification(false);
+          }}
+        />
+      )}
     </Authenticated>
   );
 }

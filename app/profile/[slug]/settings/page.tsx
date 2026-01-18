@@ -87,12 +87,8 @@ export default function ProfileSettingsPage({
   const isOwnProfile = currentUser?._id === user?._id;
 
   // Redirect if not own profile or not authenticated
-  // Only redirect if queries have finished loading AND returned null
   useEffect(() => {
-    if (
-      (currentUser !== undefined && currentUser === null) ||
-      (user !== undefined && user === null)
-    ) {
+    if (currentUser === null || user === null) {
       window.location.replace("/sign-in");
       return;
     }
