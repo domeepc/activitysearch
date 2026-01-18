@@ -107,7 +107,7 @@ export function PresenceProvider({ children }: PresenceProviderProps) {
         });
       }
 
-      setClient(ablyClient as unknown as Realtime);
+      setClient(ablyClient);
 
       cleanupClient = () => {
         startTransition(() => {

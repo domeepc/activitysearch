@@ -5,7 +5,6 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
 import {
   Card,
   CardContent,
@@ -21,12 +20,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { validateOrganizationField, validateEmail } from "@/lib/validation";
 import { extractErrorMessage } from "@/lib/errors";
 import ActivityListSection from "@/components/organisation/activityListSection";
-import { StripeConnectButton } from "@/components/organisation/StripeConnectButton";
-import { useAction } from "convex/react";
 
 export default function MyOrganisationPage() {
   const router = useRouter();
-  const { isSignedIn, isLoaded: clerkLoaded } = useUser();
   const [isEditing, setIsEditing] = useState(false);
   const [errors, setErrors] = useState({
     name: "",
@@ -40,15 +36,14 @@ export default function MyOrganisationPage() {
     currentUser?._id ? { ownerId: currentUser._id as Id<"users"> } : "skip"
   );
   const updateOrganisation = useMutation(api.organisation.updateOrganisation);
-  const updateStripeAccount = useAction(api.stripe.updateStripeAccountFromOrganization);
 
   const isOrganizer = currentUser?.role === "organiser";
 
   // Compute form data from organisation when not editing
   const organisationFormData = useMemo(
     () => ({
-      name: organisation?.organisationName || "",
-      email: organisation?.organisationEmail || "",
+      name: organisation?.organizationName || "",
+      email: organisation?.organizationEmail || "",
       description: organisation?.description || "",
       address: organisation?.address || "",
       IBAN: organisation?.IBAN || "",
@@ -63,12 +58,12 @@ export default function MyOrganisationPage() {
   // Use edited data when editing, otherwise use organisation data
   const formData = isEditing ? editedFormData : organisationFormData;
 
-  // Redirect if not authenticated in Clerk (only redirect if Clerk has loaded and user is definitely not signed in)
+  // Redirect if not authenticated
   useEffect(() => {
-    if (clerkLoaded && !isSignedIn) {
+    if (currentUser === null) {
       router.push("/sign-in");
     }
-  }, [clerkLoaded, isSignedIn, router]);
+  }, [currentUser, router]);
 
   const validateField = (name: string, value: string) => {
     const error = validateOrganizationField(name, value);
@@ -150,21 +145,6 @@ export default function MyOrganisationPage() {
         address: formData.address,
         IBAN: formData.IBAN,
       });
-
-      // Sync updates to Stripe if account exists
-      if (organisation.stripeAccountId) {
-        try {
-          await updateStripeAccount({
-            organisationId: organisation._id,
-          });
-          console.log("Stripe account synced successfully");
-        } catch (stripeError) {
-          console.error("Failed to sync to Stripe:", stripeError);
-          // Don't fail the entire update if Stripe sync fails
-          // User can manually update Stripe later if needed
-        }
-      }
-
       setIsEditing(false);
       setErrors({ name: "", email: "", address: "", IBAN: "" });
     } catch (error: unknown) {
@@ -221,65 +201,17 @@ export default function MyOrganisationPage() {
     );
   }
 
-  // Wait for Clerk to load before making decisions
-  if (!clerkLoaded) {
-    return (
-      <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <Card>
-          <CardContent className="flex items-center justify-center py-8">
-            <div className="text-muted-foreground">Loading...</div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Not authenticated in Clerk - redirect will happen in useEffect
-  if (!isSignedIn) {
-    return null;
-  }
-
-  // Wait for Convex user to load
-  if (currentUser === undefined) {
-    return (
-      <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <Card>
-          <CardContent className="flex items-center justify-center py-8">
-            <div className="text-muted-foreground">Loading...</div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Not an organiser (but authenticated)
-  if (currentUser !== null && !isOrganizer) {
+  // Not authenticated or not an organiser
+  if (currentUser === null || !isOrganizer) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
         <Card>
           <CardHeader>
             <CardTitle>Access Denied</CardTitle>
             <CardDescription>
-              You must be an organiser to access this page.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => router.push("/")}>Go to Home</Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // User authenticated but not found in Convex (shouldn't happen normally, but handle gracefully)
-  if (currentUser === null && isSignedIn) {
-    return (
-      <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <Card>
-          <CardHeader>
-            <CardTitle>Setting Up</CardTitle>
-            <CardDescription>
-              Your account is being set up. Please wait a moment and refresh the page.
+              {currentUser === null
+                ? "Please sign in to access this page."
+                : "You must be an organiser to access this page."}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -330,9 +262,9 @@ export default function MyOrganisationPage() {
                     onClick={handleSave}
                     disabled={
                       errors.name ||
-                        errors.email ||
-                        errors.address ||
-                        errors.IBAN
+                      errors.email ||
+                      errors.address ||
+                      errors.IBAN
                         ? true
                         : false
                     }
@@ -477,10 +409,6 @@ export default function MyOrganisationPage() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Stripe Connect Section */}
-      <StripeConnectButton organisationId={organisation._id} />
-
       <ActivityListSection activityIDs={organisation.activityIDs || []} />
     </div>
   );

@@ -2,8 +2,6 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { ReservationCard } from "@/components/reservations/ReservationCard";
-import { Id } from "@/convex/_generated/dataModel";
 
 import { Check, CheckCheck } from "lucide-react";
 
@@ -18,10 +16,6 @@ interface MessageBubbleProps {
   previousTimestamp?: number;
   isEncrypted?: boolean;
   decryptionError?: boolean;
-  messageType?: "text" | "reservation_card";
-  reservationCardData?: {
-    reservationId: Id<"reservations">;
-  };
 }
 
 function formatTimeAgo(timestamp: number): string {
@@ -80,8 +74,6 @@ export function MessageBubble({
   status,
   previousTimestamp,
   decryptionError,
-  messageType = "text",
-  reservationCardData,
 }: MessageBubbleProps) {
   const timeAgo = formatTimeAgo(timestamp);
 
@@ -90,73 +82,6 @@ export function MessageBubble({
     ? timestamp - previousTimestamp > 30 * 60 * 1000
     : true; // Show for first message
 
-  // Handle reservation card messages
-  if (messageType === "reservation_card" && reservationCardData) {
-    return (
-      <>
-        {showDateDivider && (
-          <div className="flex items-center justify-center my-4 cursor-default select-none">
-            <div className="text-xs text-muted-foreground bg-muted px-3 py-1 rounded-full">
-              {new Date(timestamp).toLocaleDateString([], {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </div>
-          </div>
-        )}
-        <div
-          className={cn(
-            "flex gap-2 mb-4",
-            isFromCurrentUser ? "flex-row-reverse" : "flex-row"
-          )}
-        >
-          {!isFromCurrentUser && showSenderName && (
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={senderAvatar} alt={senderName} />
-              <AvatarFallback>
-                {senderName
-                  ?.split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .toUpperCase() || "?"}
-              </AvatarFallback>
-            </Avatar>
-          )}
-          <div
-            className={cn(
-              "flex flex-col w-full max-w-[85%] sm:max-w-[75%] md:max-w-[70%]",
-              isFromCurrentUser ? "items-end" : "items-start"
-            )}
-          >
-            {!isFromCurrentUser && showSenderName && senderName && (
-              <span className="text-xs text-muted-foreground mb-1 px-2">
-                {senderName}
-              </span>
-            )}
-            <ReservationCard reservationId={reservationCardData.reservationId} />
-            <div className="flex items-center gap-1 mt-1 px-2">
-              <span className="text-xs text-muted-foreground">{timeAgo}</span>
-              {isFromCurrentUser && status && (
-                <span className="text-muted-foreground">
-                  {status === "read" ? (
-                    <CheckCheck className="h-3 w-3 text-primary" />
-                  ) : status === "delivered" ? (
-                    <CheckCheck className="h-3 w-3" />
-                  ) : (
-                    <Check className="h-3 w-3" />
-                  )}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  // Regular text message
   return (
     <>
       {showDateDivider && (

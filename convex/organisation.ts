@@ -58,9 +58,6 @@ export const createOrganisation = mutation({
     ownerExternalId: v.string(), // Clerk user ID
     address: v.string(),
     IBAN: v.string(),
-    country: v.optional(v.string()),
-    businessType: v.optional(v.union(v.literal("individual"), v.literal("company"))),
-    taxId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Look up the Convex user by their Clerk external ID
@@ -109,33 +106,5 @@ export const getOrganisationByOwnerId = query({
       org.organisersIDs.includes(args.ownerId)
     );
     return organisation ?? null;
-  },
-});
-
-export const getAll = query({
-  args: {},
-  handler: async (ctx) => {
-    return await ctx.db.query("organisations").collect();
-  },
-});
-
-export const getById = query({
-  args: { organisationId: v.id("organisations") },
-  handler: async (ctx, { organisationId }) => {
-    return await ctx.db.get(organisationId);
-  },
-});
-
-export const updateStripeAccount = mutation({
-  args: {
-    organisationId: v.id("organisations"),
-    stripeAccountId: v.string(),
-  },
-  handler: async (ctx, { organisationId, stripeAccountId }) => {
-    await ctx.db.patch(organisationId, {
-      stripeAccountId,
-      stripeAccountOnboardingComplete: false, // Will be updated via webhook
-    });
-    return { success: true };
   },
 });
