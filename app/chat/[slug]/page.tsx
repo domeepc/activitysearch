@@ -63,6 +63,7 @@ export default function IndividualChatPage({
     <ChatView
       type="individual"
       individualUserId={messagesData.otherUser._id}
+      conversationSlug={slug}
       messages={messages}
       otherUser={messagesData.otherUser}
     />
