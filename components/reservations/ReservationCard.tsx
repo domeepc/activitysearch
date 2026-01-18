@@ -8,10 +8,23 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Calendar, Clock, Wallet } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Calendar, Clock, Wallet, X, AlertCircle, Star } from "lucide-react";
 import { format } from "date-fns";
 import { PaymentButton } from "@/components/payments/PaymentButton";
 import { PaymentDialog } from "@/components/payments/PaymentDialog";
+import { ReviewDialog } from "@/components/reservations/ReviewDialog";
+import { useCancelReservation } from "@/lib/hooks/useReservations";
 
 interface ReservationCardProps {
   reservationId: Id<"reservations">;
@@ -19,11 +32,15 @@ interface ReservationCardProps {
 
 export function ReservationCard({ reservationId }: ReservationCardProps) {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState("");
+  const { cancelReservation, isPending } = useCancelReservation();
   const reservationData = useQuery(api.reservations.getReservationCardData, {
     reservationId,
   });
 
-  if (!reservationData) {
+  if (reservationData === undefined) {
     return (
       <Card className="w-full">
         <CardContent className="p-4">
@@ -35,7 +52,17 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
     );
   }
 
-  const { reservation, activity, paymentProgress, participants } =
+  if (reservationData === null) {
+    return (
+      <Card className="w-full">
+        <CardContent className="p-4">
+          <p className="text-sm text-muted-foreground">Reservation not found</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const { isTeamCreator, reservation, activity, paymentProgress, participants, canLeaveReview } =
     reservationData;
 
   if (!reservation || !activity) {
@@ -121,6 +148,20 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
     return `Pay by ${formattedDate}`;
   };
 
+  const handleCancelConfirm = async () => {
+    if (!cancellationReason.trim()) return;
+    try {
+      await cancelReservation(reservationId, cancellationReason.trim());
+      setCancelDialogOpen(false);
+      setCancellationReason("");
+    } catch (error) {
+      console.error("Failed to cancel reservation:", error);
+      alert(
+        error instanceof Error ? error.message : "Failed to cancel reservation"
+      );
+    }
+  };
+
   return (
     <Card className="w-full md:w-full sm:w-3/4 lg:w-2/3 xl:w-1/3 overflow-hidden border-border border-2 shadow-xl">
       <CardHeader className="pb-3 px-4 sm:px-6">
@@ -183,13 +224,45 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
         {paymentProgress.remainingAmount > 0 && status !== "cancelled" && (
           <div className="pt-2">
             <PaymentButton
-              reservationId={reservationId}
               paymentStatus={status}
-              amount={paymentProgress.perPersonAmount}
               remainingAmount={paymentProgress.remainingAmount}
               onPaymentClick={() => setPaymentDialogOpen(true)}
               disabled={status === "fulfilled"}
             />
+          </div>
+        )}
+
+        {/* Leave a review (fulfilled + paid, participant, not yet reviewed) */}
+        {canLeaveReview && (
+          <div className="pt-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              className="w-full"
+              onClick={() => setReviewDialogOpen(true)}
+            >
+              <Star className="h-4 w-4 mr-2" />
+              Leave a review
+            </Button>
+          </div>
+        )}
+
+        {/* Cancel Reservation (team creator only) */}
+        {isTeamCreator && status !== "cancelled" && (
+          <div className="pt-2">
+            <Button
+              variant="destructive"
+              size="sm"
+              className="w-full"
+              onClick={() => {
+                setCancellationReason("");
+                setCancelDialogOpen(true);
+              }}
+              disabled={isPending}
+            >
+              <X className="h-4 w-4 mr-2" />
+              Cancel Reservation
+            </Button>
           </div>
         )}
 
@@ -239,6 +312,83 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
           // Data will refresh automatically via Convex reactivity
         }}
       />
+
+      {/* Review Dialog */}
+      <ReviewDialog
+        open={reviewDialogOpen}
+        onOpenChange={setReviewDialogOpen}
+        activityId={activity._id}
+        activityName={activity.activityName}
+        onSuccess={() => {}}
+      />
+
+      {/* Cancel Reservation Dialog */}
+      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <DialogContent className="max-w-[95vw] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cancel Reservation</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for cancelling this reservation. All
+              payments will be refunded and the first team in the queue will be
+              notified.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <div>
+                <span className="text-sm font-medium">Activity: </span>
+                <span className="text-sm">{activity.activityName}</span>
+              </div>
+              <div>
+                <span className="text-sm font-medium">Date: </span>
+                <span className="text-sm">
+                  {formattedDate} at {timeRange}
+                </span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cancellationReason">
+                Cancellation Reason <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id="cancellationReason"
+                value={cancellationReason}
+                onChange={(e) => setCancellationReason(e.target.value)}
+                placeholder="Enter the reason for cancelling this reservation..."
+                className="min-h-[100px]"
+                required
+              />
+              {!cancellationReason.trim() && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Cancellation reason is required
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              className="border-border w-full sm:w-auto"
+              onClick={() => {
+                setCancelDialogOpen(false);
+                setCancellationReason("");
+              }}
+              disabled={isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancelConfirm}
+              disabled={isPending || !cancellationReason.trim()}
+              className="w-full sm:w-auto"
+            >
+              {isPending ? "Cancelling..." : "Cancel Reservation"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

@@ -119,7 +119,7 @@ export function CreateTeamDialog({
                 team.
               </p>
             ) : (
-              <div className="max-h-60 overflow-y-auto border rounded-md p-2 space-y-2">
+              <div className="max-h-60 overflow-y-auto border-2 border-border rounded-md p-2 space-y-2">
                 {friends.map((friend) => (
                   <div
                     key={friend._id}
@@ -152,7 +152,7 @@ export function CreateTeamDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" className="border-border" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={!teamName.trim()}>

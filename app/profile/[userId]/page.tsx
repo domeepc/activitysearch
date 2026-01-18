@@ -3,25 +3,43 @@
 import { useEffect, use } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProfileView } from "@/components/profile/ProfileView";
 import { RemoveFriendDialog } from "@/components/profile/dialogs/RemoveFriendDialog";
 import { ConfirmDialog } from "@/components/chat/ConfirmDialog";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+// Convex document IDs are 32 base-32 chars; treat other segments as username
+function looksLikeConvexId(s: string): boolean {
+  return /^[a-z0-9]{32}$/.test(s);
+}
 
 export default function ProfilePage({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ userId: string }>;
 }) {
   const resolvedParams = use(params);
+  const router = useRouter();
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [showBlockDialog, setShowBlockDialog] = useState(false);
 
-  const user = useQuery(api.users.getUserBySlug, {
-    slug: resolvedParams.slug,
-  });
+  const byId = useQuery(
+    api.users.getUserById,
+    looksLikeConvexId(resolvedParams.userId)
+      ? { userId: resolvedParams.userId as Id<"users"> }
+      : "skip"
+  );
+  const byUsername = useQuery(
+    api.users.getUserByUsername,
+    !looksLikeConvexId(resolvedParams.userId)
+      ? { username: resolvedParams.userId }
+      : "skip"
+  );
+  const user = byId ?? byUsername;
   const currentUser = useQuery(api.users.current);
   const addFriend = useMutation(api.users.addFriend);
   const removeFriend = useMutation(api.users.removeFriend);
@@ -44,6 +62,13 @@ export default function ProfilePage({
       window.location.replace("/sign-in");
     }
   }, [currentUser, user]);
+
+  // Canonicalize URL when resolved by username (e.g. /profile/domepc -> /profile/<id>)
+  useEffect(() => {
+    if (user && resolvedParams.userId !== user._id) {
+      router.replace(`/profile/${user._id}`);
+    }
+  }, [user, resolvedParams.userId, router]);
 
   const handleAddFriend = async () => {
     if (!user?._id) return;
@@ -152,7 +177,6 @@ export default function ProfilePage({
           name: u.name,
           lastname: u.lastname,
           username: u.username,
-          slug: u.slug,
           avatar: u.avatar,
         }))}
       />

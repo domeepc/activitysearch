@@ -298,6 +298,13 @@ export const createReservation = mutation({
         return { success: false, error: "Activity organiser not found" };
       }
 
+      if (organisation.organisersIDs.includes(currentUser._id)) {
+        return {
+          success: false,
+          error: "You cannot make reservations for your own activities.",
+        };
+      }
+
       // Get the first organiser (primary organiser)
       const organiserId = organisation.organisersIDs[0];
       const organiser = await ctx.db.get(organiserId);
@@ -500,17 +507,19 @@ export const cancelReservation = mutation({
       throw new Error("Activity not found");
     }
 
-    // Find the organiser
+    // Allow organiser or team creator (createdBy) to cancel
     const allOrganisations = await ctx.db.query("organisations").collect();
     const organisation = allOrganisations.find((org) =>
       org.activityIDs.includes(reservation.activityId)
     );
+    const isOrganiser =
+      organisation?.organisersIDs.includes(currentUser._id) ?? false;
+    const isTeamCreator = reservation.createdBy === currentUser._id;
 
-    if (
-      !organisation ||
-      !organisation.organisersIDs.includes(currentUser._id)
-    ) {
-      throw new Error("Only the activity organiser can cancel reservations");
+    if (!isOrganiser && !isTeamCreator) {
+      throw new Error(
+        "Only the activity organiser or the team creator can cancel reservations"
+      );
     }
 
     // Mark reservation as cancelled and update payment status
@@ -553,30 +562,36 @@ export const cancelReservation = mutation({
     // Delete reservation conversation and messages
     await deleteReservationConversation(ctx, reservationId);
 
-    // Check queue for this activity/date and notify first team
-    const queueEntries = await ctx.db
-      .query("reservationQueue")
-      .withIndex("byActivityDate", (q) =>
-        q.eq("activityId", reservation.activityId).eq("date", reservation.date)
-      )
-      .collect();
+    // Only notify queue if the freed date is still in the future (or today)
+    const freedDateStart = new Date(`${reservation.date}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (freedDateStart >= today) {
+      // Check queue for this activity/date and notify first team
+      const queueEntries = await ctx.db
+        .query("reservationQueue")
+        .withIndex("byActivityDate", (q) =>
+          q.eq("activityId", reservation.activityId).eq("date", reservation.date)
+        )
+        .collect();
 
-    // Sort by createdAt (FIFO) and find first non-notified entry
-    const sortedQueue = queueEntries
-      .filter((q) => !q.notifiedAt)
-      .sort((a, b) => a.createdAt - b.createdAt);
+      // Sort by createdAt (FIFO) and find first non-notified entry
+      const sortedQueue = queueEntries
+        .filter((q) => !q.notifiedAt)
+        .sort((a, b) => a.createdAt - b.createdAt);
 
-    if (sortedQueue.length > 0) {
-      const firstInQueue = sortedQueue[0];
-      await ctx.db.patch(firstInQueue._id, {
-        notifiedAt: Date.now(),
-      });
+      if (sortedQueue.length > 0) {
+        const firstInQueue = sortedQueue[0];
+        await ctx.db.patch(firstInQueue._id, {
+          notifiedAt: Date.now(),
+        });
 
-      return {
-        success: true,
-        queueNotified: true,
-        queueEntryId: firstInQueue._id,
-      };
+        return {
+          success: true,
+          queueNotified: true,
+          queueEntryId: firstInQueue._id,
+        };
+      }
     }
 
     return { success: true, queueNotified: false };
@@ -893,10 +908,23 @@ export const joinQueue = mutation({
   handler: async (ctx, { activityId, date, teamIds, userCount }) => {
     const currentUser = await getCurrentUserOrThrow(ctx);
 
+    // Reject past dates
+    const dateStart = new Date(`${date}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (dateStart < today) {
+      throw new Error("Cannot join the queue for a date in the past.");
+    }
+
     // Get activity
     const activity = await ctx.db.get(activityId);
     if (!activity) {
       throw new Error("Activity not found");
+    }
+
+    // Validate userCount is positive
+    if (userCount <= 0) {
+      throw new Error("User count must be greater than 0");
     }
 
     // Validate team size doesn't exceed activity maxParticipants
@@ -907,6 +935,15 @@ export const joinQueue = mutation({
       throw new Error(
         `Team has ${userCount} members, but this activity only allows ${activity.maxParticipants} participants.`
       );
+    }
+
+    // Reject if user is an organiser of this activity
+    const allOrganisations = await ctx.db.query("organisations").collect();
+    const organisation = allOrganisations.find((org) =>
+      org.activityIDs.includes(activityId)
+    );
+    if (organisation?.organisersIDs.includes(currentUser._id)) {
+      throw new Error("You cannot join the queue for your own activities.");
     }
 
     // Validate at least one team is selected
@@ -977,8 +1014,8 @@ export const joinQueue = mutation({
       const team = await ctx.db.get(teamId);
       if (!team) continue;
 
-      const alreadyInQueue = existingQueueEntries.some(
-        (q) => q.teamIds.includes(teamId) && !q.notifiedAt
+      const alreadyInQueue = existingQueueEntries.some((q) =>
+        q.teamIds.includes(teamId)
       );
 
       if (alreadyInQueue) {
@@ -1272,6 +1309,21 @@ export const acceptQueueReservation = mutation({
       });
     }
 
+    // Validate date/time is in the future
+    const now = new Date();
+    const activityDate = new Date(`${queueEntry.date}T${time}`);
+    if (activityDate <= now) {
+      throw new Error("Reservation date and time must be in the future");
+    }
+
+    // Calculate payment deadline (7 days before activity, or activity date if less than 7 days away)
+    const sevenDaysBefore = new Date(activityDate);
+    sevenDaysBefore.setDate(sevenDaysBefore.getDate() - 7);
+    const paymentDeadline =
+      sevenDaysBefore > now
+        ? sevenDaysBefore.getTime()
+        : activityDate.getTime();
+
     // Create reservation
     const reservationId = await ctx.db.insert("reservations", {
       activityId: queueEntry.activityId,
@@ -1282,6 +1334,8 @@ export const acceptQueueReservation = mutation({
       createdBy: currentUser._id,
       readByOrganiser: false,
       reservationChatId: conversationId,
+      paymentStatus: "pending",
+      paymentDeadline,
     });
 
     // Link conversation to reservation
@@ -1292,6 +1346,19 @@ export const acceptQueueReservation = mutation({
     } else if (!existingConversation) {
       await ctx.db.patch(conversationId, {
         reservationId,
+      });
+    }
+
+    // Send reservation card to each team's chat
+    for (const teamId of queueEntry.teamIds) {
+      await ctx.db.insert("groupMessages", {
+        teamId,
+        senderId: currentUser._id,
+        text: "Reservation card",
+        messageType: "reservation_card",
+        reservationCardData: {
+          reservationId,
+        },
       });
     }
 
@@ -1977,26 +2044,32 @@ export const checkAndCancelUnpaidReservations = internalMutation({
       // Delete reservation conversation and messages
       await deleteReservationConversation(ctx, reservation._id);
 
-      // Check queue for this activity/date and notify first team
-      const queueEntries = await ctx.db
-        .query("reservationQueue")
-        .withIndex("byActivityDate", (q) =>
-          q
-            .eq("activityId", reservation.activityId)
-            .eq("date", reservation.date)
-        )
-        .collect();
+      // Only notify queue if the freed date is still in the future (or today)
+      const freedDateStart = new Date(`${reservation.date}T00:00:00`);
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      if (freedDateStart >= todayStart) {
+        // Check queue for this activity/date and notify first team
+        const queueEntries = await ctx.db
+          .query("reservationQueue")
+          .withIndex("byActivityDate", (q) =>
+            q
+              .eq("activityId", reservation.activityId)
+              .eq("date", reservation.date)
+          )
+          .collect();
 
-      // Sort by createdAt (FIFO) and find first non-notified entry
-      const sortedQueue = queueEntries
-        .filter((q) => !q.notifiedAt)
-        .sort((a, b) => a.createdAt - b.createdAt);
+        // Sort by createdAt (FIFO) and find first non-notified entry
+        const sortedQueue = queueEntries
+          .filter((q) => !q.notifiedAt)
+          .sort((a, b) => a.createdAt - b.createdAt);
 
-      if (sortedQueue.length > 0) {
-        const firstInQueue = sortedQueue[0];
-        await ctx.db.patch(firstInQueue._id, {
-          notifiedAt: Date.now(),
-        });
+        if (sortedQueue.length > 0) {
+          const firstInQueue = sortedQueue[0];
+          await ctx.db.patch(firstInQueue._id, {
+            notifiedAt: Date.now(),
+          });
+        }
       }
 
       console.log(
@@ -2396,11 +2469,16 @@ export const getReservationCardData = query({
     reservationId: v.id("reservations"),
   },
   handler: async (ctx, { reservationId }) => {
+    const currentUser = await getCurrentUser(ctx);
+
     // Get reservation
     const reservation = await ctx.db.get(reservationId);
     if (!reservation) {
       return null;
     }
+
+    const isTeamCreator =
+      !!currentUser && reservation.createdBy === currentUser._id;
 
     // Get activity
     const activity = await ctx.db.get(reservation.activityId);
@@ -2470,7 +2548,24 @@ export const getReservationCardData = query({
       payments: activePayments.length,
     };
 
+    // Can leave review: fulfilled (payment captured), user is participant, not yet reviewed
+    const isParticipant = !!currentUser && participantIds.has(currentUser._id);
+    const hasReviewed = currentUser
+      ? (await ctx.db
+          .query("reviews")
+          .withIndex("byUserAndActivity", (q) =>
+            q.eq("userId", currentUser._id).eq("activityId", reservation.activityId)
+          )
+          .unique()) != null
+      : false;
+    const canLeaveReview =
+      isParticipant &&
+      (reservation.paymentStatus === "fulfilled") &&
+      !hasReviewed;
+
     return {
+      isTeamCreator,
+      canLeaveReview,
       reservation: {
         _id: reservation._id,
         date: reservation.date,

@@ -1,4 +1,10 @@
-import { mutation, query } from "./_generated/server";
+import {
+  internalMutation,
+  mutation,
+  query,
+  type MutationCtx,
+} from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { getCurrentUser, getCurrentUserOrThrow } from "./users";
 
@@ -9,6 +15,80 @@ function generateSecureHash(): string {
   const randomPart = Math.random().toString(36).substring(2, 15);
   const randomPart2 = Math.random().toString(36).substring(2, 15);
   return `${timestamp}-${randomPart}-${randomPart2}`.replace(/[^a-z0-9-]/g, '');
+}
+
+/**
+ * Deletes a team and all related data (groupMessages, reservations with their
+ * conversations and messages). Used by deleteTeam and removeUserFromTeamsAndDeleteEmptyOnes.
+ */
+async function deleteTeamAndAllRelatedData(
+  ctx: MutationCtx,
+  teamId: Id<"teams">
+): Promise<void> {
+  // Delete all team messages first
+  const teamMessages = await ctx.db
+    .query("groupMessages")
+    .withIndex("byTeam", (q) => q.eq("teamId", teamId))
+    .collect();
+
+  for (const msg of teamMessages) {
+    await ctx.db.delete(msg._id);
+  }
+
+  // Delete all reservations that reference this team
+  const allReservations = await ctx.db.query("reservations").collect();
+  const reservationsWithTeam = allReservations.filter((r) =>
+    r.teamIds.includes(teamId)
+  );
+
+  for (const reservation of reservationsWithTeam) {
+    // Find and delete conversation linked to this reservation
+    const allConversations = await ctx.db.query("conversations").collect();
+    const conversation = allConversations.find(
+      (c) => c.reservationId === reservation._id
+    );
+
+    if (conversation) {
+      // Delete all messages between the two users
+      const sentMessages = await ctx.db
+        .query("messages")
+        .withIndex("byConversation", (q) =>
+          q
+            .eq("senderId", conversation.user1Id)
+            .eq("receiverId", conversation.user2Id)
+        )
+        .collect();
+
+      const receivedMessages = await ctx.db
+        .query("messages")
+        .withIndex("byConversation", (q) =>
+          q
+            .eq("senderId", conversation.user2Id)
+            .eq("receiverId", conversation.user1Id)
+        )
+        .collect();
+
+      const allMessages = [...sentMessages, ...receivedMessages];
+      await Promise.all(allMessages.map((msg) => ctx.db.delete(msg._id)));
+
+      // Delete the conversation
+      await ctx.db.delete(conversation._id);
+    }
+
+    // Delete all reservationPayments for this reservation before deleting it
+    const payments = await ctx.db
+      .query("reservationPayments")
+      .withIndex("byReservation", (q) => q.eq("reservationId", reservation._id))
+      .collect();
+    for (const p of payments) {
+      await ctx.db.delete(p._id);
+    }
+
+    await ctx.db.delete(reservation._id);
+  }
+
+  // Delete the team
+  await ctx.db.delete(teamId);
 }
 
 export const createTeam = mutation({
@@ -434,10 +514,19 @@ export const removeFromTeam = mutation({
       throw new Error("Cannot remove the team creator");
     }
 
-    // Remove user from team
-    await ctx.db.patch(teamId, {
-      teammates: team.teammates.filter((id) => id !== userId),
-    });
+    // Remove user from teammates and admins
+    const newTeammates = team.teammates.filter((id) => id !== userId);
+    const newAdmins = (team.admins || []).filter((id) => id !== userId);
+
+    if (newAdmins.length === 0) {
+      // No admins left - delete the team and all related data
+      await deleteTeamAndAllRelatedData(ctx, teamId);
+    } else {
+      await ctx.db.patch(teamId, {
+        teammates: newTeammates,
+        admins: newAdmins,
+      });
+    }
 
     return { success: true };
   },
@@ -764,13 +853,17 @@ export const leaveTeam = mutation({
 
     // Remove from teammates and admins
     const newTeammates = team.teammates.filter((id) => id !== currentUser._id);
-    const admins = team.admins || [];
-    const newAdmins = admins.filter((id) => id !== currentUser._id);
+    const newAdmins = (team.admins || []).filter((id) => id !== currentUser._id);
 
-    await ctx.db.patch(teamId, {
-      teammates: newTeammates,
-      admins: newAdmins,
-    });
+    if (newAdmins.length === 0) {
+      // No admins left - delete the team and all related data
+      await deleteTeamAndAllRelatedData(ctx, teamId);
+    } else {
+      await ctx.db.patch(teamId, {
+        teammates: newTeammates,
+        admins: newAdmins,
+      });
+    }
 
     return { success: true };
   },
@@ -818,65 +911,44 @@ export const deleteTeam = mutation({
       throw new Error("Only team creator can delete the team");
     }
 
-    // Delete all team messages first
-    const teamMessages = await ctx.db
-      .query("groupMessages")
-      .withIndex("byTeam", (q) => q.eq("teamId", teamId))
-      .collect();
-
-    for (const msg of teamMessages) {
-      await ctx.db.delete(msg._id);
-    }
-
-    // Delete all reservations that reference this team
-    const allReservations = await ctx.db.query("reservations").collect();
-    const reservationsWithTeam = allReservations.filter((r) =>
-      r.teamIds.includes(teamId)
-    );
-
-    // Import the helper function (we'll need to make it accessible)
-    // For now, delete conversations inline
-    for (const reservation of reservationsWithTeam) {
-      // Find and delete conversation linked to this reservation
-      const allConversations = await ctx.db.query("conversations").collect();
-      const conversation = allConversations.find(
-        (c) => c.reservationId === reservation._id
-      );
-
-      if (conversation) {
-        // Delete all messages between the two users
-        const sentMessages = await ctx.db
-          .query("messages")
-          .withIndex("byConversation", (q) =>
-            q
-              .eq("senderId", conversation.user1Id)
-              .eq("receiverId", conversation.user2Id)
-          )
-          .collect();
-
-        const receivedMessages = await ctx.db
-          .query("messages")
-          .withIndex("byConversation", (q) =>
-            q
-              .eq("senderId", conversation.user2Id)
-              .eq("receiverId", conversation.user1Id)
-          )
-          .collect();
-
-        const allMessages = [...sentMessages, ...receivedMessages];
-        await Promise.all(allMessages.map((msg) => ctx.db.delete(msg._id)));
-
-        // Delete the conversation
-        await ctx.db.delete(conversation._id);
-      }
-
-      await ctx.db.delete(reservation._id);
-    }
-
-    // Delete the team
-    await ctx.db.delete(teamId);
+    await deleteTeamAndAllRelatedData(ctx, teamId);
 
     return { success: true };
+  },
+});
+
+/**
+ * Called when a user is deleted (e.g. from deleteFromClerk). Removes the user
+ * from teammates and admins in all teams they belong to. Deletes any team that
+ * has no admins left after the removal.
+ */
+export const removeUserFromTeamsAndDeleteEmptyOnes = internalMutation({
+  args: {
+    userId: v.id("users"),
+  },
+  handler: async (ctx, { userId }) => {
+    const allTeams = await ctx.db.query("teams").collect();
+
+    for (const team of allTeams) {
+      const isInTeammates = team.teammates.includes(userId);
+      const isInAdmins = (team.admins || []).includes(userId);
+
+      if (!isInTeammates && !isInAdmins) {
+        continue;
+      }
+
+      const newTeammates = team.teammates.filter((id) => id !== userId);
+      const newAdmins = (team.admins || []).filter((id) => id !== userId);
+
+      if (newAdmins.length === 0) {
+        await deleteTeamAndAllRelatedData(ctx, team._id);
+      } else {
+        await ctx.db.patch(team._id, {
+          teammates: newTeammates,
+          admins: newAdmins,
+        });
+      }
+    }
   },
 });
 

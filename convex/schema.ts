@@ -47,18 +47,13 @@ export default defineSchema({
     icon: v.optional(v.string()),
     teamPublicKey: v.optional(v.string()),
   }).index("bySlug", ["slug"]),
-  payments: defineTable({
-    userId: v.id("users"),
-    organisationId: v.id("organisations"),
-    totalAmount: v.float64(),
-    paymentStatus: v.boolean(),
-  }),
+
   reviews: defineTable({
     text: v.string(),
     rating: v.optional(v.float64()),
     userId: v.id("users"),
     activityId: v.id("activities"),
-  }),
+  }).index("byUserAndActivity", ["userId", "activityId"]),
   quests: defineTable({
     questName: v.string(),
     expAmount: v.int64(),

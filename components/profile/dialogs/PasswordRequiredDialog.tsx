@@ -43,7 +43,7 @@ export function PasswordRequiredDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={onCancel}>
+          <Button variant="outline" className="border-border" onClick={onCancel}>
             Cancel
           </Button>
           <Button onClick={onSetPassword}>Set Password</Button>

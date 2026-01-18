@@ -277,7 +277,7 @@ export function ReservationDialog({
             </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" className="border-border" onClick={() => onOpenChange(false)}>
               Close
             </Button>
           </DialogFooter>

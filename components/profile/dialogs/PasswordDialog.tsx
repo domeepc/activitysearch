@@ -111,6 +111,7 @@ export function PasswordDialog({
         <DialogFooter>
           <Button
             variant="outline"
+            className="border-border"
             onClick={() => {
               onOpenChange(false);
               onCancel();

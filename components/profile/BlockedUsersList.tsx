@@ -11,7 +11,6 @@ interface BlockedUsersListProps {
     name: string;
     lastname: string;
     username: string;
-    slug: string;
     avatar: string;
   }>;
   isLoading?: boolean;
@@ -50,7 +49,7 @@ export function BlockedUsersList({
         {blockedUsers.map((user) => (
           <div
             key={user._id.toString()}
-            onClick={() => router.push(`/profile/${user.slug}`)}
+            onClick={() => router.push(`/profile/${user._id}`)}
             className="flex items-center gap-3 p-2 rounded-md hover:bg-accent cursor-pointer transition-colors"
           >
             <Avatar className="h-10 w-10">

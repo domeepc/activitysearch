@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { useQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,10 +23,15 @@ import { useEmailVerification } from "@/lib/hooks/useEmailVerification";
 import { usePasswordManagement } from "@/lib/hooks/usePasswordManagement";
 import type { OAuthProvider } from "@/lib/types/profile";
 
+// Convex document IDs are 32 base-32 chars; treat other segments as username
+function looksLikeConvexId(s: string): boolean {
+  return /^[a-z0-9]{32}$/.test(s);
+}
+
 export default function ProfileSettingsPage({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ userId: string }>;
 }) {
   const resolvedParams = use(params);
   const router = useRouter();
@@ -33,9 +39,19 @@ export default function ProfileSettingsPage({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showUnlinkWarningDialog, setShowUnlinkWarningDialog] = useState(false);
 
-  const user = useQuery(api.users.getUserBySlug, {
-    slug: resolvedParams.slug,
-  });
+  const byId = useQuery(
+    api.users.getUserById,
+    looksLikeConvexId(resolvedParams.userId)
+      ? { userId: resolvedParams.userId as Id<"users"> }
+      : "skip"
+  );
+  const byUsername = useQuery(
+    api.users.getUserByUsername,
+    !looksLikeConvexId(resolvedParams.userId)
+      ? { username: resolvedParams.userId }
+      : "skip"
+  );
+  const user = byId ?? byUsername;
   const currentUser = useQuery(api.users.current);
   const deleteAccount = useAction(api.users.deleteAccount);
   const unlinkOAuthProvider = useAction(api.users.unlinkOAuthProvider);
@@ -92,10 +108,17 @@ export default function ProfileSettingsPage({
       window.location.replace("/sign-in");
       return;
     }
-    if (!isOwnProfile) {
-      router.push(`/profile/${resolvedParams.slug}`);
+    if (!isOwnProfile && user) {
+      router.push(`/profile/${user._id}`);
     }
-  }, [currentUser, user, isOwnProfile, router, resolvedParams.slug]);
+  }, [currentUser, user, isOwnProfile, router]);
+
+  // Canonicalize URL when resolved by username (e.g. /profile/domepc/settings -> /profile/<id>/settings)
+  useEffect(() => {
+    if (user && isOwnProfile && resolvedParams.userId !== user._id) {
+      router.replace(`/profile/${user._id}/settings`);
+    }
+  }, [user, isOwnProfile, resolvedParams.userId, router]);
 
   const handleSaveProfile = async () => {
     const result = await handleSave();
@@ -115,20 +138,20 @@ export default function ProfileSettingsPage({
         // Don't reload page yet - wait for email verification
         return;
       }
-      // Refresh if username changed (slug might have changed)
+      // Refresh if username changed
       if (formData.username !== user?.username) {
         setTimeout(() => router.refresh(), 500);
         return;
       }
-      // Reload to show updated data
-      router.push(`/profile/${resolvedParams.slug}`);
+      // Reload to show updated data (use canonical ID URL)
+      router.push(`/profile/${user!._id}`);
     }
   };
 
   const handleCancelEdit = () => {
     resetForm();
-    // Redirect back to profile view
-    router.push(`/profile/${resolvedParams.slug}`);
+    // Redirect back to profile view (use canonical ID URL)
+    router.push(`/profile/${user!._id}`);
   };
 
   const handleDeleteAccount = async () => {

@@ -9,8 +9,10 @@ import { Wallet, CreditCard, CheckCircle, Clock, Users, Calendar, MapPin } from 
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { StripeDashboard } from "./StripeDashboard";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 
 export function PaymentSection() {
+  const isMobile = useIsMobile();
   const paymentDetails = useQuery(api.reservations.getPaymentDetailsForOrganiser);
   const [paymentFilter, setPaymentFilter] = useState<
     "all" | "pending" | "on_hold" | "fulfilled"
@@ -115,7 +117,7 @@ export function PaymentSection() {
   return (
     <div className="space-y-6">
       {/* View Mode Toggle */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button
           variant={viewMode === "overview" ? "default" : "outline"}
           size="sm"
@@ -141,7 +143,7 @@ export function PaymentSection() {
       ) : (
         <>
           {/* Payment Statistics */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Reservations</CardTitle>
@@ -230,6 +232,74 @@ export function PaymentSection() {
                   {filteredPaymentDetails.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <p>No reservations found with this payment status.</p>
+                    </div>
+                  ) : isMobile ? (
+                    <div className="space-y-4">
+                      {filteredPaymentDetails.map((detail) => (
+                        <Card key={detail.reservationId} className="overflow-hidden border-border">
+                          <CardContent className="p-4 space-y-3">
+                            {/* Activity & Status */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-base truncate">
+                                  {detail.activityName}
+                                </h3>
+                                {detail.activityAddress && (
+                                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                                    <MapPin className="h-3 w-3 shrink-0" />
+                                    <span className="truncate">{detail.activityAddress}</span>
+                                  </div>
+                                )}
+                              </div>
+                              {getStatusBadge(detail.paymentStatus)}
+                            </div>
+
+                            {/* Teams */}
+                            <div className="flex flex-wrap gap-1">
+                              {detail.teams.length > 0 ? (
+                                detail.teams.map((team) => (
+                                  <Badge
+                                    key={team._id}
+                                    variant="outline"
+                                    className="text-xs"
+                                  >
+                                    {team.teamName}
+                                  </Badge>
+                                ))
+                              ) : (
+                                <span className="text-muted-foreground text-sm">No teams</span>
+                              )}
+                            </div>
+
+                            {/* Date & Time */}
+                            <div className="flex items-center gap-2 text-sm">
+                              <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <span className="font-medium">{formatDate(detail.date)}</span>
+                              <span className="text-muted-foreground">at</span>
+                              <span>{detail.time}</span>
+                            </div>
+
+                            {/* Participants */}
+                            <div className="flex items-center gap-2 text-sm">
+                              <Users className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <span>{detail.userCount} participants</span>
+                            </div>
+
+                            {/* Amounts */}
+                            <div className="rounded-lg border border-border bg-muted/50 p-3 flex justify-between items-center">
+                              <span className="text-sm text-muted-foreground">Saldo / Total</span>
+                              <div className="text-right">
+                                <span className="font-semibold text-green-600 block">
+                                  {formatCurrency(detail.saldo)}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {formatCurrency(detail.totalAmount)} total
+                                </span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
                     </div>
                   ) : (
                     <div className="rounded-md border overflow-x-auto">

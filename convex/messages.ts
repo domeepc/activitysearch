@@ -362,6 +362,14 @@ export const getMessagesByConversationId = query({
       throw new Error("You do not have access to this conversation");
     }
 
+    // If this is a reservation chat, the reservation must still exist
+    if (conversation.reservationId !== undefined) {
+      const reservation = await ctx.db.get(conversation.reservationId);
+      if (!reservation) {
+        return null; // Reservation deleted; treat as conversation not found
+      }
+    }
+
     const otherUserId =
       conversation.user1Id === currentUser._id
         ? conversation.user2Id
@@ -740,6 +748,11 @@ export const getReservationConversations = query({
         const partnerIdStr = partnerId.toString();
         const lastMessage = lastMessages.get(partnerIdStr);
         const reservationData = reservationMap.get(partnerIdStr);
+
+        // Exclude reservation conversations whose reservation no longer exists
+        if (!reservationData) {
+          return null;
+        }
 
         // Find conversation
         const conv = reservationConversations.find(

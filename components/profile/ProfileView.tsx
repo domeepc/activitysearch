@@ -44,7 +44,6 @@ interface ProfileViewProps {
   friends?: Array<{
     _id: Id<"users">;
     username: string;
-    slug: string;
   }>;
   isLoading?: boolean;
   onAddFriend?: () => void;
@@ -57,7 +56,6 @@ interface ProfileViewProps {
     name: string;
     lastname: string;
     username: string;
-    slug: string;
     avatar: string;
   }>;
   hasBlockedYou?: boolean;
@@ -106,7 +104,7 @@ export function ProfileView({
   const isFriend = currentUser?.friends.includes(user._id);
   const isBlocked = currentUser?.blocked?.includes(user._id) || false;
   const settingsUrl = isOwnProfile
-    ? `/profile/${user.slug}/settings`
+    ? `/profile/${user._id}/settings`
     : undefined;
 
   return (

@@ -70,7 +70,6 @@ export function ConversationList({
       name: string;
       lastname: string;
       username: string;
-      slug: string;
       avatar: string;
     }>;
     admins: Id<"users">[];
@@ -555,7 +554,6 @@ export function ConversationList({
                                     name: t.name,
                                     lastname: t.lastname,
                                     username: t.username,
-                                    slug: t.slug,
                                     avatar: t.avatar,
                                   })),
                                   admins: team.admins,
@@ -581,7 +579,6 @@ export function ConversationList({
                                       name: t.name,
                                       lastname: t.lastname,
                                       username: t.username,
-                                      slug: t.slug,
                                       avatar: t.avatar,
                                     })),
                                     admins: team.admins,
@@ -607,7 +604,6 @@ export function ConversationList({
                                       name: t.name,
                                       lastname: t.lastname,
                                       username: t.username,
-                                      slug: t.slug,
                                       avatar: t.avatar,
                                     })),
                                     admins: team.admins,

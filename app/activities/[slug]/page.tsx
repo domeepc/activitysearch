@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ReservationDialog } from "@/components/activities/ReservationDialog";
+import DialogAddActivity from "@/components/ui/dialogAddActivity";
 import { useMyTeamsAsCreator } from "@/lib/hooks/useReservations";
 import {
   Card,
@@ -27,6 +28,7 @@ import {
   Users,
   Calendar,
   Package,
+  Pencil,
 } from "lucide-react";
 import { getTagColorScheme, getDifficultyColorScheme } from "@/lib/tagColors";
 import {
@@ -55,7 +57,10 @@ export default function ActivityPage({
   
   // Check if user has teams as creator
   const { hasTeams } = useMyTeamsAsCreator();
+  const isOrganiserOfActivity =
+    useQuery(api.activity.isOrganiserOfActivity, { activityId }) ?? false;
   const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   useEffect(() => {
     if (activity === null) {
@@ -230,7 +235,7 @@ export default function ActivityPage({
                 </span>
               </div>
               {/* Reservation Button */}
-              {hasTeams && (
+              {hasTeams && !isOrganiserOfActivity && (
                 <Button
                   onClick={() => setIsReservationDialogOpen(true)}
                   variant="secondary"
@@ -238,6 +243,17 @@ export default function ActivityPage({
                 >
                   <Calendar className="h-4 w-4 mr-2" />
                   Reserve Activity
+                </Button>
+              )}
+              {/* Edit Button (organiser only) */}
+              {isOrganiserOfActivity && (
+                <Button
+                  onClick={() => setEditDialogOpen(true)}
+                  variant="outline"
+                  className="w-full md:w-auto"
+                >
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit Activity
                 </Button>
               )}
             </div>
@@ -415,11 +431,20 @@ export default function ActivityPage({
         </CardContent>
         
         {/* Reservation Dialog */}
-        {hasTeams && (
+        {hasTeams && !isOrganiserOfActivity && (
           <ReservationDialog
             activityId={activityId}
             open={isReservationDialogOpen}
             onOpenChange={setIsReservationDialogOpen}
+          />
+        )}
+
+        {/* Edit Activity Dialog */}
+        {isOrganiserOfActivity && (
+          <DialogAddActivity
+            showDialog={editDialogOpen}
+            setShowDialog={setEditDialogOpen}
+            activityId={activityId}
           />
         )}
       </Card>

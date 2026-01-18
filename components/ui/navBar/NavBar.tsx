@@ -14,7 +14,6 @@ import {
   HomeIcon,
   LogOut,
   MessageSquare,
-  Settings,
   User,
   Building2,
   Inbox,
@@ -50,32 +49,37 @@ export default function Navbar() {
             </Link>
           </li>
           <li>
-            <Link href="/chat" className="relative">
-              <MessageSquare className="icon" /> Chat
-              {unreadMessageCount > 0 && (
-                <Badge
-                  variant="destructive"
-                  className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full p-0 flex items-center justify-center text-[10px] leading-none"
-                >
-                  {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
-                </Badge>
-              )}
+            <Link href="/chat">
+              <span className="relative inline-block">
+                <MessageSquare className="icon" />
+                {unreadMessageCount > 0 && (
+                  <Badge
+                    variant="destructive"
+                    className="absolute -top-1 -right-1 h-4 min-w-4 rounded-full p-0 flex items-center justify-center text-[10px] leading-none"
+                  >
+                    {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
+                  </Badge>
+                )}
+              </span>
+              Chat
             </Link>
           </li>
         </ul>
 
         <div className="flex items-center gap-3">
           {isOrganiser && (
-            <Link href="/reservations" className="relative">
-              <Inbox className="icon" />
-              {unreadReservationCount > 0 && (
-                <Badge
-                  variant="destructive"
-                  className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full p-0 flex items-center justify-center text-[10px] leading-none"
-                >
-                  {unreadReservationCount > 99 ? "99+" : unreadReservationCount}
-                </Badge>
-              )}
+            <Link href="/reservations">
+              <span className="relative inline-block">
+                <Inbox className="icon" />
+                {unreadReservationCount > 0 && (
+                  <Badge
+                    variant="destructive"
+                    className="absolute -top-1 -right-1 h-4 min-w-4 rounded-full p-0 flex items-center justify-center text-[10px] leading-none"
+                  >
+                    {unreadReservationCount > 99 ? "99+" : unreadReservationCount}
+                  </Badge>
+                )}
+              </span>
             </Link>
           )}
           <DropdownMenu>
@@ -106,12 +110,6 @@ export default function Navbar() {
                     </DropdownMenuItem>
                   </Link>
                 )}
-                <Link href="/settings">
-                  <DropdownMenuItem>
-                    <Settings className="icon" />
-                    Settings
-                  </DropdownMenuItem>
-                </Link>
               </DropdownMenuGroup>
 
               <DropdownMenuGroup className="block md:hidden">

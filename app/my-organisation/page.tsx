@@ -22,12 +22,15 @@ import { validateOrganisationField, validateEmail } from "@/lib/validation";
 import { extractErrorMessage } from "@/lib/errors";
 import ActivityListSection from "@/components/organisation/activityListSection";
 import { StripeConnectButton } from "@/components/organisation/StripeConnectButton";
+import DialogAddActivity from "@/components/ui/dialogAddActivity";
 import { useAction } from "convex/react";
 
 export default function MyOrganisationPage() {
   const router = useRouter();
   const { isSignedIn, isLoaded: clerkLoaded } = useUser();
   const [isEditing, setIsEditing] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingActivityId, setEditingActivityId] = useState<Id<"activities"> | null>(null);
   const [errors, setErrors] = useState({
     name: "",
     email: "",
@@ -322,7 +325,7 @@ export default function MyOrganisationPage() {
             <div className="flex gap-2">
               {isEditing ? (
                 <>
-                  <Button variant="outline" onClick={handleCancel}>
+                  <Button variant="outline" className="border-border" onClick={handleCancel}>
                     Cancel
                   </Button>
                   <Button
@@ -480,7 +483,23 @@ export default function MyOrganisationPage() {
       {/* Stripe Connect Section */}
       <StripeConnectButton organisationId={organisation._id} />
 
-      <ActivityListSection activityIDs={organisation.activityIDs || []} />
+      <ActivityListSection
+        activityIDs={organisation.activityIDs || []}
+        onEdit={(id) => {
+          setEditingActivityId(id as Id<"activities">);
+          setEditDialogOpen(true);
+        }}
+      />
+
+      {/* Edit Activity Dialog */}
+      <DialogAddActivity
+        showDialog={editDialogOpen}
+        setShowDialog={(v) => {
+          setEditDialogOpen(v);
+          if (!v) setEditingActivityId(null);
+        }}
+        activityId={editingActivityId ?? undefined}
+      />
     </div>
   );
 }

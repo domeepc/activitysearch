@@ -9,7 +9,6 @@ import { Id } from "@/convex/_generated/dataModel";
 interface Friend {
   _id: Id<"users">;
   username: string;
-  slug: string;
 }
 
 interface FriendListProps {
@@ -48,7 +47,7 @@ export function FriendList({
               key={friend._id}
               variant="outline"
               className="cursor-pointer hover:bg-accent"
-              onClick={() => router.push(`/profile/${friend.slug}`)}
+              onClick={() => router.push(`/profile/${friend._id}`)}
             >
               @{friend.username}
             </Badge>

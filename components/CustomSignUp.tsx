@@ -18,7 +18,6 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { OAuthButtons } from "@/components/auth/OAuthButtons";
 import { EmailVerificationDialog } from "@/components/auth/EmailVerificationDialog";
-import { handleOAuthRedirect } from "@/lib/auth/oauth";
 import { extractErrorMessage } from "@/lib/errors";
 import { Eye, EyeOff } from "lucide-react";
 
@@ -102,12 +101,6 @@ export default function CustomSignUp() {
     if (!isLoaded) return;
 
     try {
-      const currentPath =
-        typeof window !== "undefined"
-          ? window.location.pathname + window.location.search
-          : "/";
-      handleOAuthRedirect(strategy, currentPath, "/");
-
       await signUp.authenticateWithRedirect({
         strategy,
         redirectUrl: "/sso-callback",

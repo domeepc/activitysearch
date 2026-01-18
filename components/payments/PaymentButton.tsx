@@ -6,18 +6,14 @@ import { CreditCard, Loader2 } from "lucide-react";
 import { useState } from "react";
 
 interface PaymentButtonProps {
-  reservationId: string;
   paymentStatus?: "pending" | "on_hold" | "fulfilled" | "cancelled";
-  amount: number;
   remainingAmount: number;
   onPaymentClick: () => void;
   disabled?: boolean;
 }
 
 export function PaymentButton({
-  reservationId: _reservationId,
   paymentStatus = "pending",
-  amount: _amount,
   remainingAmount,
   onPaymentClick,
   disabled = false,

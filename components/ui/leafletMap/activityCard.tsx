@@ -74,6 +74,10 @@ export default function ActivityCard({
   
   // Check if user has teams as creator
   const { hasTeams } = useMyTeamsAsCreator();
+  const isOrganiserOfActivity =
+    useQuery(convexApi.activity.isOrganiserOfActivity, {
+      activityId: activity.id as Id<"activities">,
+    }) ?? false;
   const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false);
 
   // Carousel auto-rotation
@@ -291,7 +295,7 @@ export default function ActivityCard({
           >
             Visit Activity Page
           </Button>
-          {hasTeams && (
+          {hasTeams && !isOrganiserOfActivity && (
             <Button
               onClick={() => setIsReservationDialogOpen(true)}
               className="h-8 w-8 p-0"
@@ -306,7 +310,7 @@ export default function ActivityCard({
       </CardContent>
       
       {/* Reservation Dialog */}
-      {hasTeams && (
+      {hasTeams && !isOrganiserOfActivity && (
         <ReservationDialog
           activityId={activity.id as Id<"activities">}
           open={isReservationDialogOpen}

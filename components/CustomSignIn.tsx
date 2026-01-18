@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { OAuthButtons } from "@/components/auth/OAuthButtons";
-import { handleOAuthRedirect } from "@/lib/auth/oauth";
 import { extractErrorMessage } from "@/lib/errors";
 import { Eye, EyeOff } from "lucide-react";
 
@@ -87,12 +86,6 @@ export default function CustomSignIn() {
     if (!isLoaded) return;
 
     try {
-      const currentPath =
-        typeof window !== "undefined"
-          ? window.location.pathname + window.location.search
-          : "/";
-      handleOAuthRedirect(strategy, currentPath, "/");
-
       await signIn.authenticateWithRedirect({
         strategy,
         redirectUrl: "/sso-callback",

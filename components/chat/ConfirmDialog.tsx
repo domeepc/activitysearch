@@ -56,6 +56,7 @@ export function ConfirmDialog({
         <DialogFooter>
           <Button
             variant="outline"
+            className="border-border"
             onClick={() => onOpenChange(false)}
             disabled={isLoading}
           >

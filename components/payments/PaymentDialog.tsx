@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, CreditCard, AlertCircle } from "lucide-react";
-import { loadStripe } from "@stripe/stripe-js";
+import { loadStripe, Stripe } from "@stripe/stripe-js";
 import {
   Elements,
   PaymentElement,
@@ -26,7 +26,7 @@ import { api } from "@/convex/_generated/api";
 
 // Initialize Stripe with error handling
 const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
-let stripePromise: Promise<any> | null = null;
+let stripePromise: Promise<Stripe | null> | null = null;
 
 if (stripePublishableKey) {
   stripePromise = loadStripe(stripePublishableKey).catch((error) => {
@@ -52,7 +52,6 @@ interface PaymentDialogProps {
 function PaymentForm({
   reservationId,
   perPersonAmount,
-  remainingPersons,
   activityName,
   personsToPayFor,
   onSuccess,
@@ -176,7 +175,7 @@ function PaymentForm({
         </div>
       </div>
 
-      <div className="border rounded-lg p-4">
+      <div className="border border-border rounded-lg p-4">
         <PaymentElement />
       </div>
 
@@ -191,6 +190,7 @@ function PaymentForm({
         <Button
           type="button"
           variant="outline"
+          className="border-border"
           onClick={onClose}
           disabled={isProcessing}
         >
@@ -218,7 +218,6 @@ export function PaymentDialog({
   open,
   onOpenChange,
   reservationId,
-  amount: _amount,
   perPersonAmount,
   remainingPersons,
   activityName,
@@ -318,7 +317,7 @@ export function PaymentDialog({
   if (!clientSecret && isLoading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-[95vw] sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Loading Payment</DialogTitle>
           </DialogHeader>
@@ -334,7 +333,7 @@ export function PaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-[95vw] sm:max-w-md border-border border-2 shadow-xl">
         <DialogHeader>
           <DialogTitle>Complete Payment</DialogTitle>
           <DialogDescription>

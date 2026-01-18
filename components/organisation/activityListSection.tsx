@@ -12,10 +12,12 @@ import ActivityCardInList from "./activityCardInList";
 
 interface ActivityListSectionProps {
   activityIDs: Id<"activities">[];
+  onEdit?: (activityId: string) => void;
 }
 
 export default function ActivityListSection({
   activityIDs,
+  onEdit,
 }: ActivityListSectionProps) {
   const router = useRouter();
 
@@ -103,6 +105,7 @@ export default function ActivityListSection({
                   reviewCount: activity.reviewCount,
                   images: activity.images,
                 }}
+                onEdit={onEdit}
                 isExpanded={true}
               />
             </div>

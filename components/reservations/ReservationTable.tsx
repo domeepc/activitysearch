@@ -404,12 +404,12 @@ export function ReservationTable({ reservations }: ReservationTableProps) {
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button
               variant="outline"
+              className="border-border w-full sm:w-auto"
               onClick={() => {
                 setCancelDialogOpen(false);
                 setCancellationReason("");
               }}
               disabled={isPending}
-              className="w-full sm:w-auto"
             >
               Cancel
             </Button>

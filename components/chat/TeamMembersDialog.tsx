@@ -26,7 +26,6 @@ interface TeamMembersDialogProps {
     name: string;
     lastname: string;
     username: string;
-    slug: string;
     avatar: string;
   }>;
   admins: Id<"users">[];
@@ -54,8 +53,8 @@ export function TeamMembersDialog({
 
   const isCurrentUserCreator = currentUserId === createdBy;
 
-  const handleMemberClick = (slug: string) => {
-    router.push(`/profile/${slug}`);
+  const handleMemberClick = (userId: Id<"users">) => {
+    router.push(`/profile/${userId}`);
     onOpenChange(false);
   };
 
@@ -97,7 +96,7 @@ export function TeamMembersDialog({
                   className="flex items-center gap-3 p-2 rounded-md hover:bg-accent"
                 >
                   <div
-                    onClick={() => handleMemberClick(teammate.slug)}
+                    onClick={() => handleMemberClick(teammate._id)}
                     className="flex items-center gap-3 flex-1 cursor-pointer"
                   >
                     <Avatar className="h-10 w-10">

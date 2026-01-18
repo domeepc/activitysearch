@@ -111,11 +111,11 @@ export function AddFriendDialog({
                 No users found or all results are already your friends
               </p>
             ) : (
-              <div className="max-h-60 overflow-y-auto border rounded-md p-2 space-y-2">
+              <div className="max-h-60 overflow-y-auto border-2 border-border rounded-md p-2 space-y-2">
                 {availableUsers.map((user) => (
                   <div
                     key={user._id}
-                    onClick={() => router.push(`/profile/${user.slug}`)}
+                    onClick={() => router.push(`/profile/${user._id}`)}
                     className="flex items-center gap-3 p-2 hover:bg-accent rounded-md cursor-pointer"
                   >
                     <Avatar className="h-10 w-10">
@@ -171,7 +171,7 @@ export function AddFriendDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" className="border-border" onClick={() => onOpenChange(false)}>
             Close
           </Button>
         </DialogFooter>

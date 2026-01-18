@@ -14,9 +14,14 @@ import {
   CheckCircle,
   Clock,
   XCircle,
+  MapPin,
+  Calendar,
+  Wallet,
+  Users,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Id } from "@/convex/_generated/dataModel";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 
 type PaymentIntentStatus = "on_hold" | "paid" | "canceled" | "pending";
 
@@ -42,6 +47,7 @@ interface StripePaymentIntent {
 }
 
 export function StripeDashboard() {
+  const isMobile = useIsMobile();
   const [statusFilter, setStatusFilter] = useState<
     "all" | PaymentIntentStatus
   >("all");
@@ -235,11 +241,89 @@ export function StripeDashboard() {
           </Button>
         </div>
 
-        {/* Payment Intents Table */}
+        {/* Payment Intents: mobile cards or desktop table */}
         {filteredIntents.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <CreditCard className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <p>No payment intents found{statusFilter !== "all" ? ` with status "${statusFilter}"` : ""}.</p>
+          </div>
+        ) : isMobile ? (
+          <div className="space-y-4">
+            {filteredIntents.map((intent) => (
+              <Card key={intent.paymentIntentId} className="overflow-hidden border-border">
+                <CardContent className="p-4 space-y-3">
+                  {/* Activity & Status */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-base truncate">
+                        {intent.activityName}
+                      </h3>
+                      {intent.activityAddress && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{intent.activityAddress}</span>
+                        </div>
+                      )}
+                    </div>
+                    {getStatusBadge(intent.status)}
+                  </div>
+
+                  {/* Team */}
+                  <div className="flex items-center gap-2 text-sm">
+                    <Users className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="font-medium truncate">{intent.teamName}</span>
+                  </div>
+
+                  {/* Date & Time */}
+                  <div className="flex items-center gap-2 text-sm">
+                    <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="font-medium">{formatDate(intent.date)}</span>
+                    <span className="text-muted-foreground">at</span>
+                    <span>{intent.time}</span>
+                  </div>
+
+                  {/* Amounts */}
+                  <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Wallet className="h-3.5 w-3.5" />
+                        Collected
+                      </span>
+                      <span className="font-semibold text-green-600">
+                        {formatCurrency(intent.collectedAmount, intent.currency)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Total</span>
+                      <span>{formatCurrency(intent.amount, intent.currency)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Remaining</span>
+                      <span
+                        className={
+                          intent.remainingAmount > 0
+                            ? "font-semibold text-orange-600"
+                            : "text-muted-foreground"
+                        }
+                      >
+                        {formatCurrency(intent.remainingAmount, intent.currency)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* View in Stripe */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(intent.stripeDashboardUrl, "_blank")}
+                    className="w-full gap-2"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    View in Stripe
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         ) : (
           <div className="rounded-md border overflow-x-auto">

@@ -8,10 +8,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import React, { Dispatch, useCallback, useState } from "react";
+import React, { Dispatch, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "./button";
 import { api } from "@/convex/_generated/api";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
+import { Id } from "@/convex/_generated/dataModel";
 import { AddressCoordinates } from "./address-autocomplete";
 import {
   ActivityFormData,
@@ -33,11 +34,19 @@ import { Stepper } from "@/components/ui/stepper";
 export default function DialogAddActivity({
   showDialog,
   setShowDialog,
+  activityId,
 }: {
   showDialog: boolean;
   setShowDialog: Dispatch<React.SetStateAction<boolean>>;
+  activityId?: Id<"activities">;
 }) {
   const createActivity = useMutation(api.activity.createActivity);
+  const updateActivity = useMutation(api.activity.updateActivity);
+  const activity = useQuery(
+    api.activity.getActivityById,
+    activityId ? { activityId } : "skip"
+  );
+  const prefillDoneFor = useRef<Id<"activities"> | null>(null);
   const [formData, setFormData] = useState<ActivityFormData>(initialFormData);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -175,6 +184,33 @@ export default function DialogAddActivity({
     }));
   };
 
+  // Prefill form when opening for edit and activity has loaded
+  useEffect(() => {
+    if (!activityId || !activity || activityId === prefillDoneFor.current)
+      return;
+    setFormData({
+      activityName: activity.activityName ?? "",
+      description: activity.description ?? "",
+      address: activity.address ?? "",
+      coordinates: {
+        latitude: activity.latitude,
+        longitude: activity.longitude,
+      },
+      price: String(activity.price ?? 0),
+      duration: String(activity.duration ?? 0),
+      difficulty: activity.difficulty ?? "",
+      maxParticipants: String(activity.maxParticipants ?? 0),
+      minAge: String(activity.minAge ?? 0),
+      tags: (activity.tags ?? []).join(", "),
+      equipment: (activity.equipment ?? []).join(", "),
+      images: activity.images ?? [],
+      availableTimeSlots: activity.availableTimeSlots ?? [],
+    });
+    setSelectedDifficulty(activity.difficulty ? [activity.difficulty] : []);
+    setErrors({});
+    prefillDoneFor.current = activityId;
+  }, [activityId, activity]);
+
   // Reset form
   const resetForm = useCallback(() => {
     setFormData(initialFormData);
@@ -190,6 +226,7 @@ export default function DialogAddActivity({
     (open: boolean) => {
       setShowDialog(open);
       if (!open) {
+        prefillDoneFor.current = null;
         resetForm();
       }
     },
@@ -244,7 +281,7 @@ export default function DialogAddActivity({
       const minAgeInt = parseInt(formData.minAge, 10);
       const priceFloat = parseFloat(formData.price);
 
-      const args = {
+      const base = {
         activityName: formData.activityName.trim(),
         longitude: coords.longitude,
         latitude: coords.latitude,
@@ -264,19 +301,21 @@ export default function DialogAddActivity({
           .map((e) => e.trim())
           .filter(Boolean),
         images: formData.images,
-        availableTimeSlots: formData.availableTimeSlots.length > 0
-          ? formData.availableTimeSlots
-          : undefined,
-      } as unknown;
+        availableTimeSlots: formData.availableTimeSlots,
+      };
 
-      await (
-        createActivity as unknown as (...args: unknown[]) => Promise<unknown>
-      )(args);
+      if (activityId) {
+        await updateActivity({ activityId, ...base });
+      } else {
+        await (
+          createActivity as unknown as (...args: unknown[]) => Promise<unknown>
+        )(base as unknown);
+      }
 
       resetForm();
       setShowDialog(false);
     } catch (err) {
-      console.error("createActivity error:", err);
+      console.error(activityId ? "updateActivity error:" : "createActivity error:", err);
       setErrors((prev) => ({
         ...prev,
         _general: "Failed to create activity. Please try again.",
@@ -307,15 +346,18 @@ export default function DialogAddActivity({
     );
   };
 
+  const isEdit = !!activityId;
+
   return (
-    <div className="hidden md:block">
+    <div className={isEdit ? "" : "hidden md:block"}>
       <Dialog open={showDialog} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Activity</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit Activity" : "Add New Activity"}</DialogTitle>
           <DialogDescription>
-            Fill in all required fields to create a new activity. Fields marked
-            with * are required.
+            {isEdit
+              ? "Update the activity details. Fields marked with * are required."
+              : "Fill in all required fields to create a new activity. Fields marked with * are required."}
           </DialogDescription>
         </DialogHeader>
 
@@ -389,6 +431,7 @@ export default function DialogAddActivity({
           <Button
             type="button"
             variant="outline"
+            className="border-border"
             onClick={() => setShowDialog(false)}
             disabled={isSubmitting}
           >
@@ -418,7 +461,13 @@ export default function DialogAddActivity({
               onClick={handleSubmit}
               disabled={!isFormValid()}
             >
-              {isSubmitting ? "Creating..." : "Create Activity"}
+              {isSubmitting
+                ? isEdit
+                  ? "Saving..."
+                  : "Creating..."
+                : isEdit
+                  ? "Save"
+                  : "Create Activity"}
             </Button>
           )}
         </DialogFooter>

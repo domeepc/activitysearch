@@ -7,7 +7,7 @@ import {
 } from "./_generated/server";
 import { UserJSON, createClerkClient } from "@clerk/backend";
 import { v, Validator } from "convex/values";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 
 // Helper function to generate URL-safe slug from username
@@ -151,9 +151,9 @@ export const deleteFromClerk = internalMutation({
           // User is the only organiser - delete organisation and all related data
 
           // Collect all items to delete
-          const itemsToDelete: Array<{ 
-            type: "review" | "reservation" | "quest" | "activity"; 
-            id: Id<"reviews"> | Id<"reservations"> | Id<"quests"> | Id<"activities">;
+          const itemsToDelete: Array<{
+            type: "review" | "reservation" | "quest" | "activity" | "reservationPayment";
+            id: Id<"reviews"> | Id<"reservations"> | Id<"quests"> | Id<"activities"> | Id<"reservationPayments">;
           }> = [];
 
           // Delete all activities and related data
@@ -166,9 +166,19 @@ export const deleteFromClerk = internalMutation({
               itemsToDelete.push({ type: "review", id: review._id });
             }
 
-            // Add reservations to delete list
+            // Add reservationPayments and reservations to delete list
+            // (reservationPayments must be deleted before their reservations)
             const reservations = reservationsByActivity.get(activityIdStr) || [];
             for (const reservation of reservations) {
+              const payments = await ctx.db
+                .query("reservationPayments")
+                .withIndex("byReservation", (q) =>
+                  q.eq("reservationId", reservation._id)
+                )
+                .collect();
+              for (const p of payments) {
+                itemsToDelete.push({ type: "reservationPayment", id: p._id });
+              }
               itemsToDelete.push({ type: "reservation", id: reservation._id });
             }
 
@@ -182,10 +192,17 @@ export const deleteFromClerk = internalMutation({
             itemsToDelete.push({ type: "activity", id: activityId });
           }
 
-          // Batch delete all items
-          await Promise.all(
-            itemsToDelete.map((item) => ctx.db.delete(item.id))
+          // Delete reservationPayments first (they reference reservations)
+          const paymentItems = itemsToDelete.filter(
+            (i) => i.type === "reservationPayment"
           );
+          await Promise.all(paymentItems.map((item) => ctx.db.delete(item.id)));
+
+          // Delete the rest (reviews, reservations, quests, activities)
+          const restItems = itemsToDelete.filter(
+            (i) => i.type !== "reservationPayment"
+          );
+          await Promise.all(restItems.map((item) => ctx.db.delete(item.id)));
 
           // Delete the organisation
           await ctx.db.delete(organisation._id);
@@ -198,6 +215,38 @@ export const deleteFromClerk = internalMutation({
           });
         }
       }
+
+      // Delete all messages where this user is sender or receiver (DMs)
+      const asSender = await ctx.db
+        .query("messages")
+        .withIndex("byConversation", (q) => q.eq("senderId", user._id))
+        .collect();
+      const asReceiver = await ctx.db
+        .query("messages")
+        .withIndex("byReceiver", (q) => q.eq("receiverId", user._id))
+        .collect();
+      const allMessages = [...asSender, ...asReceiver];
+      await Promise.all(allMessages.map((m) => ctx.db.delete(m._id)));
+
+      // Delete all conversations where this user is user1 or user2
+      const asUser1 = await ctx.db
+        .query("conversations")
+        .withIndex("byUser1", (q) => q.eq("user1Id", user._id))
+        .collect();
+      const asUser2 = await ctx.db
+        .query("conversations")
+        .withIndex("byUser2", (q) => q.eq("user2Id", user._id))
+        .collect();
+      const allConversations = [...asUser1, ...asUser2];
+      await Promise.all(allConversations.map((c) => ctx.db.delete(c._id)));
+
+      // Remove user from all teams (teammates and admins). Teams with no admins
+      // left after removal are deleted. Runs as a separate mutation after commit.
+      await ctx.scheduler.runAfter(
+        0,
+        internal.teams.removeUserFromTeamsAndDeleteEmptyOnes,
+        { userId: user._id }
+      );
 
       await ctx.db.delete(user._id);
     } else {
@@ -240,12 +289,19 @@ export const getCurrentUserProfile = query({
   },
 });
 
-export const getUserBySlug = query({
-  args: { slug: v.string() },
-  handler: async (ctx, { slug }) => {
+export const getUserById = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    return await ctx.db.get(userId);
+  },
+});
+
+export const getUserByUsername = query({
+  args: { username: v.string() },
+  handler: async (ctx, { username }) => {
     return await ctx.db
       .query("users")
-      .withIndex("bySlug", (q) => q.eq("slug", slug))
+      .withIndex("byUsername", (q) => q.eq("username", username))
       .first();
   },
 });

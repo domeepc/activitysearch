@@ -2,6 +2,8 @@ import Image from "next/image";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { getTagColorScheme } from "@/lib/tagColors";
 import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { Pencil } from "lucide-react";
 import { api as convexApi } from "@/convex/_generated/api";
 import { useQuery } from "convex/react";
 
@@ -28,6 +30,7 @@ interface ActivityCardProps {
     images?: string[];
   };
   onClose?: () => void;
+  onEdit?: (activityId: string) => void;
   isExpanded?: boolean;
 }
 
@@ -62,11 +65,29 @@ export default function ActivityCardInList(props: ActivityCardProps) {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-row justify-between items-center mb-8">
-            <h1 className="text-xl font-bold">{props.activity.title}</h1>
-            <p className=" text-green-600 text-md font-semibold ">
-              {props.activity.price.amount} {props.activity.price.currency}
-            </p>
+          <div className="flex flex-row justify-between items-center mb-8 gap-2">
+            <h1 className="text-xl font-bold flex-1 min-w-0 truncate">
+              {props.activity.title}
+            </h1>
+            <div className="flex items-center gap-1 shrink-0">
+              {props.onEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  aria-label="Edit activity"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    props.onEdit?.(props.activity.id);
+                  }}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              )}
+              <p className="text-green-600 text-md font-semibold">
+                {props.activity.price.amount} {props.activity.price.currency}
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-row gap-4 flex-wrap mb-4">

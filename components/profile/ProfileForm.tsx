@@ -45,7 +45,7 @@ export function ProfileForm({
             <CardTitle>Edit Profile</CardTitle>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" onClick={onCancel}>
+            <Button variant="outline" className="border-border" onClick={onCancel}>
               Cancel
             </Button>
             <Button onClick={onSave} disabled={hasErrors}>

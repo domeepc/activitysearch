@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { Doc, Id } from "./_generated/dataModel";
+import { getCurrentUser, getCurrentUserOrThrow } from "./users";
 
 export const getActivities = query({
     args: {},
@@ -14,6 +15,19 @@ export const getActivityById = query({
     handler: async (ctx, { activityId }) => {
         return await ctx.db.get(activityId);
     }
+});
+
+export const isOrganiserOfActivity = query({
+    args: { activityId: v.id("activities") },
+    handler: async (ctx, { activityId }) => {
+        const currentUser = await getCurrentUser(ctx);
+        if (!currentUser) return false;
+        const allOrganisations = await ctx.db.query("organisations").collect();
+        const organisation = allOrganisations.find((o) =>
+            o.activityIDs.includes(activityId)
+        );
+        return organisation?.organisersIDs.includes(currentUser._id) ?? false;
+    },
 });
 
 export const getActivitiesByIds = query({
@@ -131,4 +145,55 @@ export const createActivity = mutation({
 
         return { success: true, activityId };
     }
+});
+
+export const updateActivity = mutation({
+    args: {
+        activityId: v.id("activities"),
+        activityName: v.optional(v.string()),
+        longitude: v.optional(v.float64()),
+        latitude: v.optional(v.float64()),
+        description: v.optional(v.string()),
+        address: v.optional(v.string()),
+        price: v.optional(v.float64()),
+        duration: v.optional(v.int64()),
+        difficulty: v.optional(v.string()),
+        maxParticipants: v.optional(v.int64()),
+        minAge: v.optional(v.int64()),
+        tags: v.optional(v.array(v.string())),
+        equipment: v.optional(v.array(v.string())),
+        images: v.optional(v.array(v.string())),
+        availableTimeSlots: v.optional(v.array(v.string())),
+    },
+    handler: async (ctx, args) => {
+        const currentUser = await getCurrentUserOrThrow(ctx);
+        const activity = await ctx.db.get(args.activityId);
+        if (!activity) {
+            throw new Error("Activity not found");
+        }
+        const allOrganisations = await ctx.db.query("organisations").collect();
+        const organisation = allOrganisations.find((o) =>
+            o.activityIDs.includes(args.activityId)
+        );
+        if (!organisation || !organisation.organisersIDs.includes(currentUser._id)) {
+            throw new Error("You can only edit activities of your organisation");
+        }
+        const updates: Partial<Doc<"activities">> = {};
+        if (args.activityName !== undefined) updates.activityName = args.activityName;
+        if (args.longitude !== undefined) updates.longitude = args.longitude;
+        if (args.latitude !== undefined) updates.latitude = args.latitude;
+        if (args.description !== undefined) updates.description = args.description;
+        if (args.address !== undefined) updates.address = args.address;
+        if (args.price !== undefined) updates.price = args.price;
+        if (args.duration !== undefined) updates.duration = args.duration;
+        if (args.difficulty !== undefined) updates.difficulty = args.difficulty;
+        if (args.maxParticipants !== undefined) updates.maxParticipants = args.maxParticipants;
+        if (args.minAge !== undefined) updates.minAge = args.minAge;
+        if (args.tags !== undefined) updates.tags = args.tags;
+        if (args.equipment !== undefined) updates.equipment = args.equipment;
+        if (args.images !== undefined) updates.images = args.images;
+        if (args.availableTimeSlots !== undefined) updates.availableTimeSlots = args.availableTimeSlots;
+        if (Object.keys(updates).length === 0) return;
+        await ctx.db.patch(args.activityId, updates);
+    },
 });
