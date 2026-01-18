@@ -179,21 +179,8 @@ export function useEncryptionWithUser({
 
       try {
         setEncryptionError(null);
-        let key: CryptoKey;
-
-        if (teamId) {
-          // Team chat encryption
-          key = await EncryptionService.getOrCreateTeamKey(teamId);
-        } else if (otherUserId && currentUserId) {
-          // Individual chat encryption
-          key = await EncryptionService.getOrCreateConversationKey(
-            currentUserId,
-            otherUserId
-          );
-        } else {
-          setIsEncryptionReady(false);
-          return;
-        }
+        // Derive key from slug using PBKDF2
+        const key = await EncryptionService.deriveKeyFromSlug(slug);
 
         if (!cancelled) {
           setConversationKey(key);

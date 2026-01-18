@@ -1,6 +1,6 @@
 import { mutation, query, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { getCurrentUserOrThrow, getCurrentUser } from "./users";
+import { getCurrentUserOrThrow } from "./users";
 import { Id } from "./_generated/dataModel";
 
 // Helper function to generate secure random hash for conversation slugs
@@ -19,12 +19,9 @@ export const getReservationsByActivity = query({
       .withIndex("byActivity", (q) => q.eq("activityId", activityId))
       .collect();
 
-    // Filter out cancelled reservations
-    const activeReservations = reservations.filter((r) => !r.cancelledAt);
-
     // Fetch team details for each reservation
     const reservationsWithTeams = await Promise.all(
-      activeReservations.map(async (reservation) => {
+      reservations.map(async (reservation) => {
         const teams = await Promise.all(
           reservation.teamIds.map((teamId) => ctx.db.get(teamId))
         );
@@ -115,20 +112,21 @@ export const getReservationStatusByDate = query({
     const availableTimeSlots = activity.availableTimeSlots ?? [];
     const totalSlots = availableTimeSlots.length;
 
-    // Get all active (non-cancelled) reservations for this activity and date
+    // Get all reservations for this activity and date
     const reservations = await ctx.db
       .query("reservations")
       .withIndex("byActivity", (q) => q.eq("activityId", activityId))
       .collect();
 
-    // Filter active reservations for the specific date
+    // Filter reservations for the specific date
     const reservationsForDate = reservations.filter(
-      (r) => r.date === date && !r.cancelledAt
+      (r) => r.date === date
     );
 
     // Count unique reserved time slots
     const reservedSlots = reservationsForDate.length;
-    const percentage = totalSlots > 0 ? (reservedSlots / totalSlots) * 100 : 0;
+    const percentage =
+      totalSlots > 0 ? (reservedSlots / totalSlots) * 100 : 0;
 
     // Determine status
     let status: "available" | "limited" | "full";
@@ -759,20 +757,26 @@ export const joinQueue = mutation({
   handler: async (ctx, { activityId, date, teamIds, userCount }) => {
     const currentUser = await getCurrentUserOrThrow(ctx);
 
-    // Get activity
+    // Get activity to validate time slot
     const activity = await ctx.db.get(activityId);
     if (!activity) {
       throw new Error("Activity not found");
     }
 
-    // Validate team size doesn't exceed activity maxParticipants
-    if (
-      activity.maxParticipants &&
-      userCount > Number(activity.maxParticipants)
-    ) {
+    // Validate time is in availableTimeSlots
+    const availableTimeSlots = activity.availableTimeSlots ?? [];
+    if (availableTimeSlots.length === 0) {
+      throw new Error("This activity has no available time slots defined");
+    }
+    if (!availableTimeSlots.includes(time)) {
       throw new Error(
-        `Team has ${userCount} members, but this activity only allows ${activity.maxParticipants} participants.`
+        `Time ${time} is not available. Available times: ${availableTimeSlots.join(", ")}`
       );
+    }
+
+    // Validate userCount is positive
+    if (userCount <= 0) {
+      throw new Error("User count must be greater than 0");
     }
 
     // Validate at least one team is selected
@@ -788,310 +792,29 @@ export const joinQueue = mutation({
       }
       if (team.createdBy !== currentUser._id) {
         throw new Error(
-          `You are not the creator of team ${team.teamName}. Only team creators can join the queue.`
+          `You are not the creator of team ${team.teamName}. Only team creators can make reservations.`
         );
       }
     }
 
-    // Check if day is fulfilled (required for queue)
-    const isFulfilled = await areBookingsFulfilledForDate(
-      ctx as MutationCtx,
-      activityId,
-      date
-    );
-
-    if (!isFulfilled) {
-      throw new Error(
-        "Queue is only available when all time slots for this date are reserved."
-      );
+    // Validate date/time is not in the past
+    const reservationDateTime = new Date(`${date}T${time}`);
+    const now = new Date();
+    if (reservationDateTime <= now) {
+      throw new Error("Reservation date and time must be in the future");
     }
 
-    // Check if any team already has a reservation for this activity on this date
-    const allReservationsForDate = await ctx.db
-      .query("reservations")
-      .withIndex("byActivity", (q) => q.eq("activityId", activityId))
-      .collect();
-
-    const activeReservationsForDate = allReservationsForDate.filter(
-      (r) => r.date === date && !r.cancelledAt
-    );
-
-    for (const teamId of teamIds) {
-      const team = await ctx.db.get(teamId);
-      if (!team) continue;
-
-      const hasExistingReservation = activeReservationsForDate.some((r) =>
-        r.teamIds.includes(teamId)
-      );
-
-      if (hasExistingReservation) {
-        throw new Error(
-          `Team ${team.teamName} already has a reservation for this activity on ${date}.`
-        );
-      }
-    }
-
-    // Check if teams are already in queue
-    const existingQueueEntries = await ctx.db
-      .query("reservationQueue")
-      .withIndex("byActivityDate", (q) =>
-        q.eq("activityId", activityId).eq("date", date)
-      )
-      .collect();
-
-    for (const teamId of teamIds) {
-      const team = await ctx.db.get(teamId);
-      if (!team) continue;
-
-      const alreadyInQueue = existingQueueEntries.some(
-        (q) => q.teamIds.includes(teamId) && !q.notifiedAt
-      );
-
-      if (alreadyInQueue) {
-        throw new Error(
-          `Team ${team.teamName} is already in the queue for this date.`
-        );
-      }
-    }
-
-    // Add to queue
-    await ctx.db.insert("reservationQueue", {
-      activityId,
-      date,
-      teamIds,
-      userCount,
-      createdBy: currentUser._id,
-      createdAt: Date.now(),
-    });
-
-    // Calculate queue position
-    const allQueueEntries = await ctx.db
-      .query("reservationQueue")
-      .withIndex("byActivityDate", (q) =>
-        q.eq("activityId", activityId).eq("date", date)
-      )
-      .collect();
-
-    const sortedQueue = allQueueEntries
-      .filter((q) => !q.notifiedAt)
-      .sort((a, b) => a.createdAt - b.createdAt);
-
-    const position =
-      sortedQueue.findIndex((q) =>
-        q.teamIds.some((tid) => teamIds.includes(tid))
-      ) + 1;
-
-    return { success: true, position, totalInQueue: sortedQueue.length };
-  },
-});
-
-export const leaveQueue = mutation({
-  args: {
-    queueEntryId: v.id("reservationQueue"),
-  },
-  handler: async (ctx, { queueEntryId }) => {
-    const currentUser = await getCurrentUserOrThrow(ctx);
-
-    const queueEntry = await ctx.db.get(queueEntryId);
-    if (!queueEntry) {
-      throw new Error("Queue entry not found");
-    }
-
-    // Verify user is the creator
-    if (queueEntry.createdBy !== currentUser._id) {
-      throw new Error("You can only remove your own queue entries");
-    }
-
-    // Only allow leaving if not yet notified
-    if (queueEntry.notifiedAt) {
-      throw new Error(
-        "Cannot leave queue: You have been notified. Please accept or decline the reservation."
-      );
-    }
-
-    await ctx.db.delete(queueEntryId);
-
-    return { success: true };
-  },
-});
-
-export const getQueuePosition = query({
-  args: {
-    activityId: v.id("activities"),
-    date: v.string(),
-    teamIds: v.array(v.id("teams")),
-  },
-  handler: async (ctx, { activityId, date, teamIds }) => {
-    const currentUser = await getCurrentUserOrThrow(ctx);
-
-    // Get all queue entries for this activity/date
-    const queueEntries = await ctx.db
-      .query("reservationQueue")
-      .withIndex("byActivityDate", (q) =>
-        q.eq("activityId", activityId).eq("date", date)
-      )
-      .collect();
-
-    // Find queue entry for these teams
-    const userQueueEntry = queueEntries.find(
-      (q) =>
-        q.teamIds.some((tid) => teamIds.includes(tid)) &&
-        q.createdBy === currentUser._id &&
-        !q.notifiedAt
-    );
-
-    if (!userQueueEntry) {
-      return { inQueue: false, position: null, totalInQueue: 0 };
-    }
-
-    // Calculate position (FIFO based on createdAt)
-    const sortedQueue = queueEntries
-      .filter((q) => !q.notifiedAt)
-      .sort((a, b) => a.createdAt - b.createdAt);
-
-    const position =
-      sortedQueue.findIndex((q) => q._id === userQueueEntry._id) + 1;
-
-    return {
-      inQueue: true,
-      position,
-      totalInQueue: sortedQueue.length,
-      queueEntryId: userQueueEntry._id,
-    };
-  },
-});
-
-export const getQueueForActivity = query({
-  args: {
-    activityId: v.id("activities"),
-  },
-  handler: async (ctx, { activityId }) => {
-    const currentUser = await getCurrentUserOrThrow(ctx);
-
-    // Check if user is an organizer
-    if (currentUser.role !== "organiser") {
-      return [];
-    }
-
-    // Find organization(s) where user is an organizer
-    const allOrganisations = await ctx.db.query("organisations").collect();
-    const userOrganisations = allOrganisations.filter((org) =>
-      org.organisersIDs.includes(currentUser._id)
-    );
-
-    if (userOrganisations.length === 0) {
-      return [];
-    }
-
-    // Verify activity belongs to user's organization
-    const hasAccess = userOrganisations.some((org) =>
-      org.activityIDs.includes(activityId)
-    );
-
-    if (!hasAccess) {
-      return [];
-    }
-
-    // Get all queue entries for this activity
-    const allQueueEntries = await ctx.db.query("reservationQueue").collect();
-
-    const queueEntries = allQueueEntries.filter(
-      (q) => q.activityId === activityId
-    );
-
-    // Enrich with team and user details
-    const enrichedQueue = await Promise.all(
-      queueEntries.map(async (entry) => {
-        const user = await ctx.db.get(entry.createdBy);
-        const teams = await Promise.all(
-          entry.teamIds.map((teamId) => ctx.db.get(teamId))
-        );
-
-        return {
-          ...entry,
-          user: user
-            ? {
-                _id: user._id,
-                name: user.name,
-                lastname: user.lastname,
-                username: user.username,
-                slug: user.slug,
-                avatar: user.avatar,
-              }
-            : null,
-          teams: teams
-            .filter((t): t is NonNullable<typeof t> => t !== null)
-            .map((t) => ({
-              _id: t._id,
-              teamName: t.teamName,
-              slug: t.slug,
-            })),
-        };
-      })
-    );
-
-    // Sort by createdAt (FIFO)
-    return enrichedQueue.sort((a, b) => a.createdAt - b.createdAt);
-  },
-});
-
-export const acceptQueueReservation = mutation({
-  args: {
-    queueEntryId: v.id("reservationQueue"),
-    time: v.string(),
-  },
-  handler: async (ctx, { queueEntryId, time }) => {
-    const currentUser = await getCurrentUserOrThrow(ctx);
-
-    const queueEntry = await ctx.db.get(queueEntryId);
-    if (!queueEntry) {
-      throw new Error("Queue entry not found");
-    }
-
-    // Verify user is the creator
-    if (queueEntry.createdBy !== currentUser._id) {
-      throw new Error("You can only accept your own queue notifications");
-    }
-
-    // Verify notification was sent
-    if (!queueEntry.notifiedAt) {
-      throw new Error("You have not been notified yet");
-    }
-
-    // Get activity
-    const activity = await ctx.db.get(queueEntry.activityId);
-    if (!activity) {
-      throw new Error("Activity not found");
-    }
-
-    // Validate time is in availableTimeSlots
-    const availableTimeSlots = activity.availableTimeSlots ?? [];
-    if (!availableTimeSlots.includes(time)) {
-      throw new Error(
-        `Time ${time} is not available. Available times: ${availableTimeSlots.join(
-          ", "
-        )}`
-      );
-    }
-
-    // Check if time slot is still available
+    // Check for conflicts with existing reservations
     const existingReservations = await ctx.db
       .query("reservations")
       .withIndex("byDateTime", (q) =>
-        q
-          .eq("activityId", queueEntry.activityId)
-          .eq("date", queueEntry.date)
-          .eq("time", time)
+        q.eq("activityId", activityId).eq("date", date).eq("time", time)
       )
       .collect();
 
-    const activeReservations = existingReservations.filter(
-      (r) => !r.cancelledAt
-    );
-
-    if (activeReservations.length > 0) {
+    if (existingReservations.length > 0) {
       throw new Error(
-        "This time slot is no longer available. Please choose a different time."
+        "This date and time slot is already reserved. Please choose a different time."
       );
     }
 
@@ -1153,11 +876,11 @@ export const acceptQueueReservation = mutation({
 
     // Create reservation
     const reservationId = await ctx.db.insert("reservations", {
-      activityId: queueEntry.activityId,
-      date: queueEntry.date,
+      activityId,
+      date,
       time,
-      teamIds: queueEntry.teamIds,
-      userCount: queueEntry.userCount,
+      teamIds,
+      userCount,
       createdBy: currentUser._id,
       readByOrganizer: false,
       reservationChatSlug: conversationSlug,

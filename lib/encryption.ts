@@ -113,95 +113,27 @@ export class EncryptionService {
   }
 
   /**
-   * Get or create encryption key for a conversation between two users
-   * Keys are stored in localStorage with sorted user IDs
+   * Derive an encryption key from a conversation or team slug using PBKDF2
+   * This ensures the same slug always produces the same key, allowing
+   * messages to be decrypted across different devices.
    */
-  static async getOrCreateConversationKey(
-    user1Id: string,
-    user2Id: string
-  ): Promise<CryptoKey> {
-    // Sort IDs to ensure consistent key name
-    const sortedIds = [user1Id, user2Id].sort((a, b) => a.localeCompare(b));
-    const keyName = `e2e_key_${sortedIds[0]}_${sortedIds[1]}`;
+  static async deriveKeyFromSlug(slug: string): Promise<CryptoKey> {
+    // Convert slug to ArrayBuffer
+    const encoder = new TextEncoder();
+    const passwordData = encoder.encode(slug);
 
-    // Try to load existing key
-    const existingKey = await this.loadKey(keyName);
-    if (existingKey) {
-      return existingKey;
-    }
+    // Use a fixed application-wide salt
+    // This salt should remain constant across all devices and versions
+    const salt = encoder.encode("activitysearch-e2e-salt-v1");
 
-    // Generate new key
-    const newKey = await this.generateKey();
-    await this.storeKey(keyName, newKey);
-    return newKey;
-  }
-
-  /**
-   * Get or create encryption key for a team
-   */
-  static async getOrCreateTeamKey(teamId: string): Promise<CryptoKey> {
-    const keyName = `e2e_team_key_${teamId}`;
-
-    // Try to load existing key
-    const existingKey = await this.loadKey(keyName);
-    if (existingKey) {
-      return existingKey;
-    }
-
-    // Generate new key
-    const newKey = await this.generateKey();
-    await this.storeKey(keyName, newKey);
-    return newKey;
-  }
-
-  /**
-   * Store a key in localStorage as JWK (JSON Web Key)
-   */
-  static async storeKey(keyName: string, key: CryptoKey): Promise<void> {
-    try {
-      if (typeof window === "undefined" || !window.localStorage) {
-        throw new Error("localStorage is not available");
-      }
-
-      // Export key as JWK
-      const jwk = await crypto.subtle.exportKey("jwk", key);
-      const keyData = JSON.stringify(jwk);
-
-      // Store in localStorage
-      localStorage.setItem(keyName, keyData);
-    } catch (error) {
-      throw new Error(`Failed to store key: ${error instanceof Error ? error.message : "Unknown error"}`);
-    }
-  }
-
-  /**
-   * Load a key from localStorage
-   */
-  static async loadKey(keyName: string): Promise<CryptoKey | null> {
-    try {
-      if (typeof window === "undefined" || !window.localStorage) {
-        return null;
-      }
-
-      const keyData = localStorage.getItem(keyName);
-      if (!keyData) {
-        return null;
-      }
-
-      // Parse JWK
-      const jwk = JSON.parse(keyData);
-
-      // Import key
-      const key = await crypto.subtle.importKey(
-        "jwk",
-        jwk,
-        {
-          name: ALGORITHM,
-          length: KEY_LENGTH,
-        },
-        true, // extractable
-        ["encrypt", "decrypt"]
-      );
+    // Import password as key material for PBKDF2
+    const keyMaterial = await crypto.subtle.importKey(
+      "raw",
+      passwordData,
+      "PBKDF2",
+      false,
+      ["deriveBits", "deriveKey"]
+    );
 
       return key;
     } catch (error) {

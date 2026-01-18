@@ -90,7 +90,6 @@ export default defineSchema({
     user2Id: v.id("users"),
     slug: v.string(),
     createdAt: v.number(),
-    reservationId: v.optional(v.id("reservations")),
   })
     .index("bySlug", ["slug"])
     .index("byUser1", ["user1Id"])

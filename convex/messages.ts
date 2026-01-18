@@ -1,7 +1,16 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUserOrThrow } from "./users";
-import { Id } from "./_generated/dataModel";
+
+// Helper function to generate secure random hash
+function generateSecureHash(): string {
+  // Generate a cryptographically secure random string
+  // Using a combination of timestamp and random bytes
+  const timestamp = Date.now().toString(36);
+  const randomPart = Math.random().toString(36).substring(2, 15);
+  const randomPart2 = Math.random().toString(36).substring(2, 15);
+  return `${timestamp}-${randomPart}-${randomPart2}`.replace(/[^a-z0-9-]/g, "");
+}
 
 // Helper function to generate secure random hash
 function generateSecureHash(): string {
@@ -183,15 +192,12 @@ export const getConversations = query({
       .withIndex("byUser2", (q) => q.eq("user2Id", currentUser._id))
       .collect();
     
-    // Create a map of conversation slugs by partner ID and track reservation conversations
-    const conversationMap = new Map<string, { slug: string; reservationId?: Id<"reservations"> }>();
+    // Create a map of conversation slugs by partner ID
+    const conversationMap = new Map<string, string>();
     for (const conv of [...allUserConversations, ...user2Conversations]) {
       const otherUserId =
         conv.user1Id === currentUser._id ? conv.user2Id : conv.user1Id;
-      conversationMap.set(otherUserId.toString(), {
-        slug: conv.slug,
-        reservationId: conv.reservationId,
-      });
+      conversationMap.set(otherUserId.toString(), conv.slug);
     }
 
     // Build conversations array - only include friends with messages
@@ -216,15 +222,13 @@ export const getConversations = query({
           }
         }
 
-        const convData = conversationMap.get(partnerIdStr);
         return {
           userId: partner._id,
           name: partner.name,
           lastname: partner.lastname,
           username: partner.username,
           slug: partner.slug,
-          conversationSlug: convData?.slug || null,
-          reservationId: convData?.reservationId || null,
+          conversationSlug: conversationMap.get(partnerIdStr) || null,
           avatar: partner.avatar,
           role: partner.role,
           lastMessage: lastMessage?.text || "",
@@ -395,16 +399,12 @@ export const getMessagesByConversationSlug = query({
       )
       .collect();
 
-    // Check if this is a reservation conversation (conversation already fetched above)
-    const isReservationChat = conversation.reservationId !== undefined;
-
-    // Allow access if they have messages together OR if they're friends OR if it's a reservation chat
+    // Allow access if they have messages together OR if they're friends
     // This allows viewing historical conversations even if friendship was removed
-    // and allows reservation chats without requiring friendship
     const hasMessages = sentMessages.length > 0 || receivedMessages.length > 0;
     const isFriend = currentUser.friends.includes(friend._id);
 
-    if (!hasMessages && !isFriend && !isReservationChat) {
+    if (!hasMessages && !isFriend) {
       throw new Error("You are not friends with this user");
     }
 

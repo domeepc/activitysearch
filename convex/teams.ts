@@ -768,51 +768,6 @@ export const deleteTeam = mutation({
       await ctx.db.delete(msg._id);
     }
 
-    // Delete all reservations that reference this team
-    const allReservations = await ctx.db.query("reservations").collect();
-    const reservationsWithTeam = allReservations.filter((r) =>
-      r.teamIds.includes(teamId)
-    );
-
-    // Import the helper function (we'll need to make it accessible)
-    // For now, delete conversations inline
-    for (const reservation of reservationsWithTeam) {
-      // Find and delete conversation linked to this reservation
-      const allConversations = await ctx.db.query("conversations").collect();
-      const conversation = allConversations.find(
-        (c) => c.reservationId === reservation._id
-      );
-
-      if (conversation) {
-        // Delete all messages between the two users
-        const sentMessages = await ctx.db
-          .query("messages")
-          .withIndex("byConversation", (q) =>
-            q
-              .eq("senderId", conversation.user1Id)
-              .eq("receiverId", conversation.user2Id)
-          )
-          .collect();
-
-        const receivedMessages = await ctx.db
-          .query("messages")
-          .withIndex("byConversation", (q) =>
-            q
-              .eq("senderId", conversation.user2Id)
-              .eq("receiverId", conversation.user1Id)
-          )
-          .collect();
-
-        const allMessages = [...sentMessages, ...receivedMessages];
-        await Promise.all(allMessages.map((msg) => ctx.db.delete(msg._id)));
-
-        // Delete the conversation
-        await ctx.db.delete(conversation._id);
-      }
-
-      await ctx.db.delete(reservation._id);
-    }
-
     // Delete the team
     await ctx.db.delete(teamId);
 

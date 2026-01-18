@@ -15,6 +15,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
+  MultiSelect,
+  MultiSelectContent,
+  MultiSelectItem,
+  MultiSelectTrigger,
+  MultiSelectValue,
+} from "@/components/ui/multi-select";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -28,9 +35,6 @@ import {
   useMyTeamsAsCreator,
   useCreateReservation,
   useReservations,
-  useReservationStatus,
-  useJoinQueue,
-  useGetQueuePosition,
 } from "@/lib/hooks/useReservations";
 import {
   Calendar as CalendarIcon,
@@ -56,7 +60,7 @@ export function ReservationDialog({
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string>("");
-  const [selectedTeamId, setSelectedTeamId] = useState<string>("");
+  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
 
@@ -66,7 +70,7 @@ export function ReservationDialog({
       // Dialog is closing, reset form
       setSelectedDate(undefined);
       setSelectedTime("");
-      setSelectedTeamId("");
+      setSelectedTeamIds([]);
       setError(null);
     }
     onOpenChange(newOpen);
@@ -74,7 +78,6 @@ export function ReservationDialog({
 
   const { teams, isLoading: teamsLoading, hasTeams } = useMyTeamsAsCreator();
   const { createReservation, isPending } = useCreateReservation();
-  const { joinQueue, isPending: isJoiningQueue } = useJoinQueue();
   const activity = useQuery(api.activity.getActivityById, { activityId });
 
   // Get available time slots from activity (memoized to avoid dependency issues)
@@ -85,26 +88,6 @@ export function ReservationDialog({
 
   // Get reservations for the activity to calculate status
   const { reservations } = useReservations(activityId);
-
-  // Check if selected date is fulfilled
-  const selectedDateStr = selectedDate
-    ? format(selectedDate, "yyyy-MM-dd")
-    : undefined;
-  const { status: dateStatus } = useReservationStatus(
-    activityId,
-    selectedDateStr
-  );
-
-  // Check queue position if team is selected and date is fulfilled
-  const { queuePosition } = useGetQueuePosition(
-    activityId,
-    selectedDateStr,
-    selectedTeamId
-      ? ([selectedTeamId as Id<"teams">] as Id<"teams">[])
-      : undefined
-  );
-
-  const isDateFulfilled = dateStatus?.status === "full";
 
   // Calculate reservation status for each date in the visible month
   const getDateModifiers = useMemo(() => {
@@ -173,15 +156,21 @@ export function ReservationDialog({
     });
   }, [selectedDate, availableTimeSlots, reservations, today]);
 
-  // Calculate total number of members in selected team
+  // Calculate total number of unique members across all selected teams
   const userCount = useMemo(() => {
-    if (!selectedTeamId) return 0;
+    if (selectedTeamIds.length === 0) return 0;
 
-    const selectedTeam = teams.find((team) => team._id === selectedTeamId);
-    if (!selectedTeam) return 0;
+    const allMemberIds = new Set<string>();
+    teams.forEach((team) => {
+      if (selectedTeamIds.includes(team._id)) {
+        team.teammates.forEach((teammate) => {
+          allMemberIds.add(teammate._id);
+        });
+      }
+    });
 
-    return selectedTeam.teammates.length;
-  }, [selectedTeamId, teams]);
+    return allMemberIds.size;
+  }, [selectedTeamIds, teams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,69 +182,34 @@ export function ReservationDialog({
       return;
     }
 
-    if (!selectedTeamId) {
-      setError("Please select a team");
-      return;
-    }
-
-    if (userCount === 0) {
-      setError("Selected team has no members");
-      return;
-    }
-
-    // Check if team has more members than activity allows
-    if (
-      activity &&
-      activity.maxParticipants &&
-      userCount > Number(activity.maxParticipants)
-    ) {
-      setError(
-        `This team has ${userCount} members, but this activity only allows ${activity.maxParticipants} participants.`
-      );
-      return;
-    }
-
-    const dateStr = format(selectedDate, "yyyy-MM-dd");
-
-    // If date is fulfilled, join queue instead
-    if (isDateFulfilled) {
-      try {
-        const result = await joinQueue({
-          activityId,
-          date: dateStr,
-          teamIds: [selectedTeamId as Id<"teams">],
-          userCount,
-        });
-        setError(null);
-        // Show success message with queue position
-        alert(
-          `Successfully joined the queue! Your position: ${result.position} of ${result.totalInQueue}`
-        );
-        onOpenChange(false);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to join queue");
-      }
-      return;
-    }
-
-    // Normal reservation flow
     if (!selectedTime) {
       setError("Please select a time slot");
       return;
     }
 
-    const result = await createReservation({
-      activityId,
-      date: dateStr,
-      time: selectedTime,
-      teamIds: [selectedTeamId as Id<"teams">],
-      userCount,
-    });
+    if (selectedTeamIds.length === 0) {
+      setError("Please select at least one team");
+      return;
+    }
 
-    if (result.success) {
+    if (userCount === 0) {
+      setError("Selected teams have no members");
+      return;
+    }
+
+    try {
+      await createReservation({
+        activityId,
+        date: format(selectedDate, "yyyy-MM-dd"),
+        time: selectedTime,
+        teamIds: selectedTeamIds.map((id) => id as Id<"teams">),
+        userCount,
+      });
       onOpenChange(false);
-    } else {
-      setError(result.error || "Failed to create reservation");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to create reservation"
+      );
     }
   };
 
@@ -356,119 +310,74 @@ export function ReservationDialog({
             )}
           </div>
 
-          {/* Time Slot Selector or Queue Info */}
-          {isDateFulfilled ? (
-            <div className="space-y-2">
-              <Label>
-                <Clock className="inline h-4 w-4 mr-2" />
-                Queue Status
-              </Label>
-              <div className="p-4 border rounded-md bg-purple-50 border-purple-200">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="h-5 w-5 text-purple-600 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-purple-900 mb-1">
-                      This date is fully booked
-                    </p>
-                    <p className="text-xs text-purple-700 mb-3">
-                      All time slots for this date are reserved. You can join
-                      the queue to be notified when a slot becomes available.
-                    </p>
-                    {queuePosition?.inQueue && (
-                      <div className="mt-2 p-2 bg-purple-100 rounded border border-purple-300">
-                        <p className="text-xs font-medium text-purple-900">
-                          You are in the queue
-                        </p>
-                        <p className="text-xs text-purple-700">
-                          Position: {queuePosition.position} of{" "}
-                          {queuePosition.totalInQueue}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
+          {/* Time Slot Selector */}
+          <div className="space-y-2">
+            <Label>
+              <Clock className="inline h-4 w-4 mr-2" />
+              Time Slot
+            </Label>
+            {!selectedDate ? (
+              <div className="p-3 border rounded-md bg-muted/50 text-sm text-muted-foreground">
+                Please select a date first
               </div>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <Label>
-                <Clock className="inline h-4 w-4 mr-2" />
-                Time Slot
-              </Label>
-              {!selectedDate ? (
-                <div className="p-3 border rounded-md bg-muted/50 text-sm text-muted-foreground">
-                  Please select a date first
-                </div>
-              ) : availableTimeSlotsForDate.length === 0 ? (
-                <div className="p-3 border rounded-md bg-destructive/10 text-sm text-destructive">
-                  No available time slots for this date
-                </div>
-              ) : (
-                <NativeSelect
-                  value={selectedTime}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                    setSelectedTime(e.target.value)
-                  }
-                  className="w-full"
-                >
-                  <NativeSelectOption value="">
-                    Select a time slot
+            ) : availableTimeSlotsForDate.length === 0 ? (
+              <div className="p-3 border rounded-md bg-destructive/10 text-sm text-destructive">
+                No available time slots for this date
+              </div>
+            ) : (
+              <NativeSelect
+                value={selectedTime}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  setSelectedTime(e.target.value)
+                }
+                className="w-full"
+              >
+                <NativeSelectOption value="">
+                  Select a time slot
+                </NativeSelectOption>
+                {availableTimeSlotsForDate.map((time) => (
+                  <NativeSelectOption key={time} value={time}>
+                    {time}
                   </NativeSelectOption>
-                  {availableTimeSlotsForDate.map((time) => (
-                    <NativeSelectOption key={time} value={time}>
-                      {time}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-              )}
-              {selectedDate && availableTimeSlotsForDate.length > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  {availableTimeSlotsForDate.length} slot
-                  {availableTimeSlotsForDate.length !== 1 ? "s" : ""} available
-                </p>
-              )}
-            </div>
-          )}
+                ))}
+              </NativeSelect>
+            )}
+            {selectedDate && availableTimeSlotsForDate.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {availableTimeSlotsForDate.length} slot
+                {availableTimeSlotsForDate.length !== 1 ? "s" : ""} available
+              </p>
+            )}
+          </div>
 
           {/* Team Selector */}
           <div className="space-y-2">
             <Label>
               <Users className="inline h-4 w-4 mr-2" />
-              Team
+              Teams
             </Label>
             {teamsLoading ? (
               <p className="text-sm text-muted-foreground">Loading teams...</p>
             ) : (
-              <NativeSelect
-                value={selectedTeamId}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                  setSelectedTeamId(e.target.value)
-                }
-                className="w-full"
+              <MultiSelect
+                values={selectedTeamIds}
+                onValuesChange={setSelectedTeamIds}
               >
-                <NativeSelectOption value="">Select a team</NativeSelectOption>
-                {teams.map((team) => (
-                  <NativeSelectOption key={team._id} value={team._id}>
-                    {team.teamName}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
+                <MultiSelectTrigger className="w-full">
+                  <MultiSelectValue placeholder="Select teams" />
+                </MultiSelectTrigger>
+                <MultiSelectContent>
+                  {teams.map((team) => (
+                    <MultiSelectItem key={team._id} value={team._id}>
+                      {team.teamName}
+                    </MultiSelectItem>
+                  ))}
+                </MultiSelectContent>
+              </MultiSelect>
             )}
             <p className="text-xs text-muted-foreground">
               Only teams where you are the creator are shown
             </p>
-            {selectedTeamId &&
-              activity &&
-              activity.maxParticipants &&
-              userCount > Number(activity.maxParticipants) && (
-                <div className="flex items-center gap-2 p-2 border border-destructive/20 rounded-md bg-destructive/10">
-                  <AlertCircle className="h-4 w-4 text-destructive" />
-                  <p className="text-xs text-destructive">
-                    This team has {userCount} members, but this activity only
-                    allows {activity.maxParticipants} participants.
-                  </p>
-                </div>
-              )}
           </div>
 
           {/* User Count - Auto-calculated from selected teams */}
@@ -480,14 +389,15 @@ export function ReservationDialog({
             <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
               <span className="text-sm font-medium text-foreground">
                 {userCount === 0
-                  ? "Select a team to see participant count"
+                  ? "Select teams to see participant count"
                   : `${userCount} ${
                       userCount === 1 ? "participant" : "participants"
                     }`}
               </span>
-              {selectedTeamId && activity?.maxParticipants && (
+              {selectedTeamIds.length > 0 && (
                 <span className="text-xs text-muted-foreground">
-                  (max: {activity.maxParticipants})
+                  (from {selectedTeamIds.length}{" "}
+                  {selectedTeamIds.length === 1 ? "team" : "teams"})
                 </span>
               )}
             </div>
@@ -509,7 +419,7 @@ export function ReservationDialog({
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={isPending || isJoiningQueue}
+              disabled={isPending}
             >
               Cancel
             </Button>
