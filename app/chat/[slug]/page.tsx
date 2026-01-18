@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ChatView } from "@/components/chat/ChatView";
+import { Id } from "@/convex/_generated/dataModel";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function IndividualChatPage({
   params,
@@ -12,12 +14,12 @@ export default function IndividualChatPage({
   params: Promise<{ slug: string }>;
 }) {
   const resolvedParams = use(params);
-  const slug = resolvedParams.slug;
+  const conversationId = resolvedParams.slug as Id<"conversations">;
   const router = useRouter();
 
-  // Use secure hash conversation slug
-  const messagesData = useQuery(api.messages.getMessagesByConversationSlug, {
-    slug,
+  // Use conversation ID directly
+  const messagesData = useQuery(api.messages.getMessagesByConversationId, {
+    conversationId,
   });
 
   // Redirect to chat list if conversation not found (e.g., friend was removed)
@@ -30,7 +32,7 @@ export default function IndividualChatPage({
   if (messagesData === undefined) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p>Loading...</p>
+        <Spinner className="h-8 w-8" />
       </div>
     );
   }

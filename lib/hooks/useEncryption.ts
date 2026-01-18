@@ -183,12 +183,24 @@ export function useEncryptionWithUser({
 
         if (teamId) {
           // Team chat encryption
-          key = await EncryptionService.getOrCreateTeamKey(teamId);
+          // Convert Convex ID to string explicitly to ensure consistent key derivation
+          key = await EncryptionService.getOrCreateTeamKey(String(teamId));
         } else if (otherUserId && currentUserId) {
           // Individual chat encryption
+          // Convert Convex IDs to strings explicitly to ensure consistent key derivation
+          // This ensures the same key is generated on all devices for the same conversation
+          const currentUserIdStr = String(currentUserId);
+          const otherUserIdStr = String(otherUserId);
+          
+          if (!currentUserIdStr || !otherUserIdStr) {
+            setIsEncryptionReady(false);
+            setEncryptionError("User IDs are required for encryption");
+            return;
+          }
+          
           key = await EncryptionService.getOrCreateConversationKey(
-            currentUserId,
-            otherUserId
+            currentUserIdStr,
+            otherUserIdStr
           );
         } else {
           setIsEncryptionReady(false);

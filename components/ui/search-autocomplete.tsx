@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Search, MapPin, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ActivityData } from "./leafletMap/leafletMap";
+import { ActivityData } from "@/lib/types/activity";
 
 interface SearchAutocompleteProps {
   activities: ActivityData[];

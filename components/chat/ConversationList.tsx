@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import { api } from "@/convex/_generated/api";
@@ -36,6 +36,7 @@ import {
 interface ConversationListProps {
   currentChatType: "individual" | "team" | null;
   currentChatSlug: string | null;
+  currentConversationId: Id<"conversations"> | null;
   onSelectIndividual: (slug: string) => void;
   onSelectTeam: (slug: string) => void;
   onAddFriend: () => void;
@@ -46,6 +47,7 @@ interface ConversationListProps {
 export function ConversationList({
   currentChatType,
   currentChatSlug,
+  currentConversationId,
   onSelectIndividual,
   onSelectTeam,
   onAddFriend,
@@ -58,6 +60,8 @@ export function ConversationList({
   const [showDeleteTeam, setShowDeleteTeam] = useState(false);
   const [showRemoveFriend, setShowRemoveFriend] = useState(false);
   const [showBlockFriend, setShowBlockFriend] = useState(false);
+  // Track recently created conversation IDs for optimistic selection
+  const [recentlyCreatedConversations, setRecentlyCreatedConversations] = useState<Map<Id<"users">, Id<"conversations">>>(new Map());
   const [selectedTeam, setSelectedTeam] = useState<{
     _id: Id<"teams">;
     teamName: string;
@@ -80,7 +84,19 @@ export function ConversationList({
 
   const router = useRouter();
   const conversations = useQuery(api.messages.getConversations);
+  const reservationConversations = useQuery(api.messages.getReservationConversations);
   const currentUser = useQuery(api.users.current);
+  
+  // Query the current conversation to get the other user ID for matching
+  const currentConversationData = useQuery(
+    api.messages.getMessagesByConversationId,
+    currentConversationId && currentChatType === "individual"
+      ? { conversationId: currentConversationId }
+      : "skip"
+  );
+  
+  // Get the other user ID from the current conversation
+  const currentConversationOtherUserId = currentConversationData?.otherUser?._id || null;
 
   // Teams query - Convex automatically updates when data changes
   // No need to manually manage fetching state as Convex handles reactivity
@@ -91,9 +107,10 @@ export function ConversationList({
   const leaveTeam = useMutation(api.teams.leaveTeam);
   const deleteTeam = useMutation(api.teams.deleteTeam);
   const removeFromTeam = useMutation(api.teams.removeFromTeam);
-  const createConversationSlug = useMutation(
-    api.messages.createConversationSlug
+  const getOrCreateConversationId = useMutation(
+    api.messages.getOrCreateConversationId
   );
+
 
   // Create stable friends array key to prevent unnecessary refetches
   // Only refetch when the actual friend IDs change (not just array reference)
@@ -127,16 +144,39 @@ export function ConversationList({
     );
   }, [allFriends, conversations]);
 
-  // Separate organisers from regular users
-  const { organisersList, regularFriendsList } = useMemo(() => {
-    const convFriends =
-      conversations?.map((conv) => ({
+  // Filter out reservation conversations from regular conversations
+  const regularConversations = useMemo(() => {
+    if (!conversations) return [];
+    const reservationIds = new Set(
+      reservationConversations?.map((c) => c.reservationId?.toString()).filter(Boolean) || []
+    );
+    return conversations.filter((conv) => !conv.reservationId || !reservationIds.has(conv.reservationId?.toString()));
+  }, [conversations, reservationConversations]);
+
+  // Merge all friends (including organizers) into one list
+  const allFriendsList = useMemo(() => {
+    type FriendListItem = {
+      _id: Id<"users">;
+      name: string;
+      lastname: string;
+      username: string;
+      slug: string;
+      conversationId: Id<"conversations"> | null;
+      avatar: string;
+      role: string | undefined;
+      lastActive: number | undefined;
+      lastMessageTime: number;
+      lastMessageReadStatus: "sent" | "delivered" | "read" | null;
+    };
+
+    const convFriends: FriendListItem[] =
+      regularConversations?.map((conv) => ({
         _id: conv.userId,
         name: conv.name,
         lastname: conv.lastname,
         username: conv.username,
         slug: conv.slug,
-        conversationSlug: conv.conversationSlug,
+        conversationId: conv.conversationId,
         avatar: conv.avatar,
         role: conv.role,
         lastActive: conv.lastActive,
@@ -144,14 +184,14 @@ export function ConversationList({
         lastMessageReadStatus: conv.lastMessageReadStatus,
       })) || [];
 
-    const friendsWithoutConv =
+    const friendsWithoutConv: FriendListItem[] =
       friendsWithoutConversations.map((friend) => ({
         _id: friend._id,
         name: friend.name,
         lastname: friend.lastname,
         username: friend.username,
         slug: friend.slug,
-        conversationSlug: null, // Will be created when first message is sent
+        conversationId: null, // Will be created when first message is sent
         avatar: friend.avatar,
         role: friend.role,
         lastActive: friend.lastActive,
@@ -161,18 +201,10 @@ export function ConversationList({
 
     const allFriends = [...convFriends, ...friendsWithoutConv];
 
-    const organisers = allFriends.filter((f) => f.role === "organiser");
-    const regular = allFriends.filter((f) => f.role !== "organiser");
-
-    return {
-      organisersList: organisers.sort(
-        (a, b) => b.lastMessageTime - a.lastMessageTime
-      ),
-      regularFriendsList: regular.sort(
-        (a, b) => b.lastMessageTime - a.lastMessageTime
-      ),
-    };
-  }, [conversations, friendsWithoutConversations]);
+    return allFriends.sort(
+      (a, b) => b.lastMessageTime - a.lastMessageTime
+    );
+  }, [regularConversations, friendsWithoutConversations]);
 
   // Format timestamp as HH:MM
   const formatTime = (timestamp: number) => {
@@ -184,28 +216,46 @@ export function ConversationList({
     });
   };
 
+  // Filter reservation conversations based on search query
+  const filteredReservationConversations = useMemo(() => {
+    if (!reservationConversations) return [];
+    if (!searchQuery.trim()) return reservationConversations;
+    const query = searchQuery.toLowerCase();
+    return reservationConversations.filter(
+      (conv) =>
+        conv.name.toLowerCase().includes(query) ||
+        conv.lastname.toLowerCase().includes(query) ||
+        conv.username.toLowerCase().includes(query) ||
+        conv.activityName?.toLowerCase().includes(query)
+    );
+  }, [reservationConversations, searchQuery]);
+
   // Filter friends and teams based on search query
   const filteredFriendsList = useMemo(() => {
-    if (!searchQuery.trim()) return regularFriendsList;
+    if (!searchQuery.trim()) return allFriendsList;
     const query = searchQuery.toLowerCase();
-    return regularFriendsList.filter(
+    return allFriendsList.filter(
       (friend) =>
         friend.name.toLowerCase().includes(query) ||
         friend.lastname.toLowerCase().includes(query) ||
         friend.username.toLowerCase().includes(query)
     );
-  }, [regularFriendsList, searchQuery]);
+  }, [allFriendsList, searchQuery]);
 
-  const filteredOrganisersList = useMemo(() => {
-    if (!searchQuery.trim()) return organisersList;
-    const query = searchQuery.toLowerCase();
-    return organisersList.filter(
-      (organiser) =>
-        organiser.name.toLowerCase().includes(query) ||
-        organiser.lastname.toLowerCase().includes(query) ||
-        organiser.username.toLowerCase().includes(query)
-    );
-  }, [organisersList, searchQuery]);
+  // Debug: Log current conversation ID and friend conversation IDs
+  useEffect(() => {
+    if (currentConversationId && currentChatType === "individual") {
+      console.log("Current conversation ID:", currentConversationId);
+      console.log("Current conversation other user ID:", currentConversationOtherUserId);
+      console.log("Friends with conversations:", filteredFriendsList.map(f => ({
+        name: f.name,
+        userId: f._id.toString(),
+        conversationId: f.conversationId,
+        match: f.conversationId ? String(f.conversationId) === String(currentConversationId) : false,
+        matchByUserId: f._id.toString() === (currentConversationOtherUserId?.toString() || "")
+      })));
+    }
+  }, [currentConversationId, currentChatType, currentConversationOtherUserId, filteredFriendsList]);
 
   const filteredTeams = useMemo(() => {
     if (!teams) return [];
@@ -216,7 +266,7 @@ export function ConversationList({
 
   // Get total friend count (after filtering)
   const friendCount = filteredFriendsList.length;
-  const organiserCount = filteredOrganisersList.length;
+  const reservationCount = filteredReservationConversations.length;
 
   return (
     <div className="flex flex-col h-full py-4 border-r-0 md:border-r border-t border-gray-300 overflow-hidden bg-white">
@@ -257,29 +307,54 @@ export function ConversationList({
           {filteredFriendsList.length > 0 && (
             <>
               {filteredFriendsList.map((friend) => {
-                const conversationSlug = friend.conversationSlug;
-                const isSelected = currentChatSlug === conversationSlug;
+                // Use conversation ID for matching instead of slug
+                // Check both the friend's conversationId and recently created ones
+                const friendConversationId = friend.conversationId || recentlyCreatedConversations.get(friend._id) || null;
+                // Convert both to strings for reliable comparison
+                // Ensure we handle both string and Id types
+                const currentIdStr = currentConversationId ? String(currentConversationId) : null;
+                const friendIdStr = friendConversationId ? String(friendConversationId) : null;
+                // Also match by user ID as a fallback (in case conversation data hasn't loaded yet)
+                const matchesByConversationId = 
+                  currentIdStr !== null &&
+                  friendIdStr !== null &&
+                  currentIdStr === friendIdStr;
+                const matchesByUserId = 
+                  currentConversationOtherUserId !== null &&
+                  friend._id.toString() === currentConversationOtherUserId.toString();
+                const isSelected =
+                  currentChatType === "individual" &&
+                  (matchesByConversationId || matchesByUserId);
                 return (
                   <div
                     key={friend._id.toString()}
                     onClick={async () => {
-                      // If no conversation slug exists, create one first
-                      let slug = conversationSlug;
-                      if (!slug) {
+                      // If no conversation ID exists, create one first
+                      let conversationId: Id<"conversations"> | null = friend.conversationId;
+                      if (!conversationId) {
                         try {
-                          slug = await createConversationSlug({
+                          const newConversationId = await getOrCreateConversationId({
                             otherUserId: friend._id,
+                          });
+                          conversationId = newConversationId;
+                          // Optimistically update the conversation ID for this friend
+                          setRecentlyCreatedConversations(prev => {
+                            const newMap = new Map(prev);
+                            newMap.set(friend._id, newConversationId);
+                            return newMap;
                           });
                         } catch (error) {
                           console.error(
-                            "Failed to create conversation slug:",
+                            "Failed to create conversation:",
                             error
                           );
                           return;
                         }
                       }
-                      router.push(`/chat/${slug}`);
-                      onSelectIndividual(slug);
+                      if (conversationId) {
+                        router.push(`/chat/${conversationId}`);
+                        onSelectIndividual(conversationId.toString());
+                      }
                     }}
                     className={cn(
                       "w-full px-4 py-2 bg-gray-200 cursor-pointer mb-4 hover:bg-blue-200 transition-colors text-left flex items-center gap-3 rounded-lg",
@@ -391,132 +466,6 @@ export function ConversationList({
             )}
         </div>
 
-        {/* Organisers Section */}
-        <div className="mb-4">
-          {filteredOrganisersList.length > 0 && (
-            <>
-              <div className="mb-4 text-sm font-semibold text-foreground flex items-center justify-between mt-4">
-                <span>Organisers {!searchQuery.trim() && organiserCount}</span>
-              </div>
-              {filteredOrganisersList.map((organiser) => {
-                const conversationSlug = organiser.conversationSlug;
-                const isSelected =
-                  currentChatType === "individual" &&
-                  currentChatSlug === conversationSlug;
-                return (
-                  <div
-                    key={organiser._id.toString()}
-                    onClick={async () => {
-                      // If no conversation slug exists, create one first
-                      let slug = conversationSlug;
-                      if (!slug) {
-                        try {
-                          slug = await createConversationSlug({
-                            otherUserId: organiser._id,
-                          });
-                        } catch (error) {
-                          console.error(
-                            "Failed to create conversation slug:",
-                            error
-                          );
-                          return;
-                        }
-                      }
-                      router.push(`/chat/${slug}`);
-                      onSelectIndividual(slug);
-                    }}
-                    className={cn(
-                      "w-full px-4 py-2 bg-gray-200 hover:bg-blue-200 transition-colors text-left flex items-center gap-3 rounded-lg cursor-pointer mb-4",
-                      isSelected && "bg-blue-300 border-2 border-blue-500"
-                    )}
-                  >
-                    <div className="relative shrink-0">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage
-                          src={organiser.avatar}
-                          alt={organiser.name}
-                        />
-                        <AvatarFallback>
-                          {organiser.name[0]}
-                          {organiser.lastname[0]}
-                        </AvatarFallback>
-                      </Avatar>
-                      <StatusDot
-                        userId={organiser._id}
-                        lastActive={organiser.lastActive}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate text-sm">
-                          {organiser.name} {organiser.lastname}
-                        </h3>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {organiser.lastMessageTime > 0 && (
-                          <span className="text-xs text-muted-foreground">
-                            {formatTime(organiser.lastMessageTime)}
-                          </span>
-                        )}
-                        {organiser.lastMessageReadStatus === "sent" && (
-                          <Check className="h-4 w-4 text-gray-400" />
-                        )}
-                        {organiser.lastMessageReadStatus === "delivered" && (
-                          <CheckCheck className="h-4 w-4 text-gray-400" />
-                        )}
-                        {organiser.lastMessageReadStatus === "read" && (
-                          <CheckCheck className="h-4 w-4 text-blue-500" />
-                        )}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                            asChild
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <button className="h-6 w-6 flex items-center justify-center rounded transition-colors hover:bg-blue-300 cursor-pointer">
-                              <MoreVertical className="h-4 w-4 " />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedFriend({
-                                  _id: organiser._id,
-                                  slug: organiser.slug,
-                                  name: `${organiser.name} ${organiser.lastname}`,
-                                });
-                                setShowRemoveFriend(true);
-                              }}
-                            >
-                              <UserMinus className="h-4 w-4 mr-2" />
-                              Remove friend
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedFriend({
-                                  _id: organiser._id,
-                                  slug: organiser.slug,
-                                  name: `${organiser.name} ${organiser.lastname}`,
-                                });
-                                setShowBlockFriend(true);
-                              }}
-                            >
-                              <Ban className="h-4 w-4 mr-2" />
-                              Block
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </>
-          )}
-        </div>
         {/* Teams Section */}
         <div className="mb-4">
           {(!searchQuery.trim() ||
@@ -714,6 +663,82 @@ export function ConversationList({
               </div>
             )}
         </div>
+
+        {/* Reservation Chats Section */}
+        {filteredReservationConversations.length > 0 && (
+          <div className="mb-4">
+            <div className="mb-4 bg-purple-100 p-2 rounded-lg text-sm font-semibold text-foreground flex items-center justify-between">
+              <span>Reservation Chats {!searchQuery.trim() && reservationCount}</span>
+            </div>
+            {filteredReservationConversations.map((conv) => {
+              // Use conversation ID for matching instead of slug
+              // Convert both to strings for reliable comparison
+              // Ensure we handle both string and Id types
+              const currentIdStr = currentConversationId ? String(currentConversationId) : null;
+              const convIdStr = conv.conversationId ? String(conv.conversationId) : null;
+              const isSelected =
+                currentChatType === "individual" &&
+                currentIdStr !== null &&
+                convIdStr !== null &&
+                currentIdStr === convIdStr;
+              return (
+                <div
+                  key={conv.userId.toString()}
+                  onClick={() => {
+                    if (conv.conversationId) {
+                      router.push(`/chat/${conv.conversationId}`);
+                      onSelectIndividual(conv.conversationId.toString());
+                    }
+                  }}
+                  className={cn(
+                    "w-full px-4 py-2 bg-gray-200 hover:bg-purple-200 transition-colors text-left flex items-center gap-3 rounded-lg cursor-pointer mb-4",
+                    isSelected && "bg-purple-300 border-2 border-purple-500"
+                  )}
+                >
+                  <div className="relative shrink-0">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={conv.avatar} alt={conv.name} />
+                      <AvatarFallback>
+                        {conv.name[0]}
+                        {conv.lastname[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <StatusDot
+                      userId={conv.userId}
+                      lastActive={conv.lastActive}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold truncate text-sm">
+                        {conv.name} {conv.lastname}
+                      </h3>
+                      {conv.activityName && (
+                        <p className="text-xs text-muted-foreground truncate">
+                          {conv.activityName}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {conv.lastMessageTime > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          {formatTime(conv.lastMessageTime)}
+                        </span>
+                      )}
+                      {conv.lastMessageReadStatus === "sent" && (
+                        <Check className="h-4 w-4 text-gray-400" />
+                      )}
+                      {conv.lastMessageReadStatus === "read" && (
+                        <CheckCheck className="h-4 w-4 text-blue-500" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* Empty State */}
         {conversations === undefined ||
         teams === undefined ||
@@ -725,7 +750,8 @@ export function ConversationList({
             Loading...
           </div>
         ) : filteredFriendsList.length === 0 &&
-          (!filteredTeams || filteredTeams.length === 0) ? (
+          (!filteredTeams || filteredTeams.length === 0) &&
+          filteredReservationConversations.length === 0 ? (
           <div className="p-4 text-center text-muted-foreground">
             {searchQuery.trim()
               ? "No conversations found"

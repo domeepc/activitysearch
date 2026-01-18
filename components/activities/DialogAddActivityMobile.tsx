@@ -24,9 +24,11 @@ import {
   ActivityDetailsSection,
   TagsEquipmentSection,
   ImagesSection,
+  TimeSlotsSection,
 } from "@/components/activities/ActivityFormSections";
 import { validateActivityField } from "@/lib/validation";
 import { geocodeAddress } from "@/lib/geocoding";
+import { Stepper } from "@/components/ui/stepper";
 
 export default function DialogAddActivityMobile({
   showDialog,
@@ -42,6 +44,13 @@ export default function DialogAddActivityMobile({
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string[]>([]);
   const [imageError, setImageError] = useState<string>("");
+  const [currentStep, setCurrentStep] = useState(1);
+
+  const steps = [
+    { label: "Basic Info" },
+    { label: "Details" },
+    { label: "Finalize" },
+  ];
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -115,22 +124,22 @@ export default function DialogAddActivityMobile({
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    
+
     const MAX_FILE_SIZE = 1024 * 1024; // 1MB in bytes
     const arr = Array.from(files);
     const invalidFiles: string[] = [];
-    
+
     arr.forEach((file) => {
       if (!file.type.startsWith("image/")) {
         invalidFiles.push(`${file.name} is not an image file`);
         return;
       }
-      
+
       if (file.size > MAX_FILE_SIZE) {
         invalidFiles.push(`${file.name} exceeds 1MB limit (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
         return;
       }
-      
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData((prev) => ({
@@ -141,12 +150,12 @@ export default function DialogAddActivityMobile({
       };
       reader.readAsDataURL(file);
     });
-    
+
     if (invalidFiles.length > 0) {
       setImageError(invalidFiles.join(", "));
       setTimeout(() => setImageError(""), 5000);
     }
-    
+
     e.currentTarget.value = "";
   };
 
@@ -164,6 +173,7 @@ export default function DialogAddActivityMobile({
     setIsSubmitting(false);
     setIsGeocoding(false);
     setSelectedDifficulty([]);
+    setCurrentStep(1);
   }, []);
 
   // Handle dialog open change
@@ -243,6 +253,9 @@ export default function DialogAddActivityMobile({
           .map((e) => e.trim())
           .filter(Boolean),
         images: formData.images,
+        availableTimeSlots: formData.availableTimeSlots.length > 0
+          ? formData.availableTimeSlots
+          : undefined,
       } as unknown;
 
       await (
@@ -287,78 +300,122 @@ export default function DialogAddActivityMobile({
     <div className="md:hidden">
       <Dialog open={showDialog} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-y-auto p-4">
-        <DialogHeader className="space-y-2 pb-4">
-          <DialogTitle className="text-xl">Add New Activity</DialogTitle>
-          <DialogDescription className="text-sm">
-            Fill in all required fields. Fields marked with * are required.
-          </DialogDescription>
-        </DialogHeader>
+          <DialogHeader className="space-y-2 pb-4">
+            <DialogTitle className="text-xl">Add New Activity</DialogTitle>
+            <DialogDescription className="text-sm">
+              Fill in all required fields. Fields marked with * are required.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="grid gap-4 py-2">
-          <BasicInformationSection
-            formData={formData}
-            errors={errors}
-            onFieldChange={updateField}
-            onFieldBlur={(field, value) => {
-              const error = validateActivityField(field, value);
-              setErrors((prev) => ({ ...prev, [field]: error }));
-            }}
-          />
-          <LocationSection
-            formData={formData}
-            errors={errors}
-            onAddressChange={handleAddressChange}
-            onAddressSelect={handleAddressSelect}
-          />
-          <ActivityDetailsSection
-            formData={formData}
-            errors={errors}
-            selectedDifficulty={selectedDifficulty}
-            onFieldChange={updateField}
-            onFieldBlur={(field, value) => {
-              const error = validateActivityField(field, value);
-              setErrors((prev) => ({ ...prev, [field]: error }));
-            }}
-            onDifficultyChange={handleDifficultyChange}
-          />
-          <TagsEquipmentSection
-            formData={formData}
-            errors={errors}
-            onFieldChange={updateField}
-            onFieldBlur={(field, value) => {
-              const error = validateActivityField(field, value);
-              setErrors((prev) => ({ ...prev, [field]: error }));
-            }}
-          />
-          <ImagesSection
-            formData={formData}
-            onImageSelect={handleImageSelect}
-            onRemoveImage={removeImage}
-            error={imageError}
-          />
-        </div>
+          <div className="py-2">
+            <Stepper steps={steps} currentStep={currentStep} className="mb-4" />
 
-        <DialogFooter className="flex-col gap-2 pt-4 sm:flex-row">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setShowDialog(false)}
-            disabled={isSubmitting}
-            className="w-full rounded-full sm:w-auto"
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!isFormValid()}
-            className="w-full rounded-full sm:w-auto"
-          >
-            {isSubmitting ? "Creating..." : "Create Activity"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <div className="grid gap-4">
+              {currentStep === 1 && (
+                <>
+                  <BasicInformationSection
+                    formData={formData}
+                    errors={errors}
+                    onFieldChange={updateField}
+                    onFieldBlur={(field, value) => {
+                      const error = validateActivityField(field, value);
+                      setErrors((prev) => ({ ...prev, [field]: error }));
+                    }}
+                  />
+                  <LocationSection
+                    formData={formData}
+                    errors={errors}
+                    onAddressChange={handleAddressChange}
+                    onAddressSelect={handleAddressSelect}
+                  />
+                </>
+              )}
+
+              {currentStep === 2 && (
+                <>
+                  <ActivityDetailsSection
+                    formData={formData}
+                    errors={errors}
+                    selectedDifficulty={selectedDifficulty}
+                    onFieldChange={updateField}
+                    onFieldBlur={(field, value) => {
+                      const error = validateActivityField(field, value);
+                      setErrors((prev) => ({ ...prev, [field]: error }));
+                    }}
+                    onDifficultyChange={handleDifficultyChange}
+                  />
+                  <TimeSlotsSection
+                    formData={formData}
+                    onFieldChange={updateField}
+                  />
+                </>
+              )}
+
+              {currentStep === 3 && (
+                <>
+                  <TagsEquipmentSection
+                    formData={formData}
+                    errors={errors}
+                    onFieldChange={updateField}
+                    onFieldBlur={(field, value) => {
+                      const error = validateActivityField(field, value);
+                      setErrors((prev) => ({ ...prev, [field]: error }));
+                    }}
+                  />
+                  <ImagesSection
+                    formData={formData}
+                    onImageSelect={handleImageSelect}
+                    onRemoveImage={removeImage}
+                    error={imageError}
+                  />
+                </>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col gap-2 pt-4 sm:flex-row">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowDialog(false)}
+              disabled={isSubmitting}
+              className="w-full rounded-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            {currentStep > 1 && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCurrentStep(currentStep - 1)}
+                disabled={isSubmitting}
+                className="w-full rounded-full sm:w-auto"
+              >
+                Previous
+              </Button>
+            )}
+            {currentStep < 3 ? (
+              <Button
+                type="button"
+                onClick={() => setCurrentStep(currentStep + 1)}
+                disabled={isSubmitting}
+                className="w-full rounded-full sm:w-auto"
+              >
+                Next
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!isFormValid()}
+                className="w-full rounded-full sm:w-auto"
+              >
+                {isSubmitting ? "Creating..." : "Create Activity"}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

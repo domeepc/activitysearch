@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -24,6 +24,10 @@ interface ChatViewProps {
     senderAvatar?: string;
     status?: "sent" | "delivered" | "read";
     encrypted?: boolean;
+    messageType?: "text" | "reservation_card";
+    reservationCardData?: {
+      reservationId: Id<"reservations">;
+    };
   }>;
   otherUser?: {
     name: string;
@@ -45,6 +49,7 @@ export function ChatView({
   teamIcon,
 }: ChatViewProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const sendMessage = useMutation(api.messages.sendMessage);
   const sendTeamMessage = useMutation(api.teams.sendTeamMessage);
   const markConversationAsRead = useMutation(
@@ -71,7 +76,6 @@ export function ChatView({
     decryptMessage,
     isEncryptionReady,
     isEncryptionAvailable,
-    encryptionError,
   } = useEncryptionWithUser({
     currentUserId,
     otherUserId: individualUserId,
@@ -89,6 +93,10 @@ export function ChatView({
       senderAvatar?: string;
       status?: "sent" | "delivered" | "read";
       decryptionError?: boolean;
+      messageType?: "text" | "reservation_card";
+      reservationCardData?: {
+        reservationId: Id<"reservations">;
+      };
     }>
   >([]);
 
@@ -108,6 +116,15 @@ export function ChatView({
 
       const decrypted = await Promise.all(
         messages.map(async (msg) => {
+          // Skip decryption for reservation card messages
+          if (msg.messageType === "reservation_card") {
+            return {
+              ...msg,
+              text: msg.text,
+              decryptionError: false,
+            };
+          }
+
           if (msg.encrypted && isEncryptionAvailable) {
             try {
               const decryptedText = await decryptMessage(msg.text, true);
@@ -183,12 +200,25 @@ export function ChatView({
   ]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Use a combination of requestAnimationFrame and setTimeout to ensure DOM has updated
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+        } else if (messagesContainerRef.current) {
+          // Fallback: scroll the container directly
+          messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+        }
+      }, 100);
+    });
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    // Scroll when messages or decryptedMessages change
+    if (decryptedMessages.length > 0) {
+      scrollToBottom();
+    }
+  }, [messages, decryptedMessages]);
 
   // Mark messages as read when viewing
   useEffect(() => {
@@ -247,6 +277,10 @@ export function ChatView({
       }
       // Update presence when message is sent
       updatePresence("online");
+      // Scroll to bottom after sending message
+      setTimeout(() => {
+        scrollToBottom();
+      }, 200);
     } catch (error) {
       console.error("Failed to send message:", error);
     }
@@ -268,15 +302,7 @@ export function ChatView({
       />
 
       {/* Messages - Scrollable */}
-      <div className="flex-1 overflow-y-auto p-4 min-h-0 bg-gray-200 relative">
-        {/* E2E Encryption Indicator */}
-        {isEncryptionAvailable && (
-          <div className="cursor-default select-none absolute bottom-8 left-1/2 transform -translate-x-1/2 flex items-center gap-1.5 text-xs text-muted-foreground/60 bg-background/80 px-2 py-1 rounded-full backdrop-blur-sm">
-            <Lock className="h-3 w-3" />
-            <span>End-to-end encrypted</span>
-          </div>
-        )}
-
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 min-h-0 bg-gray-200 relative">
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full text-muted-foreground">
             <p>No messages yet. Start the conversation!</p>
@@ -297,14 +323,31 @@ export function ChatView({
                   index > 0 ? decryptedMessages[index - 1].timestamp : undefined
                 }
                 decryptionError={message.decryptionError}
+                messageType={message.messageType}
+                reservationCardData={message.reservationCardData}
               />
             ))}
             <div ref={messagesEndRef} />
           </div>
         )}
+
+
       </div>
 
-      <ChatInput onSend={handleSend} />
+      {isEncryptionAvailable && (
+        <div className="sticky w-max bottom-0 left-1/2 transform -translate-x-1/2 -translate-y-full cursor-default select-none flex items-center gap-1.5 text-xs text-muted-foreground/60 bg-background/80 px-2 py-1 rounded-full backdrop-blur-sm mb-1">
+          <Lock className="h-3 w-3" />
+          <span>End-to-end encrypted</span>
+        </div>
+      )}
+
+
+      {/* Message Input Section with E2E Encryption Badge */}
+      <div className="relative shrink-0">
+
+
+        <ChatInput onSend={handleSend} />
+      </div>
     </div>
   );
 }

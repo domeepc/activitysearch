@@ -13,6 +13,9 @@ import type * as http from "../http.js";
 import type * as messages from "../messages.js";
 import type * as organisation from "../organisation.js";
 import type * as presence from "../presence.js";
+import type * as reservations from "../reservations.js";
+import type * as scheduled from "../scheduled.js";
+import type * as stripe from "../stripe.js";
 import type * as teams from "../teams.js";
 import type * as users from "../users.js";
 
@@ -28,6 +31,9 @@ declare const fullApi: ApiFromModules<{
   messages: typeof messages;
   organisation: typeof organisation;
   presence: typeof presence;
+  reservations: typeof reservations;
+  scheduled: typeof scheduled;
+  stripe: typeof stripe;
   teams: typeof teams;
   users: typeof users;
 }>;
