@@ -3,14 +3,14 @@ import { api } from "@/convex/_generated/api";
 
 /**
  * Hook to check if the current user is an organiser
- * @returns Object with isOrganizer boolean and loading state
+ * @returns Object with isOrganiser boolean and loading state
  */
-export function useOrganizer() {
+export function useOrganiser() {
   const currentUser = useQuery(api.users.current);
-  const isOrganizer = currentUser?.role === "organiser" || false;
+  const isOrganiser = currentUser?.role === "organiser" || false;
 
   return {
-    isOrganizer,
+    isOrganiser,
     isLoading: currentUser === undefined,
   };
 }

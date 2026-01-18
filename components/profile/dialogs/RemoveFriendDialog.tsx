@@ -27,7 +27,7 @@ export function RemoveFriendDialog({
 }: RemoveFriendDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="border-border border-2 shadow-xl">
         <DialogHeader>
           <DialogTitle>Remove Friend</DialogTitle>
           <DialogDescription>

@@ -58,9 +58,9 @@ export function ProfileHeader({
                 </Button>
               )}
               {settingsUrl && (
-                <Link href={settingsUrl}>
-                  <Button className="w-full md:w-auto">Edit Profile</Button>
-                </Link>
+                <Button asChild className="w-full md:w-auto">
+                  <Link href={settingsUrl}>Edit Profile</Link>
+                </Button>
               )}
             </>
           ) : (

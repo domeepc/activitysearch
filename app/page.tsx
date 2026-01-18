@@ -12,7 +12,7 @@ import MobileFilterDialog from "@/components/activities/MobileFilterDialog";
 import MobileAddActivityFAB from "@/components/activities/MobileAddActivityFAB";
 import { useActivities } from "@/lib/hooks/useActivities";
 import { useActivityFilters } from "@/lib/hooks/useActivityFilters";
-import { useOrganizer } from "@/lib/hooks/useOrganizer";
+import { useOrganiser } from "@/lib/hooks/useOrganiser";
 import { QueueNotificationDialog } from "@/components/reservations/QueueNotificationDialog";
 import { useMyQueueNotifications } from "@/lib/hooks/useReservations";
 
@@ -35,7 +35,7 @@ export default function Home() {
 
   // Custom hooks
   const { activities } = useActivities();
-  const { isOrganizer } = useOrganizer();
+  const { isOrganiser } = useOrganiser();
   const { filteredActivities } = useActivityFilters(
     activities,
     selectedCategories
@@ -101,20 +101,25 @@ export default function Home() {
         selectedCategories={selectedCategories}
         onCategoryChange={setSelectedCategories}
         onActivitySelect={handleActivitySelect}
+        onClearSelection={() => setSelectedActivity(null)}
         onAddActivity={() => setShowAddDialog(true)}
-        isOrganizer={isOrganizer}
+        isOrganiser={isOrganiser}
       />
       <MobileFilterDialog
         activities={activities}
         selectedCategories={selectedCategories}
         onCategoryChange={setSelectedCategories}
         onActivitySelect={handleMobileActivitySelect}
+        onClearSelection={() => {
+          setPendingActivity(null);
+          setSelectedActivity(null);
+        }}
         open={isMobileDialogOpen}
         onOpenChange={setIsMobileDialogOpen}
         onSearch={handleMobileSearch}
       />
 
-      {isOrganizer && (
+      {isOrganiser && (
         <MobileAddActivityFAB onClick={() => setShowDialogMobile(true)} />
       )}
 

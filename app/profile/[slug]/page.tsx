@@ -93,7 +93,7 @@ export default function ProfilePage({
   if (user === undefined || currentUser === undefined) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <Card>
+        <Card className="border-border border-2 shadow-xl">
           <CardHeader className="flex flex-row items-center justify-between">
             <div className="space-y-2">
               <Skeleton className="h-8 w-48" />

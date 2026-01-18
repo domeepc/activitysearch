@@ -72,7 +72,7 @@ export default defineSchema({
     activityId: v.id("activities"),
     teamIds: v.array(v.id("teams")),
     createdBy: v.id("users"),
-    readByOrganizer: v.optional(v.boolean()),
+    readByOrganiser: v.optional(v.boolean()),
     reservationChatId: v.optional(v.id("conversations")),
     cancelledAt: v.optional(v.number()),
     cancellationReason: v.optional(v.string()),

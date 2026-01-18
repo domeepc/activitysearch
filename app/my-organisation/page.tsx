@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { validateOrganizationField, validateEmail } from "@/lib/validation";
+import { validateOrganisationField, validateEmail } from "@/lib/validation";
 import { extractErrorMessage } from "@/lib/errors";
 import ActivityListSection from "@/components/organisation/activityListSection";
 import { StripeConnectButton } from "@/components/organisation/StripeConnectButton";
@@ -40,9 +40,9 @@ export default function MyOrganisationPage() {
     currentUser?._id ? { ownerId: currentUser._id as Id<"users"> } : "skip"
   );
   const updateOrganisation = useMutation(api.organisation.updateOrganisation);
-  const updateStripeAccount = useAction(api.stripe.updateStripeAccountFromOrganization);
+  const updateStripeAccount = useAction(api.stripe.updateStripeAccountFromOrganisation);
 
-  const isOrganizer = currentUser?.role === "organiser";
+  const isOrganiser = currentUser?.role === "organiser";
 
   // Compute form data from organisation when not editing
   const organisationFormData = useMemo(
@@ -71,7 +71,7 @@ export default function MyOrganisationPage() {
   }, [clerkLoaded, isSignedIn, router]);
 
   const validateField = (name: string, value: string) => {
-    const error = validateOrganizationField(name, value);
+    const error = validateOrganisationField(name, value);
     setErrors((prev) => ({ ...prev, [name]: error }));
   };
 
@@ -112,7 +112,7 @@ export default function MyOrganisationPage() {
     };
 
     if (!formData.name.trim()) {
-      newErrors.name = "Organization name is required";
+      newErrors.name = "Organisation name is required";
     }
 
     if (!formData.email.trim()) {
@@ -157,7 +157,6 @@ export default function MyOrganisationPage() {
           await updateStripeAccount({
             organisationId: organisation._id,
           });
-          console.log("Stripe account synced successfully");
         } catch (stripeError) {
           console.error("Failed to sync to Stripe:", stripeError);
           // Don't fail the entire update if Stripe sync fails
@@ -168,7 +167,7 @@ export default function MyOrganisationPage() {
       setIsEditing(false);
       setErrors({ name: "", email: "", address: "", IBAN: "" });
     } catch (error: unknown) {
-      console.error("Failed to update organization:", error);
+      console.error("Failed to update organisation:", error);
       const errorMessage = extractErrorMessage(error);
       // Could set a general error state here if needed
       console.error("Error message:", errorMessage);
@@ -253,7 +252,7 @@ export default function MyOrganisationPage() {
   }
 
   // Not an organiser (but authenticated)
-  if (currentUser !== null && !isOrganizer) {
+  if (currentUser !== null && !isOrganiser) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
         <Card>
@@ -290,15 +289,15 @@ export default function MyOrganisationPage() {
     );
   }
 
-  // No organization found
+  // No organisation found
   if (organisation === null) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
         <Card>
           <CardHeader>
-            <CardTitle>No Organization Found</CardTitle>
+            <CardTitle>No Organisation Found</CardTitle>
             <CardDescription>
-              You don&apos;t have an organization associated with your account.
+              You don&apos;t have an organisation associated with your account.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -317,7 +316,7 @@ export default function MyOrganisationPage() {
             <div>
               <CardTitle>My Organisation</CardTitle>
               <CardDescription>
-                Manage your organization information
+                Manage your organisation information
               </CardDescription>
             </div>
             <div className="flex gap-2">
@@ -355,9 +354,9 @@ export default function MyOrganisationPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid gap-6">
-            {/* Organization Name */}
+            {/* Organisation Name */}
             <div className="space-y-2">
-              <Label htmlFor="name">Organization Name</Label>
+              <Label htmlFor="name">Organisation Name</Label>
               {isEditing ? (
                 <>
                   <Input
@@ -375,7 +374,7 @@ export default function MyOrganisationPage() {
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  {formData.name || "No organization name"}
+                  {formData.name || "No organisation name"}
                 </p>
               )}
             </div>

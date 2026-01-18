@@ -51,7 +51,7 @@ export function StripeDashboard() {
   >(null);
   const [error, setError] = useState<string | null>(null);
 
-  const getPaymentIntents = useAction(api.stripe.getStripePaymentIntentsForOrganizer);
+  const getPaymentIntents = useAction(api.stripe.getStripePaymentIntentsForOrganiser);
 
   // Fetch payment intents on mount and set up auto-refresh
   useEffect(() => {

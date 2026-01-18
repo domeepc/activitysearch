@@ -134,7 +134,7 @@ export const createSetupIntent = action({
       throw new Error("Reservation not found");
     }
 
-    // Get activity to find organization
+    // Get activity to find organisation
     const activity = await ctx.runQuery(api.activity.getActivityById, {
       activityId: reservationData.activity._id,
     });
@@ -143,7 +143,7 @@ export const createSetupIntent = action({
       throw new Error("Activity not found");
     }
 
-    // Find organization
+    // Find organisation
     const allOrganisations = await ctx.runQuery(api.organisation.getAll);
     const organisation = allOrganisations?.find(
       (org: { activityIDs: Id<"activities">[] }) =>
@@ -151,7 +151,7 @@ export const createSetupIntent = action({
     );
 
     if (!organisation) {
-      throw new Error("Organization not found");
+      throw new Error("Organisation not found");
     }
 
     try {
@@ -220,7 +220,7 @@ export const createTeamPaymentIntentInternal = internalAction({
       throw new Error("Activity not found");
     }
 
-    // Find organization
+    // Find organisation
     const allOrganisations = await ctx.runQuery(api.organisation.getAll);
     const organisation = allOrganisations?.find(
       (org: { activityIDs: Id<"activities">[] }) =>
@@ -228,7 +228,7 @@ export const createTeamPaymentIntentInternal = internalAction({
     );
 
     if (!organisation) {
-      throw new Error("Organization not found");
+      throw new Error("Organisation not found");
     }
 
     // Get Stripe account ID if using Connect
@@ -451,7 +451,7 @@ export const createTeamPaymentIntent = action({
       throw new Error("Reservation not found");
     }
 
-    // Get activity to find organization
+    // Get activity to find organisation
     const activity = await ctx.runQuery(api.activity.getActivityById, {
       activityId: reservationData.activity._id,
     });
@@ -460,7 +460,7 @@ export const createTeamPaymentIntent = action({
       throw new Error("Activity not found");
     }
 
-    // Find organization
+    // Find organisation
     const allOrganisations = await ctx.runQuery(api.organisation.getAll);
 
     const organisation = allOrganisations?.find(
@@ -469,7 +469,7 @@ export const createTeamPaymentIntent = action({
     );
 
     if (!organisation) {
-      throw new Error("Organization not found");
+      throw new Error("Organisation not found");
     }
 
     // Get Stripe account ID if using Connect
@@ -588,7 +588,7 @@ export const createPaymentIntent = action({
     // Use the first team the user belongs to (or we could use all teams, but let's use first for simplicity)
     const teamId = userTeams[0]._id;
 
-    // Get activity to find organization
+    // Get activity to find organisation
     const activity = await ctx.runQuery(api.activity.getActivityById, {
       activityId: reservationData.activity._id,
     });
@@ -597,7 +597,7 @@ export const createPaymentIntent = action({
       throw new Error("Activity not found");
     }
 
-    // Find organization
+    // Find organisation
     const allOrganisations = await ctx.runQuery(api.organisation.getAll);
 
     const organisation = allOrganisations?.find(
@@ -606,7 +606,7 @@ export const createPaymentIntent = action({
     );
 
     if (!organisation) {
-      throw new Error("Organization not found");
+      throw new Error("Organisation not found");
     }
 
     // Get Stripe account ID if using Connect
@@ -807,7 +807,7 @@ export const consolidatePaymentIntents = action({
       throw new Error("Reservation not found");
     }
 
-    // Get activity to find organization
+    // Get activity to find organisation
     const activity = await ctx.runQuery(api.activity.getActivityById, {
       activityId: reservationData.activity._id,
     });
@@ -816,7 +816,7 @@ export const consolidatePaymentIntents = action({
       throw new Error("Activity not found");
     }
 
-    // Find organization
+    // Find organisation
     const allOrganisations = await ctx.runQuery(api.organisation.getAll);
     const organisation = allOrganisations?.find(
       (org: { activityIDs: Id<"activities">[] }) =>
@@ -824,7 +824,7 @@ export const consolidatePaymentIntents = action({
     );
 
     if (!organisation) {
-      throw new Error("Organization not found");
+      throw new Error("Organisation not found");
     }
 
     const stripeAccountId: string | undefined = organisation.stripeAccountId;
@@ -1208,13 +1208,13 @@ export const createConnectAccountWithDetails = action({
     }
 
     try {
-      // Get organization
+      // Get organisation
       const organisation = await ctx.runQuery(api.organisation.getById, {
         organisationId,
       });
 
       if (!organisation) {
-        throw new Error("Organization not found");
+        throw new Error("Organisation not found");
       }
 
       // Check if account already exists
@@ -1348,7 +1348,7 @@ export const createConnectAccountWithDetails = action({
       // According to Stripe docs, business_profile fields are often required for activation
       accountParams.business_profile = {};
       
-      // Product description is required (use organization description)
+      // Product description is required (use organisation description)
       if (businessDescription) {
         accountParams.business_profile.product_description = businessDescription;
       }
@@ -1360,7 +1360,7 @@ export const createConnectAccountWithDetails = action({
       // If no website, Stripe will use product_description (which we always provide)
       
       // Support contact information - required for many countries including HR
-      // Use the organization email and phone for support
+      // Use the organisation email and phone for support
       accountParams.business_profile.support_email = email;
       if (formattedPhone) {
         accountParams.business_profile.support_phone = formattedPhone;
@@ -1475,7 +1475,7 @@ export const createConnectAccountWithDetails = action({
         }
       }
 
-      // Update organization with account ID
+      // Update organisation with account ID
       await ctx.runMutation(api.organisation.updateStripeAccount, {
         organisationId,
         stripeAccountId: account.id,
@@ -1798,13 +1798,13 @@ export const createConnectAccountLink = action({
       throw new Error("Unauthorized");
     }
 
-    // Get organization
+    // Get organisation
     const organisation = await ctx.runQuery(api.organisation.getById, {
       organisationId,
     });
 
     if (!organisation) {
-      throw new Error("Organization not found");
+      throw new Error("Organisation not found");
     }
 
     // Validate email
@@ -1813,7 +1813,7 @@ export const createConnectAccountLink = action({
       !organisation.organisationEmail.includes("@")
     ) {
       throw new Error(
-        "Organization email is invalid. Please update your organization email first."
+        "Organisation email is invalid. Please update your organisation email first."
       );
     }
 
@@ -1867,7 +1867,7 @@ export const createConnectAccountLink = action({
 
         accountId = account.id;
 
-        // Update organization with account ID
+        // Update organisation with account ID
         await ctx.runMutation(api.organisation.updateStripeAccount, {
           organisationId,
           stripeAccountId: accountId,
@@ -1953,8 +1953,8 @@ export const createConnectAccountLink = action({
   },
 });
 
-// Update Stripe account from organization data
-export const updateStripeAccountFromOrganization = action({
+// Update Stripe account from organisation data
+export const updateStripeAccountFromOrganisation = action({
   args: {
     organisationId: v.id("organisations"),
   },
@@ -1964,13 +1964,13 @@ export const updateStripeAccountFromOrganization = action({
       throw new Error("Unauthorized");
     }
 
-    // Get organization
+    // Get organisation
     const organisation = await ctx.runQuery(api.organisation.getById, {
       organisationId,
     });
 
     if (!organisation) {
-      throw new Error("Organization not found");
+      throw new Error("Organisation not found");
     }
 
     const accountId = organisation.stripeAccountId;
@@ -2155,13 +2155,13 @@ export const getStripeAccountStatus = action({
       throw new Error("Unauthorized");
     }
 
-    // Get organization
+    // Get organisation
     const organisation = await ctx.runQuery(api.organisation.getById, {
       organisationId,
     });
 
     if (!organisation) {
-      throw new Error("Organization not found");
+      throw new Error("Organisation not found");
     }
 
     const accountId: string | undefined = organisation.stripeAccountId;
@@ -2272,8 +2272,8 @@ export const createConnectAccountLinkHttp = httpAction(async (ctx, request) => {
   }
 });
 
-// Get Stripe payment intents for organizer
-export const getStripePaymentIntentsForOrganizer = action({
+// Get Stripe payment intents for organiser
+export const getStripePaymentIntentsForOrganiser = action({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -2287,7 +2287,7 @@ export const getStripePaymentIntentsForOrganizer = action({
       return [];
     }
 
-    // Find organization(s) where user is an organizer
+    // Find organisation(s) where user is an organiser
     const allOrganisations = await ctx.runQuery(api.organisation.getAll);
     const userOrganisations = allOrganisations.filter((org) =>
       org.organisersIDs.includes(currentUser._id)
@@ -2297,7 +2297,7 @@ export const getStripePaymentIntentsForOrganizer = action({
       return [];
     }
 
-    // Get all activity IDs from user's organizations
+    // Get all activity IDs from user's organisations
     const activityIds = new Set<Id<"activities">>();
     for (const org of userOrganisations) {
       for (const activityId of org.activityIDs) {
@@ -2310,14 +2310,14 @@ export const getStripePaymentIntentsForOrganizer = action({
     }
 
     // Get all reservations for these activities
-    const allReservations = await ctx.runQuery(api.reservations.getReservationsForOrganizer);
-    const organizerReservations = allReservations.filter((r) => !r.cancelledAt);
+    const allReservations = await ctx.runQuery(api.reservations.getReservationsForOrganiser);
+    const organiserReservations = allReservations.filter((r) => !r.cancelledAt);
     
-    if (organizerReservations.length === 0) {
+    if (organiserReservations.length === 0) {
       return [];
     }
 
-    const reservationIds = organizerReservations.map((r) => r._id);
+    const reservationIds = organiserReservations.map((r) => r._id);
 
     // Get all payment records for these reservations
     // We need to get payments for each reservation
@@ -2377,7 +2377,7 @@ export const getStripePaymentIntentsForOrganizer = action({
     // First pass: group all payments by reservation and team to identify which need consolidation
     for (const payment of relevantPayments) {
       // Get reservation to find teams
-      const reservation = organizerReservations.find(
+      const reservation = organiserReservations.find(
         (r) => r._id === payment.reservationId
       );
       if (!reservation) continue;
@@ -2558,7 +2558,7 @@ export const getStripePaymentIntentsForOrganizer = action({
           const results = [];
           for (const [, { reservationId, teamId, payments }] of paymentByReservationAndTeam) {
             // Find reservation details
-            const reservation = organizerReservations.find(
+            const reservation = organiserReservations.find(
               (r) => r._id === reservationId
             );
             if (!reservation) continue;
@@ -2772,7 +2772,7 @@ export const stripeWebhook = httpAction(async (ctx, request) => {
 
     case "account.updated":
       // Stripe Connect account was updated
-      // Update organization onboarding status if needed
+      // Update organisation onboarding status if needed
       break;
 
     default:

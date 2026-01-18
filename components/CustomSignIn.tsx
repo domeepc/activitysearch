@@ -31,6 +31,7 @@ export default function CustomSignIn() {
   const [loading, setLoading] = React.useState(false);
   const router = useRouter();
 
+
   // Redirect authenticated users away from sign-in page
   React.useEffect(() => {
     if (userLoaded && isSignedIn) {
@@ -105,7 +106,7 @@ export default function CustomSignIn() {
 
   return (
     <div className="flex h-screen items-center justify-center p-4 overflow-hidden">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md border-border border-2 shadow-xl">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">Sign in</CardTitle>
           <CardDescription>
@@ -172,7 +173,7 @@ export default function CustomSignIn() {
             </div>
             {error && <div className="text-sm text-destructive">{error}</div>}
             <div id="clerk-captcha"></div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full cursor-pointer" disabled={loading}>
               {loading ? "Signing in..." : "Sign in"}
             </Button>
           </form>

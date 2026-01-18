@@ -288,26 +288,26 @@ export const createReservation = mutation({
         };
       }
 
-      // Find the organizer (owner of the activity's organization)
+      // Find the organiser (owner of the activity's organisation)
       const allOrganisations = await ctx.db.query("organisations").collect();
       const organisation = allOrganisations.find((org) =>
         org.activityIDs.includes(activityId)
       );
 
       if (!organisation || organisation.organisersIDs.length === 0) {
-        return { success: false, error: "Activity organizer not found" };
+        return { success: false, error: "Activity organiser not found" };
       }
 
-      // Get the first organizer (primary organizer)
-      const organizerId = organisation.organisersIDs[0];
-      const organizer = await ctx.db.get(organizerId);
-      if (!organizer) {
-        return { success: false, error: "Organizer user not found" };
+      // Get the first organiser (primary organiser)
+      const organiserId = organisation.organisersIDs[0];
+      const organiser = await ctx.db.get(organiserId);
+      if (!organiser) {
+        return { success: false, error: "Organiser user not found" };
       }
 
-      // Create or find conversation between organizer and user
+      // Create or find conversation between organiser and user
       // Note: No need to be friends for reservation chats
-      const userIds = [organizerId, currentUser._id].sort((a, b) =>
+      const userIds = [organiserId, currentUser._id].sort((a, b) =>
         a.localeCompare(b)
       );
       const user1Id = userIds[0];
@@ -356,7 +356,7 @@ export const createReservation = mutation({
         teamIds,
         userCount,
         createdBy: currentUser._id,
-        readByOrganizer: false,
+        readByOrganiser: false,
         reservationChatId: conversationId,
         paymentStatus: "pending",
         paymentDeadline,
@@ -494,13 +494,13 @@ export const cancelReservation = mutation({
       throw new Error("Reservation is already cancelled");
     }
 
-    // Get activity to find organizer
+    // Get activity to find organiser
     const activity = await ctx.db.get(reservation.activityId);
     if (!activity) {
       throw new Error("Activity not found");
     }
 
-    // Find the organizer
+    // Find the organiser
     const allOrganisations = await ctx.db.query("organisations").collect();
     const organisation = allOrganisations.find((org) =>
       org.activityIDs.includes(reservation.activityId)
@@ -510,7 +510,7 @@ export const cancelReservation = mutation({
       !organisation ||
       !organisation.organisersIDs.includes(currentUser._id)
     ) {
-      throw new Error("Only the activity organizer can cancel reservations");
+      throw new Error("Only the activity organiser can cancel reservations");
     }
 
     // Mark reservation as cancelled and update payment status
@@ -583,17 +583,17 @@ export const cancelReservation = mutation({
   },
 });
 
-export const getReservationsForOrganizer = query({
+export const getReservationsForOrganiser = query({
   args: {},
   handler: async (ctx) => {
     const currentUser = await getCurrentUserOrThrow(ctx);
 
-    // Check if user is an organizer
+    // Check if user is an organiser
     if (currentUser.role !== "organiser") {
       return [];
     }
 
-    // Find organization(s) where user is an organizer
+    // Find organisation(s) where user is an organiser
     const allOrganisations = await ctx.db.query("organisations").collect();
     const userOrganisations = allOrganisations.filter((org) =>
       org.organisersIDs.includes(currentUser._id)
@@ -603,7 +603,7 @@ export const getReservationsForOrganizer = query({
       return [];
     }
 
-    // Get all activity IDs from user's organizations
+    // Get all activity IDs from user's organisations
     const activityIds = new Set<Id<"activities">>();
     for (const org of userOrganisations) {
       for (const activityId of org.activityIDs) {
@@ -617,13 +617,13 @@ export const getReservationsForOrganizer = query({
 
     // Get all reservations for these activities
     const allReservations = await ctx.db.query("reservations").collect();
-    const organizerReservations = allReservations.filter((r) =>
+    const organiserReservations = allReservations.filter((r) =>
       activityIds.has(r.activityId)
     );
 
     // Enrich reservations with related data
     const enrichedReservations = await Promise.all(
-      organizerReservations.map(async (reservation) => {
+      organiserReservations.map(async (reservation) => {
         // Get activity
         const activity = await ctx.db.get(reservation.activityId);
 
@@ -674,17 +674,17 @@ export const getReservationsForOrganizer = query({
   },
 });
 
-export const getPaymentDetailsForOrganizer = query({
+export const getPaymentDetailsForOrganiser = query({
   args: {},
   handler: async (ctx) => {
     const currentUser = await getCurrentUserOrThrow(ctx);
 
-    // Check if user is an organizer
+    // Check if user is an organiser
     if (currentUser.role !== "organiser") {
       return [];
     }
 
-    // Find organization(s) where user is an organizer
+    // Find organisation(s) where user is an organiser
     const allOrganisations = await ctx.db.query("organisations").collect();
     const userOrganisations = allOrganisations.filter((org) =>
       org.organisersIDs.includes(currentUser._id)
@@ -694,7 +694,7 @@ export const getPaymentDetailsForOrganizer = query({
       return [];
     }
 
-    // Get all activity IDs from user's organizations
+    // Get all activity IDs from user's organisations
     const activityIds = new Set<Id<"activities">>();
     for (const org of userOrganisations) {
       for (const activityId of org.activityIDs) {
@@ -708,13 +708,13 @@ export const getPaymentDetailsForOrganizer = query({
 
     // Get all reservations for these activities
     const allReservations = await ctx.db.query("reservations").collect();
-    const organizerReservations = allReservations.filter((r) =>
+    const organiserReservations = allReservations.filter((r) =>
       activityIds.has(r.activityId)
     );
 
     // Enrich reservations with payment details
     const paymentDetails = await Promise.all(
-      organizerReservations.map(async (reservation) => {
+      organiserReservations.map(async (reservation) => {
         // Get activity
         const activity = await ctx.db.get(reservation.activityId);
 
@@ -785,12 +785,12 @@ export const getUnreadReservationCount = query({
       return 0;
     }
 
-    // Check if user is an organizer
+    // Check if user is an organiser
     if (currentUser.role !== "organiser") {
       return 0;
     }
 
-    // Find organization(s) where user is an organizer
+    // Find organisation(s) where user is an organiser
     const allOrganisations = await ctx.db.query("organisations").collect();
     const userOrganisations = allOrganisations.filter((org) =>
       org.organisersIDs.includes(currentUser._id)
@@ -800,7 +800,7 @@ export const getUnreadReservationCount = query({
       return 0;
     }
 
-    // Get all activity IDs from user's organizations
+    // Get all activity IDs from user's organisations
     const activityIds = new Set<Id<"activities">>();
     for (const org of userOrganisations) {
       for (const activityId of org.activityIDs) {
@@ -814,13 +814,13 @@ export const getUnreadReservationCount = query({
 
     // Get all reservations for these activities
     const allReservations = await ctx.db.query("reservations").collect();
-    const organizerReservations = allReservations.filter((r) =>
+    const organiserReservations = allReservations.filter((r) =>
       activityIds.has(r.activityId)
     );
 
     // Count unread active reservations (readByOrganizer is false or undefined, not cancelled)
-    const unreadCount = organizerReservations.filter(
-      (r) => r.readByOrganizer !== true && !r.cancelledAt
+    const unreadCount = organiserReservations.filter(
+      (r) => r.readByOrganiser !== true && !r.cancelledAt
     ).length;
 
     return unreadCount;
@@ -832,12 +832,12 @@ export const markReservationsAsRead = mutation({
   handler: async (ctx) => {
     const currentUser = await getCurrentUserOrThrow(ctx);
 
-    // Check if user is an organizer
+    // Check if user is an organiser
     if (currentUser.role !== "organiser") {
       return { success: true, count: 0 };
     }
 
-    // Find organization(s) where user is an organizer
+    // Find organisation(s) where user is an organiser
     const allOrganisations = await ctx.db.query("organisations").collect();
     const userOrganisations = allOrganisations.filter((org) =>
       org.organisersIDs.includes(currentUser._id)
@@ -847,7 +847,7 @@ export const markReservationsAsRead = mutation({
       return { success: true, count: 0 };
     }
 
-    // Get all activity IDs from user's organizations
+    // Get all activity IDs from user's organisations
     const activityIds = new Set<Id<"activities">>();
     for (const org of userOrganisations) {
       for (const activityId of org.activityIDs) {
@@ -861,18 +861,18 @@ export const markReservationsAsRead = mutation({
 
     // Get all unread active reservations for these activities
     const allReservations = await ctx.db.query("reservations").collect();
-    const organizerReservations = allReservations.filter(
+    const organiserReservations = allReservations.filter(
       (r) =>
         activityIds.has(r.activityId) &&
-        r.readByOrganizer !== true &&
+        r.readByOrganiser !== true &&
         !r.cancelledAt
     );
 
     // Mark all as read
     let count = 0;
-    for (const reservation of organizerReservations) {
+    for (const reservation of organiserReservations) {
       await ctx.db.patch(reservation._id, {
-        readByOrganizer: true,
+        readByOrganiser: true,
       });
       count++;
     }
@@ -1102,12 +1102,12 @@ export const getQueueForActivity = query({
   handler: async (ctx, { activityId }) => {
     const currentUser = await getCurrentUserOrThrow(ctx);
 
-    // Check if user is an organizer
+    // Check if user is an organiser
     if (currentUser.role !== "organiser") {
       return [];
     }
 
-    // Find organization(s) where user is an organizer
+    // Find organisation(s) where user is an organiser
     const allOrganisations = await ctx.db.query("organisations").collect();
     const userOrganisations = allOrganisations.filter((org) =>
       org.organisersIDs.includes(currentUser._id)
@@ -1117,7 +1117,7 @@ export const getQueueForActivity = query({
       return [];
     }
 
-    // Verify activity belongs to user's organization
+    // Verify activity belongs to user's organisation
     const hasAccess = userOrganisations.some((org) =>
       org.activityIDs.includes(activityId)
     );
@@ -1229,24 +1229,24 @@ export const acceptQueueReservation = mutation({
       );
     }
 
-    // Find organizer
+    // Find organiser
     const allOrganisations = await ctx.db.query("organisations").collect();
     const organisation = allOrganisations.find((org) =>
       org.activityIDs.includes(queueEntry.activityId)
     );
 
     if (!organisation || organisation.organisersIDs.length === 0) {
-      throw new Error("Activity organizer not found");
+      throw new Error("Activity organiser not found");
     }
 
-    const organizerId = organisation.organisersIDs[0];
-    const organizer = await ctx.db.get(organizerId);
-    if (!organizer) {
-      throw new Error("Organizer user not found");
+    const organiserId = organisation.organisersIDs[0];
+    const organiser = await ctx.db.get(organiserId);
+    if (!organiser) {
+      throw new Error("Organiser user not found");
     }
 
     // Create conversation
-    const userIds = [organizerId, currentUser._id].sort((a, b) =>
+    const userIds = [organiserId, currentUser._id].sort((a, b) =>
       a.localeCompare(b)
     );
     const user1Id = userIds[0];
@@ -1280,7 +1280,7 @@ export const acceptQueueReservation = mutation({
       teamIds: queueEntry.teamIds,
       userCount: queueEntry.userCount,
       createdBy: currentUser._id,
-      readByOrganizer: false,
+      readByOrganiser: false,
       reservationChatId: conversationId,
     });
 
@@ -1583,18 +1583,18 @@ export const getReservationPayments = query({
     // Check if user is the creator
     const isCreator = reservation.createdBy === currentUser._id;
 
-    // Check if user is an organizer of the activity's organization
-    let isOrganizer = false;
+    // Check if user is an organiser of the activity's organisation
+    let isOrganiser = false;
     if (currentUser.role === "organiser") {
       const allOrganisations = await ctx.db.query("organisations").collect();
       const activityOrganisation = allOrganisations.find((org) =>
         org.activityIDs.includes(reservation.activityId)
       );
-      isOrganizer =
+      isOrganiser =
         activityOrganisation?.organisersIDs.includes(currentUser._id) ?? false;
     }
 
-    if (!isTeamMember && !isCreator && !isOrganizer) {
+    if (!isTeamMember && !isCreator && !isOrganiser) {
       throw new Error("You do not have access to this reservation");
     }
 
@@ -1821,7 +1821,7 @@ async function checkAndCreateTeamPaymentIntent(
 
   if (teamPaymentIntentIds.length > 0) {
     // Team already has payment intent(s), check if any are modifiable
-    // If multiple exist, they should be consolidated (handled by getStripePaymentIntentsForOrganizer)
+    // If multiple exist, they should be consolidated (handled by getStripePaymentIntentsForOrganiser)
     // For now, if any payment intent exists, don't create another one
     // The consolidation logic will handle merging multiple intents
     return;
@@ -1943,30 +1943,30 @@ export const checkAndCancelUnpaidReservations = internalMutation({
       );
 
       if (reservationConversation) {
-        // Find the organizer to send the message as
+        // Find the organiser to send the message as
         const allOrganisations = await ctx.db.query("organisations").collect();
         const activityOrganisation = allOrganisations.find((org) =>
           org.activityIDs.includes(reservation.activityId)
         );
 
         if (activityOrganisation && activityOrganisation.organisersIDs.length > 0) {
-          // Find which organizer is in the conversation
-          const organizerInConversation = activityOrganisation.organisersIDs.find(
+          // Find which organiser is in the conversation
+          const organiserInConversation = activityOrganisation.organisersIDs.find(
             (orgId) =>
               orgId === reservationConversation.user1Id ||
               orgId === reservationConversation.user2Id
           );
 
-          if (organizerInConversation) {
+          if (organiserInConversation) {
             // Determine the receiver (the customer - the other user in the conversation)
             const customerId =
-              reservationConversation.user1Id === organizerInConversation
+              reservationConversation.user1Id === organiserInConversation
                 ? reservationConversation.user2Id
                 : reservationConversation.user1Id;
 
-            // Send notification message from organizer to customer
+            // Send notification message from organiser to customer
             await ctx.db.insert("messages", {
-              senderId: organizerInConversation,
+              senderId: organiserInConversation,
               receiverId: customerId,
               text: "Your reservation has been automatically cancelled because payment was not completed by the activity date. Any payments made have been refunded.",
             });
@@ -2120,7 +2120,7 @@ export const captureReservationPayments = mutation({
       throw new Error("Reservation not found");
     }
 
-    // Verify user is organizer
+    // Verify user is organiser
     const allOrganisations = await ctx.db.query("organisations").collect();
     const organisation = allOrganisations.find((org) =>
       org.activityIDs.includes(reservation.activityId)
@@ -2130,7 +2130,7 @@ export const captureReservationPayments = mutation({
       !organisation ||
       !organisation.organisersIDs.includes(currentUser._id)
     ) {
-      throw new Error("Only organizers can capture payments");
+      throw new Error("Only organisers can capture payments");
     }
 
     // Get all uncaptured payments

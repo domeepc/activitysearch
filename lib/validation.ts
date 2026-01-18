@@ -228,14 +228,14 @@ export function validateProfileField(
 }
 
 /**
- * Organization form field validation
+ * Organisation form field validation
  */
-export function validateOrganizationField(
+export function validateOrganisationField(
   name: string,
   value: string
 ): string | undefined {
   if (name === "name" && !value.trim()) {
-    return "Organization name is required";
+    return "Organisation name is required";
   }
 
   if (name === "email") {

@@ -24,9 +24,19 @@ import { Id } from "@/convex/_generated/dataModel";
 import { useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
-// Initialize Stripe
+// Initialize Stripe with error handling
 const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
-const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
+let stripePromise: Promise<any> | null = null;
+
+if (stripePublishableKey) {
+  stripePromise = loadStripe(stripePublishableKey).catch((error) => {
+    // Silently handle Stripe initialization errors - will be caught at usage time
+    if (process.env.NODE_ENV === "development") {
+      console.warn("Failed to initialize Stripe:", error);
+    }
+    return null;
+  });
+}
 
 interface PaymentDialogProps {
   open: boolean;
@@ -272,13 +282,6 @@ export function PaymentDialog({
         throw new Error("Total amount must be greater than 0");
       }
 
-      console.log("Creating setup intent:", {
-        reservationId,
-        totalAmount,
-        personsToPayFor,
-        perPersonAmount,
-      });
-
       const data = await createSetupIntentAction({
         reservationId,
         currency: "eur",
@@ -387,6 +390,7 @@ export function PaymentDialog({
                 appearance: {
                   theme: "stripe",
                 },
+                loader: "auto",
               }}
             >
               <PaymentForm

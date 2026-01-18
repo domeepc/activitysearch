@@ -178,7 +178,7 @@ export default function ProfileSettingsPage({
   if (user === undefined || currentUser === undefined) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <Card>
+        <Card className="border-border border-2 shadow-xl">
           <CardHeader>
             <Skeleton className="h-8 w-48" />
           </CardHeader>
@@ -224,7 +224,7 @@ export default function ProfileSettingsPage({
       />
 
       {/* Account Settings Section */}
-      <Card className="mt-6">
+      <Card className="mt-6 border-border border-2 shadow-xl">
         <CardHeader>
           <CardTitle>Account Settings</CardTitle>
         </CardHeader>
@@ -264,6 +264,7 @@ export default function ProfileSettingsPage({
               <Button
                 variant="destructive"
                 onClick={() => setShowDeleteDialog(true)}
+                className="cursor-pointer"
               >
                 Delete Account
               </Button>
@@ -307,7 +308,7 @@ export default function ProfileSettingsPage({
         onCancel={resetPasswordForm}
       />
 
-      <PasswordRequiredDialog
+      <PasswordRequiredDialog 
         open={showPasswordRequiredDialog}
         onOpenChange={setShowPasswordRequiredDialog}
         onSetPassword={handlePasswordRequiredSetPassword}

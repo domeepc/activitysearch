@@ -105,7 +105,7 @@ export const deleteFromClerk = internalMutation({
         )
       );
 
-      // Handle organization cleanup
+      // Handle organisation cleanup
       const allOrganisations = await ctx.db.query("organisations").collect();
       const userOrganisations = allOrganisations.filter((org) =>
         org.organisersIDs.includes(user._id)
@@ -148,7 +148,7 @@ export const deleteFromClerk = internalMutation({
       // Process each organisation
       for (const organisation of userOrganisations) {
         if (organisation.organisersIDs.length === 1) {
-          // User is the only organiser - delete organization and all related data
+          // User is the only organiser - delete organisation and all related data
 
           // Collect all items to delete
           const itemsToDelete: Array<{ 
@@ -187,7 +187,7 @@ export const deleteFromClerk = internalMutation({
             itemsToDelete.map((item) => ctx.db.delete(item.id))
           );
 
-          // Delete the organization
+          // Delete the organisation
           await ctx.db.delete(organisation._id);
         } else {
           // There are other organisers - just remove this user from organisersIDs

@@ -110,7 +110,7 @@ export function ProfileView({
     : undefined;
 
   return (
-    <Card>
+    <Card className="border-border border-2 shadow-xl">
       <ProfileHeader
         isOwnProfile={isOwnProfile}
         userName={user.name}

@@ -152,7 +152,7 @@ export function ConversationList({
     return conversations.filter((conv) => !conv.reservationId || !reservationIds.has(conv.reservationId?.toString()));
   }, [conversations, reservationConversations]);
 
-  // Merge all friends (including organizers) into one list
+  // Merge all friends (including organisers) into one list
   const allFriendsList = useMemo(() => {
     type FriendListItem = {
       _id: Id<"users">;
@@ -241,20 +241,6 @@ export function ConversationList({
     );
   }, [allFriendsList, searchQuery]);
 
-  // Debug: Log current conversation ID and friend conversation IDs
-  useEffect(() => {
-    if (currentConversationId && currentChatType === "individual") {
-      console.log("Current conversation ID:", currentConversationId);
-      console.log("Current conversation other user ID:", currentConversationOtherUserId);
-      console.log("Friends with conversations:", filteredFriendsList.map(f => ({
-        name: f.name,
-        userId: f._id.toString(),
-        conversationId: f.conversationId,
-        match: f.conversationId ? String(f.conversationId) === String(currentConversationId) : false,
-        matchByUserId: f._id.toString() === (currentConversationOtherUserId?.toString() || "")
-      })));
-    }
-  }, [currentConversationId, currentChatType, currentConversationOtherUserId, filteredFriendsList]);
 
   const filteredTeams = useMemo(() => {
     if (!teams) return [];
