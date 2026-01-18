@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ChatView } from "@/components/chat/ChatView";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function TeamChatPage({
   params,
@@ -29,7 +30,7 @@ export default function TeamChatPage({
   if (messagesData === undefined) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p>Loading...</p>
+        <Spinner className="h-8 w-8" />
       </div>
     );
   }
@@ -54,8 +55,10 @@ export default function TeamChatPage({
       ? `${msg.sender.name} ${msg.sender.lastname}`
       : undefined,
     senderAvatar: msg.sender?.avatar,
-    status: msg.status,
+    status: msg.status ?? undefined,
     encrypted: msg.encrypted || false,
+    messageType: msg.messageType || "text",
+    reservationCardData: msg.reservationCardData,
   }));
 
   return (

@@ -32,6 +32,8 @@ export default defineSchema({
     IBAN: v.string(),
     organisersIDs: v.array(v.id("users")),
     activityIDs: v.array(v.id("activities")),
+    stripeAccountId: v.optional(v.string()),
+    stripeAccountOnboardingComplete: v.optional(v.boolean()),
   }),
 
   teams: defineTable({
@@ -68,23 +70,56 @@ export default defineSchema({
     activityId: v.id("activities"),
     teamIds: v.array(v.id("teams")),
     createdBy: v.id("users"),
+    readByOrganizer: v.optional(v.boolean()),
+    reservationChatId: v.optional(v.id("conversations")),
+    cancelledAt: v.optional(v.number()),
+    cancellationReason: v.optional(v.string()),
+    paymentStatus: v.optional(
+      v.union(
+        v.literal("pending"),
+        v.literal("on_hold"),
+        v.literal("fulfilled"),
+        v.literal("cancelled")
+      )
+    ),
+    paymentDeadline: v.optional(v.number()),
   })
     .index("byActivity", ["activityId"])
     .index("byDateTime", ["activityId", "date", "time"]),
+  reservationPayments: defineTable({
+    reservationId: v.id("reservations"),
+    userId: v.id("users"),
+    amount: v.float64(),
+    personsPaidFor: v.int64(),
+    paidAt: v.number(),
+    refundedAt: v.optional(v.number()),
+    stripePaymentIntentId: v.optional(v.string()),
+    stripeSetupIntentId: v.optional(v.string()), // SetupIntent for collecting payment method
+    stripePaymentMethodId: v.optional(v.string()), // Payment method ID from SetupIntent
+    capturedAt: v.optional(v.number()),
+    captureScheduledFor: v.optional(v.number()),
+  }).index("byReservation", ["reservationId"]),
+  reservationQueue: defineTable({
+    activityId: v.id("activities"),
+    date: v.string(),
+    teamIds: v.array(v.id("teams")),
+    userCount: v.int64(),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    notifiedAt: v.optional(v.number()),
+  }).index("byActivityDate", ["activityId", "date"]),
   conversations: defineTable({
     user1Id: v.id("users"),
     user2Id: v.id("users"),
-    slug: v.string(),
     createdAt: v.number(),
+    reservationId: v.optional(v.id("reservations")),
   })
-    .index("bySlug", ["slug"])
     .index("byUser1", ["user1Id"])
     .index("byUser2", ["user2Id"]),
   messages: defineTable({
     text: v.string(),
     senderId: v.id("users"),
     receiverId: v.id("users"),
-    timestamp: v.number(),
     readBy: v.optional(v.array(v.id("users"))),
     encrypted: v.optional(v.boolean()),
   })
@@ -94,9 +129,16 @@ export default defineSchema({
     text: v.string(),
     senderId: v.id("users"),
     teamId: v.id("teams"),
-    timestamp: v.number(),
     readBy: v.optional(v.array(v.id("users"))),
     encrypted: v.optional(v.boolean()),
+    messageType: v.optional(
+      v.union(v.literal("text"), v.literal("reservation_card"))
+    ),
+    reservationCardData: v.optional(
+      v.object({
+        reservationId: v.id("reservations"),
+      })
+    ),
   }).index("byTeam", ["teamId"]),
   activities: defineTable({
     activityName: v.string(),

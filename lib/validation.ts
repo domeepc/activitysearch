@@ -20,12 +20,55 @@ export function validateIBAN(iban: string): boolean {
 }
 
 /**
+ * Validates a currency code (ISO 4217 format - 3 letters)
+ */
+export function validateCurrency(currency: string): boolean {
+  if (!currency) return false;
+  const cleaned = currency.trim().toUpperCase();
+  // ISO 4217 currency codes are exactly 3 uppercase letters
+  return /^[A-Z]{3}$/.test(cleaned);
+}
+
+/**
+ * Validates a country code (ISO 3166-1 alpha-2 format - 2 letters)
+ */
+export function validateCountryCode(countryCode: string): boolean {
+  if (!countryCode) return false;
+  const cleaned = countryCode.trim().toUpperCase();
+  // ISO 3166-1 alpha-2 country codes are exactly 2 uppercase letters
+  return /^[A-Z]{2}$/.test(cleaned);
+}
+
+/**
+ * Validates a URL format
+ */
+export function validateURL(url: string): boolean {
+  if (!url) return false;
+  try {
+    const urlObj = new URL(url);
+    return urlObj.protocol === "http:" || urlObj.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Validates a contact/phone number
+ * Accepts E.164 format (starting with +) or digits only
  */
 export function validateContact(contact: string): boolean {
-  // Remove spaces, dashes, and plus signs for validation
-  const cleaned = contact.replace(/[\s\-+]/g, "");
-  // Should contain only digits and be between 7-15 digits
+  if (!contact) return false;
+  
+  // Remove spaces and dashes for validation
+  const cleaned = contact.replace(/[\s\-]/g, "");
+  
+  // Check if it's in E.164 format (starts with + followed by 10-15 digits)
+  if (cleaned.startsWith("+")) {
+    const digitsAfterPlus = cleaned.slice(1);
+    return /^\d{10,15}$/.test(digitsAfterPlus);
+  }
+  
+  // Legacy validation: digits only, 7-15 digits (for backward compatibility)
   return /^\d{7,15}$/.test(cleaned);
 }
 

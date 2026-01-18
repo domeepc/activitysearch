@@ -7,7 +7,7 @@ import { api } from "@/convex/_generated/api";
  */
 export function useOrganizer() {
   const currentUser = useQuery(api.users.current);
-  const isOrganizer = (currentUser?.role === "organiser") ?? false;
+  const isOrganizer = currentUser?.role === "organiser" || false;
 
   return {
     isOrganizer,
