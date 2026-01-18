@@ -39,13 +39,13 @@ export default function ActivityCardInList(props: ActivityCardProps) {
     props.activity.tags && props.activity.tags.length > 0
       ? props.activity.tags
       : props.activity.category
-      ? [props.activity.category]
-      : [];
+        ? [props.activity.category]
+        : [];
 
   const databaseTags = useQuery(convexApi.activity.getAllTags);
   return (
     <>
-      <Card className="w-72 p-0">
+      <Card className="w-72 p-0 border-2 border-foreground/30 shadow-xl">
         <CardHeader className="text-2xl font-bold p-0">
           <div className="w-full">
             {props.activity.images && props.activity.images.length > 0 ? (

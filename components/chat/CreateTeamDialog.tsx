@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Spinner } from "@/components/ui/spinner";
 
 interface CreateTeamDialogProps {
   open: boolean;
@@ -109,18 +110,33 @@ export function CreateTeamDialog({
           </div>
           <div className="space-y-2">
             <Label>Select Friends</Label>
-            {friends === undefined ? (
-              <p className="text-sm text-muted-foreground">
-                Loading friends...
-              </p>
-            ) : friends.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                You don&apos;t have any friends yet. Add friends to create a
-                team.
-              </p>
-            ) : (
+            {(() => {
+              const hasFriendIds = (currentUser?.friends?.length ?? 0) > 0;
+              const isLoading =
+                currentUser === undefined ||
+                (hasFriendIds && friends === undefined);
+              const hasNoFriends =
+                currentUser !== undefined && !hasFriendIds;
+
+              if (isLoading) {
+                return (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Spinner className="h-4 w-4 shrink-0" />
+                    Loading friends...
+                  </div>
+                );
+              }
+              if (hasNoFriends) {
+                return (
+                  <p className="text-sm text-muted-foreground">
+                    You don&apos;t have any friends yet. Add friends to create a
+                    team.
+                  </p>
+                );
+              }
+              return (
               <div className="max-h-60 overflow-y-auto border-2 border-border rounded-md p-2 space-y-2">
-                {friends.map((friend) => (
+                {(friends ?? []).map((friend) => (
                   <div
                     key={friend._id}
                     className="flex items-center gap-3 p-2 hover:bg-accent rounded-md cursor-pointer"
@@ -148,7 +164,8 @@ export function CreateTeamDialog({
                   </div>
                 ))}
               </div>
-            )}
+              );
+            })()}
           </div>
         </div>
         <DialogFooter>

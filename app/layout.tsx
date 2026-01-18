@@ -5,6 +5,7 @@ import { ClerkProvider } from '@clerk/nextjs';
 import ConvexClientProvider from '@/components/ConvexClientProvider';
 import { PresenceProviderWrapper } from '@/components/PresenceProviderWrapper';
 import Navbar from '@/components/ui/navBar/NavBar';
+import { Toaster } from '@/components/ui/sonner';
 import { Suspense } from 'react';
 import Loading from '@/app/loading';
 
@@ -38,17 +39,18 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Suspense fallback={<Loading />}>
-        <ClerkProvider>
-          <ConvexClientProvider>
-            <PresenceProviderWrapper>
-              <header>
-                <Navbar />
-              </header>
-              {children}
-            </PresenceProviderWrapper>
-          </ConvexClientProvider>
-        </ClerkProvider>
-        </Suspense> 
+          <ClerkProvider>
+            <ConvexClientProvider>
+              <PresenceProviderWrapper>
+                <header>
+                  <Navbar />
+                </header>
+                {children}
+              </PresenceProviderWrapper>
+            </ConvexClientProvider>
+          </ClerkProvider>
+        </Suspense>
+        <Toaster />
       </body>
     </html>
 

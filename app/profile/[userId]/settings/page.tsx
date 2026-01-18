@@ -22,6 +22,7 @@ import { useProfileForm } from "@/lib/hooks/useProfileForm";
 import { useEmailVerification } from "@/lib/hooks/useEmailVerification";
 import { usePasswordManagement } from "@/lib/hooks/usePasswordManagement";
 import type { OAuthProvider } from "@/lib/types/profile";
+import { Separator } from "@/components/ui/separator";
 
 // Convex document IDs are 32 base-32 chars; treat other segments as username
 function looksLikeConvexId(s: string): boolean {
@@ -276,7 +277,8 @@ export default function ProfileSettingsPage({
           />
 
           {/* Delete Account Section */}
-          <div className="pt-4 border-t">
+          <Separator className="w-full h-0.5" />
+          <div className="mt-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium">Delete Account</p>
@@ -331,7 +333,7 @@ export default function ProfileSettingsPage({
         onCancel={resetPasswordForm}
       />
 
-      <PasswordRequiredDialog 
+      <PasswordRequiredDialog
         open={showPasswordRequiredDialog}
         onOpenChange={setShowPasswordRequiredDialog}
         onSetPassword={handlePasswordRequiredSetPassword}
@@ -342,6 +344,6 @@ export default function ProfileSettingsPage({
         open={showUnlinkWarningDialog}
         onOpenChange={setShowUnlinkWarningDialog}
       />
-    </div>
+    </div >
   );
 }

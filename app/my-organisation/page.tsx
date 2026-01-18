@@ -181,7 +181,7 @@ export default function MyOrganisationPage() {
   if (currentUser === undefined || organisation === undefined) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <Card>
+        <Card className="border-2 border-border shadow-xl">
           <CardHeader>
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
               <div>
@@ -258,7 +258,7 @@ export default function MyOrganisationPage() {
   if (currentUser !== null && !isOrganiser) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <Card>
+        <Card className="border-2 border-border shadow-xl">
           <CardHeader>
             <CardTitle>Access Denied</CardTitle>
             <CardDescription>
@@ -277,7 +277,7 @@ export default function MyOrganisationPage() {
   if (currentUser === null && isSignedIn) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <Card>
+        <Card className="border-2 border-border shadow-xl">
           <CardHeader>
             <CardTitle>Setting Up</CardTitle>
             <CardDescription>
@@ -296,7 +296,7 @@ export default function MyOrganisationPage() {
   if (organisation === null) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <Card>
+        <Card className="border-2 border-border shadow-xl">
           <CardHeader>
             <CardTitle>No Organisation Found</CardTitle>
             <CardDescription>
@@ -313,7 +313,7 @@ export default function MyOrganisationPage() {
 
   return (
     <div className="container mx-auto p-4 md:p-6 max-w-4xl space-y-6">
-      <Card>
+      <Card className="border-2 border-border shadow-xl">
         <CardHeader>
           <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
             <div>

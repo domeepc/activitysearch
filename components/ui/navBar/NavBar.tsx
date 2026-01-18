@@ -25,13 +25,14 @@ import "./style.css";
 import { AvatarImage, Avatar } from "@/components/ui/avatar";
 import { Authenticated, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { SignOutButton } from "@clerk/nextjs";
+import { useClerk } from "@clerk/nextjs";
 import { DropdownMenuLabel } from "@radix-ui/react-dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { useUnreadReservationCount } from "@/lib/hooks/useReservations";
 import { useUnreadMessageCount } from "@/lib/hooks/useUnreadMessageCount";
 
 export default function Navbar() {
+  const { signOut } = useClerk();
   const user = useQuery(api.users.current);
   const { count: unreadReservationCount } = useUnreadReservationCount();
   const { count: unreadMessageCount } = useUnreadMessageCount();
@@ -55,7 +56,7 @@ export default function Navbar() {
                 {unreadMessageCount > 0 && (
                   <Badge
                     variant="destructive"
-                    className="absolute -top-1 -right-1 h-4 min-w-4 rounded-full p-0 flex items-center justify-center text-[10px] leading-none"
+                    className="absolute -top-1 -right-1 h-4 w-max aspect-square rounded-full p-1.5 flex items-center justify-center text-xs leading-none"
                   >
                     {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
                   </Badge>
@@ -74,7 +75,7 @@ export default function Navbar() {
                 {unreadReservationCount > 0 && (
                   <Badge
                     variant="destructive"
-                    className="absolute -top-1 -right-1 h-4 min-w-4 rounded-full p-0 flex items-center justify-center text-[10px] leading-none"
+                    className="absolute -top-1 -right-1 h-4 w-max aspect-square rounded-full p-1.5 flex items-center justify-center text-xs leading-none"
                   >
                     {unreadReservationCount > 99 ? "99+" : unreadReservationCount}
                   </Badge>
@@ -149,9 +150,12 @@ export default function Navbar() {
                 )}
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="sign_out">
+              <DropdownMenuItem
+                className="sign_out"
+                onSelect={() => signOut({ redirectUrl: "/" })}
+              >
                 <LogOut className="icon" />
-                <SignOutButton />
+                Sign out
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

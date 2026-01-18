@@ -66,12 +66,12 @@ export default function ActivityCard({
     activity.tags && activity.tags.length > 0
       ? activity.tags
       : activity.category
-      ? [activity.category]
-      : [];
+        ? [activity.category]
+        : [];
 
   // Fetch all unique tags from database for color assignment
   const databaseTags = useQuery(convexApi.activity.getAllTags);
-  
+
   // Check if user has teams as creator
   const { hasTeams } = useMyTeamsAsCreator();
   const isOrganiserOfActivity =
@@ -87,12 +87,12 @@ export default function ActivityCard({
   useEffect(() => {
     if (!carouselApi || images.length <= 1) return;
 
-    // Auto-rotate every 30 seconds
+    // Auto-rotate every 15 seconds
     intervalRef.current = setInterval(() => {
       if (carouselApi) {
         carouselApi.scrollNext();
       }
-    }, 30000);
+    }, 15000);
 
     return () => {
       if (intervalRef.current) {
@@ -130,7 +130,7 @@ export default function ActivityCard({
 
   return (
     <Card
-      className={`${cardWidth} relative border-0 shadow-none transition-all duration-200  pointer-events-auto`}
+      className={`${cardWidth} relative border-2 border-border shadow-xl transition-all duration-200  pointer-events-auto`}
     >
       <button
         className="absolute! top-2 right-2 z-50 bg-white w-8 h-8 flex justify-center items-center rounded-full p-1.5 hover:bg-gray-100 shadow-md focus:outline-none transition-colors pointer-events-auto cursor-pointer"
@@ -162,7 +162,7 @@ export default function ActivityCard({
       {images.length > 0 && (
         <>
           <div className="z-0 w-full h-48 overflow-hidden rounded-t-xl -mt-6 mb-0 relative">
-            <Carousel setApi={setCarouselApi} className="w-full h-full">
+            <Carousel setApi={setCarouselApi} noManualControl className="w-full h-full">
               <CarouselContent className="h-full ml-0!">
                 {images.map((image, index) => (
                   <CarouselItem key={index} className="h-full pl-0 basis-full">
@@ -298,7 +298,7 @@ export default function ActivityCard({
           {hasTeams && !isOrganiserOfActivity && (
             <Button
               onClick={() => setIsReservationDialogOpen(true)}
-              className="h-8 w-8 p-0"
+              className="h-8 w-8 p-0 border border-border"
               variant="outline"
               size="icon"
               aria-label="Reserve activity"
@@ -308,7 +308,7 @@ export default function ActivityCard({
           )}
         </div>
       </CardContent>
-      
+
       {/* Reservation Dialog */}
       {hasTeams && !isOrganiserOfActivity && (
         <ReservationDialog

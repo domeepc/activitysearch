@@ -1,4 +1,4 @@
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUserOrThrow } from "./users";
 import { Id } from "./_generated/dataModel";
@@ -86,5 +86,38 @@ export const createReview = mutation({
     });
 
     return { success: true };
+  },
+});
+
+export const getRecentReviewsForActivity = query({
+  args: { activityId: v.id("activities") },
+  handler: async (ctx, { activityId }) => {
+    const reviews = await ctx.db
+      .query("reviews")
+      .filter((q) => q.eq(q.field("activityId"), activityId))
+      .collect();
+    const byNewest = reviews.sort(
+      (a, b) => (b._creationTime ?? 0) - (a._creationTime ?? 0)
+    );
+    const recent = byNewest.slice(0, 4);
+    const enriched = await Promise.all(
+      recent.map(async (r) => {
+        const user = await ctx.db.get(r.userId);
+        return {
+          _id: r._id,
+          text: r.text,
+          rating: r.rating,
+          _creationTime: r._creationTime,
+          user: user
+            ? {
+                name: user.name,
+                lastname: user.lastname,
+                avatar: user.avatar,
+              }
+            : null,
+        };
+      })
+    );
+    return enriched;
   },
 });

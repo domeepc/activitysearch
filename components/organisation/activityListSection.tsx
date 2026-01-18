@@ -41,7 +41,7 @@ export default function ActivityListSection({
   // If no activity IDs, show empty state immediately
   if (activityIDs.length === 0) {
     return (
-      <Card>
+      <Card className="border-2 border-border shadow-xl">
         <CardContent>
           <CardHeader className="text-2xl font-bold">Activities</CardHeader>
           <div className="text-center py-8 text-muted-foreground">
@@ -58,12 +58,12 @@ export default function ActivityListSection({
   // Loading state
   if (activitiesFromDb === undefined) {
     return (
-      <Card>
+      <Card className="border-2 border-border shadow-xl">
         <CardContent>
           <CardHeader className="text-2xl font-bold">Activities</CardHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3].map((i) => (
-              <Card key={i} className="w-full">
+              <Card key={i} className="w-full border-2 border-border shadow-xl">
                 <Skeleton className="h-48 w-full" />
                 <CardContent className="p-4 space-y-2">
                   <Skeleton className="h-6 w-3/4" />
@@ -79,7 +79,7 @@ export default function ActivityListSection({
   }
 
   return (
-    <Card>
+    <Card className="border-2 border-border shadow-xl">
       <CardContent>
         <CardHeader className="text-2xl font-bold">Activities</CardHeader>
         <div className="flex flex-row flex-wrap gap-6">

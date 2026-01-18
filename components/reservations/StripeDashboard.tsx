@@ -346,7 +346,7 @@ export function StripeDashboard() {
                     Status
                   </th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                    Collected (Soldo)
+                    Collected (Saldo)
                   </th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
                     Total Amount

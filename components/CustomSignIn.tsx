@@ -23,7 +23,7 @@ import { Eye, EyeOff } from "lucide-react";
 export default function CustomSignIn() {
   const { isLoaded, signIn, setActive } = useSignIn();
   const { isSignedIn, isLoaded: userLoaded } = useUser();
-  const [email, setEmail] = React.useState("");
+  const [identifier, setIdentifier] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
   const [error, setError] = React.useState("");
@@ -65,7 +65,7 @@ export default function CustomSignIn() {
 
     try {
       const result = await signIn.create({
-        identifier: email,
+        identifier: identifier.trim(),
         password,
       });
 
@@ -127,15 +127,16 @@ export default function CustomSignIn() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="identifier">Email or username</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="name@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="identifier"
+                type="text"
+                placeholder="name@example.com or username"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
                 required
                 disabled={loading}
+                autoComplete="username"
               />
             </div>
             <div className="space-y-2">

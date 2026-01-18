@@ -389,7 +389,7 @@ export default function DialogAddActivityMobile({
                 variant="outline"
                 onClick={() => setCurrentStep(currentStep - 1)}
                 disabled={isSubmitting}
-                className="w-full rounded-full sm:w-auto"
+                className="w-full rounded-full sm:w-auto border-2 border-border"
               >
                 Previous
               </Button>

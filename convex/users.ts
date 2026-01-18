@@ -338,7 +338,8 @@ export const getUsersByIds = query({
 export const getBlockedUsers = query({
   args: {},
   handler: async (ctx) => {
-    const currentUser = await getCurrentUserOrThrow(ctx);
+    const currentUser = await getCurrentUser(ctx);
+    if (!currentUser) return [];
     const blocked = currentUser.blocked || [];
 
     if (blocked.length === 0) {

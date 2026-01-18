@@ -15,6 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 import { StatusDot } from "./ActiveStatus";
 import { TeamMembersDialog } from "./TeamMembersDialog";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -85,7 +86,7 @@ export function ConversationList({
   const conversations = useQuery(api.messages.getConversations);
   const reservationConversations = useQuery(api.messages.getReservationConversations);
   const currentUser = useQuery(api.users.current);
-  
+
   // Query the current conversation to get the other user ID for matching
   const currentConversationData = useQuery(
     api.messages.getMessagesByConversationId,
@@ -93,7 +94,7 @@ export function ConversationList({
       ? { conversationId: currentConversationId }
       : "skip"
   );
-  
+
   // Get the other user ID from the current conversation
   const currentConversationOtherUserId = currentConversationData?.otherUser?._id || null;
 
@@ -165,6 +166,9 @@ export function ConversationList({
       lastActive: number | undefined;
       lastMessageTime: number;
       lastMessageReadStatus: "sent" | "delivered" | "read" | null;
+      lastMessage: string;
+      lastMessageSenderName: string | null;
+      unreadCount: number;
     };
 
     const convFriends: FriendListItem[] =
@@ -180,6 +184,9 @@ export function ConversationList({
         lastActive: conv.lastActive,
         lastMessageTime: conv.lastMessageTime,
         lastMessageReadStatus: conv.lastMessageReadStatus,
+        lastMessage: conv.lastMessage ?? "",
+        lastMessageSenderName: conv.lastMessageSenderName ?? null,
+        unreadCount: conv.unreadCount ?? 0,
       })) || [];
 
     const friendsWithoutConv: FriendListItem[] =
@@ -195,6 +202,9 @@ export function ConversationList({
         lastActive: friend.lastActive,
         lastMessageTime: 0,
         lastMessageReadStatus: null as "sent" | "delivered" | "read" | null,
+        lastMessage: "",
+        lastMessageSenderName: null,
+        unreadCount: 0,
       })) || [];
 
     const allFriends = [...convFriends, ...friendsWithoutConv];
@@ -299,11 +309,11 @@ export function ConversationList({
                 const currentIdStr = currentConversationId ? String(currentConversationId) : null;
                 const friendIdStr = friendConversationId ? String(friendConversationId) : null;
                 // Also match by user ID as a fallback (in case conversation data hasn't loaded yet)
-                const matchesByConversationId = 
+                const matchesByConversationId =
                   currentIdStr !== null &&
                   friendIdStr !== null &&
                   currentIdStr === friendIdStr;
-                const matchesByUserId = 
+                const matchesByUserId =
                   currentConversationOtherUserId !== null &&
                   friend._id.toString() === currentConversationOtherUserId.toString();
                 const isSelected =
@@ -363,6 +373,12 @@ export function ConversationList({
                         <h3 className="font-semibold truncate text-sm">
                           {friend.name} {friend.lastname}
                         </h3>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {friend.lastMessageSenderName
+                            ? `${friend.lastMessageSenderName}: `
+                            : ""}
+                          {friend.lastMessage || "No messages yet"}
+                        </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {friend.lastMessageTime > 0 && (
@@ -370,13 +386,23 @@ export function ConversationList({
                             {formatTime(friend.lastMessageTime)}
                           </span>
                         )}
-                        {friend.lastMessageReadStatus === "sent" && (
+                        {friend.unreadCount > 0 && (
+                          <Badge
+                            variant="destructive"
+                            className="aspect-square w-max rounded-full p-1.5 flex items-center justify-center text-xs leading-none"
+                          >
+                            {friend.unreadCount > 99
+                              ? "99+"
+                              : friend.unreadCount}
+                          </Badge>
+                        )}
+                        {friend.unreadCount === 0 && friend.lastMessageReadStatus === "sent" && (
                           <Check className="h-4 w-4 text-gray-400" />
                         )}
-                        {friend.lastMessageReadStatus === "delivered" && (
+                        {friend.unreadCount === 0 && friend.lastMessageReadStatus === "delivered" && (
                           <CheckCheck className="h-4 w-4 text-gray-400" />
                         )}
-                        {friend.lastMessageReadStatus === "read" && (
+                        {friend.unreadCount === 0 && friend.lastMessageReadStatus === "read" && (
                           <CheckCheck className="h-4 w-4 text-blue-500" />
                         )}
                         <DropdownMenu>
@@ -454,22 +480,22 @@ export function ConversationList({
         <div className="mb-4">
           {(!searchQuery.trim() ||
             (filteredTeams && filteredTeams.length > 0)) && (
-            <div className="mb-4 bg-cyan-100 p-2 rounded-lg text-sm font-semibold text-foreground flex items-center justify-between">
-              <span>Teams</span>
-              {!searchQuery.trim() &&
-                filteredTeams &&
-                filteredTeams.length > 0 &&
-                onCreateTeam && (
-                  <button
-                    onClick={onCreateTeam}
-                    className="h-6 w-6 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors shrink-0"
-                    title="Create team"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
-                )}
-            </div>
-          )}
+              <div className="mb-4 bg-cyan-100 p-2 rounded-lg text-sm font-semibold text-foreground flex items-center justify-between">
+                <span>Teams</span>
+                {!searchQuery.trim() &&
+                  filteredTeams &&
+                  filteredTeams.length > 0 &&
+                  onCreateTeam && (
+                    <button
+                      onClick={onCreateTeam}
+                      className="h-6 w-6 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors shrink-0"
+                      title="Create team"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  )}
+              </div>
+            )}
           {filteredTeams && filteredTeams.length > 0 && (
             <>
               {filteredTeams.map((team) => {
@@ -505,6 +531,12 @@ export function ConversationList({
                         <h3 className="font-semibold truncate text-sm">
                           {team.teamName}
                         </h3>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {team.lastMessageSenderName
+                            ? `${team.lastMessageSenderName}: `
+                            : ""}
+                          {team.lastMessage?.text || "No messages yet"}
+                        </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {team.lastMessage && (
@@ -512,13 +544,21 @@ export function ConversationList({
                             {formatTime(team.lastMessage.timestamp)}
                           </span>
                         )}
-                        {team.lastMessageReadStatus === "sent" && (
+                        {team.unreadCount > 0 && (
+                          <Badge
+                            variant="destructive"
+                            className="aspect-square w-max rounded-full p-1.5 flex items-center justify-center text-xs leading-none"
+                          >
+                            {team.unreadCount > 99 ? "99+" : team.unreadCount}
+                          </Badge>
+                        )}
+                        {team.unreadCount === 0 && team.lastMessageReadStatus === "sent" && (
                           <Check className="h-4 w-4 text-gray-400" />
                         )}
-                        {team.lastMessageReadStatus === "delivered" && (
+                        {team.unreadCount === 0 && team.lastMessageReadStatus === "delivered" && (
                           <CheckCheck className="h-4 w-4 text-gray-400" />
                         )}
-                        {team.lastMessageReadStatus === "read" && (
+                        {team.unreadCount === 0 && team.lastMessageReadStatus === "read" && (
                           <CheckCheck className="h-4 w-4 text-blue-500" />
                         )}
                         {onInviteToTeam && (
@@ -699,6 +739,12 @@ export function ConversationList({
                           {conv.activityName}
                         </p>
                       )}
+                      <p className="text-xs text-muted-foreground truncate">
+                        {conv.lastMessageSenderName
+                          ? `${conv.lastMessageSenderName}: `
+                          : ""}
+                        {conv.lastMessage || "No messages yet"}
+                      </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {conv.lastMessageTime > 0 && (
@@ -706,10 +752,18 @@ export function ConversationList({
                           {formatTime(conv.lastMessageTime)}
                         </span>
                       )}
-                      {conv.lastMessageReadStatus === "sent" && (
+                      {conv.unreadCount > 0 && (
+                        <Badge
+                          variant="destructive"
+                          className="aspect-square w-max rounded-full p-1.5 flex items-center justify-center text-xs leading-none"
+                        >
+                          {conv.unreadCount > 99 ? "99+" : conv.unreadCount}
+                        </Badge>
+                      )}
+                      {conv.unreadCount === 0 && conv.lastMessageReadStatus === "sent" && (
                         <Check className="h-4 w-4 text-gray-400" />
                       )}
-                      {conv.lastMessageReadStatus === "read" && (
+                      {conv.unreadCount === 0 && conv.lastMessageReadStatus === "read" && (
                         <CheckCheck className="h-4 w-4 text-blue-500" />
                       )}
                     </div>
@@ -722,11 +776,11 @@ export function ConversationList({
 
         {/* Empty State */}
         {conversations === undefined ||
-        teams === undefined ||
-        currentUser === undefined ||
-        (currentUser?.friends &&
-          currentUser.friends.length > 0 &&
-          allFriends === undefined) ? (
+          teams === undefined ||
+          currentUser === undefined ||
+          (currentUser?.friends &&
+            currentUser.friends.length > 0 &&
+            allFriends === undefined) ? (
           <div className="p-4 text-center text-muted-foreground">
             Loading...
           </div>

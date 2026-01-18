@@ -443,6 +443,7 @@ export default function DialogAddActivity({
               variant="outline"
               onClick={() => setCurrentStep(currentStep - 1)}
               disabled={isSubmitting}
+              className="border-2 border-border"
             >
               Previous
             </Button>

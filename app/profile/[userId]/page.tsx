@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, use } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -40,6 +40,7 @@ export default function ProfilePage({
       : "skip"
   );
   const user = byId ?? byUsername;
+  const { isAuthenticated } = useConvexAuth();
   const currentUser = useQuery(api.users.current);
   const addFriend = useMutation(api.users.addFriend);
   const removeFriend = useMutation(api.users.removeFriend);
@@ -53,7 +54,7 @@ export default function ProfilePage({
   );
   const blockedUsers = useQuery(
     api.users.getBlockedUsers,
-    currentUser?._id === user?._id ? {} : "skip"
+    isAuthenticated && currentUser?._id === user?._id ? {} : "skip"
   );
 
   // Redirect to sign-in if not authenticated or user not found

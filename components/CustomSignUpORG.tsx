@@ -1175,7 +1175,7 @@ export default function CustomSignUpORG() {
               variant="outline"
               onClick={handlePrevious}
               disabled={currentPage === 0 || loading}
-              className="flex items-center shrink-0 md:gap-2 gap-0 cursor-pointer"
+              className="flex items-center shrink-0 md:gap-2 gap-0 cursor-pointer border-2 border-border"
             >
               <ChevronLeft className="h-4 w-4" />
               <span className="hidden md:inline">Previous</span>

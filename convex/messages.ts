@@ -148,6 +148,7 @@ export const getConversations = query({
         timestamp: number;
         senderId: typeof currentUser._id;
         readBy?: (typeof currentUser._id)[];
+        unreadCount: number;
       }
     > = new Map();
 
@@ -155,6 +156,10 @@ export const getConversations = query({
       const friendId = validFriends[i];
       const sentToFriend = allSentMessages[i];
       const receivedFromFriend = allReceivedMessages[i];
+
+      const unreadCount = receivedFromFriend.filter(
+        (m) => !(m.readBy || []).includes(currentUser._id)
+      ).length;
 
       // Find the most recent message in this conversation
       const allMessages = [...sentToFriend, ...receivedFromFriend];
@@ -168,6 +173,7 @@ export const getConversations = query({
           timestamp: lastMessage._creationTime,
           senderId: lastMessage.senderId,
           readBy: lastMessage.readBy,
+          unreadCount,
         });
       }
     }
@@ -228,6 +234,12 @@ export const getConversations = query({
           lastMessageTime: lastMessage?.timestamp || 0,
           lastActive: partner.lastActive, // Kept for fallback if Ably is unavailable
           lastMessageReadStatus,
+          lastMessageSenderName: lastMessage
+            ? lastMessage.senderId === currentUser._id
+              ? "You"
+              : `${partner.name} ${partner.lastname}`
+            : null,
+          unreadCount: lastMessage?.unreadCount ?? 0,
         };
       })
       .filter((c): c is NonNullable<typeof c> => c !== null);
@@ -741,7 +753,7 @@ export const getReservationConversations = query({
 
     // Build conversations array
     const conversations = partnerIds
-      .map((partnerId) => {
+      .map((partnerId, i) => {
         const partner = partnerMap.get(partnerId.toString());
         if (!partner) return null;
 
@@ -770,6 +782,10 @@ export const getReservationConversations = query({
           }
         }
 
+        const unreadCount = allReceivedMessages[i].filter(
+          (m) => !(m.readBy || []).includes(currentUser._id)
+        ).length;
+
         return {
           userId: partner._id,
           name: partner.name,
@@ -788,6 +804,12 @@ export const getReservationConversations = query({
           lastMessageTime: lastMessage?.timestamp || 0,
           lastActive: partner.lastActive,
           lastMessageReadStatus,
+          lastMessageSenderName: lastMessage
+            ? lastMessage.senderId === currentUser._id
+              ? "You"
+              : `${partner.name} ${partner.lastname}`
+            : null,
+          unreadCount,
         };
       })
       .filter((c): c is NonNullable<typeof c> => c !== null);
@@ -835,7 +857,9 @@ export const getUnreadMessageCount = query({
       )
     );
 
-    // Count unread messages across all teams
+    // Count unread messages across all teams. All groupMessages are included
+    // (no filter on messageType), so reservation_card messages count as unread
+    // until the user has read them.
     let unreadTeamCount = 0;
     for (const teamMessages of allTeamMessages) {
       const unreadTeamMessages = teamMessages.filter((msg) => {

@@ -20,11 +20,13 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar, Clock, Wallet, X, AlertCircle, Star } from "lucide-react";
+import { toast } from "sonner";
 import { format } from "date-fns";
 import { PaymentButton } from "@/components/payments/PaymentButton";
 import { PaymentDialog } from "@/components/payments/PaymentDialog";
 import { ReviewDialog } from "@/components/reservations/ReviewDialog";
 import { useCancelReservation } from "@/lib/hooks/useReservations";
+import { cn } from "@/lib/utils";
 
 interface ReservationCardProps {
   reservationId: Id<"reservations">;
@@ -107,7 +109,7 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
       case "on_hold":
         return { text: "Payment On Hold", variant: "secondary" as const };
       case "fulfilled":
-        return { text: "Payment Fulfilled", variant: "default" as const };
+        return { text: "Payment Fulfilled", variant: "default" as const, className: "bg-green-500" as const };
       case "cancelled":
         return { text: "Cancelled", variant: "destructive" as const };
       default:
@@ -151,12 +153,18 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
   const handleCancelConfirm = async () => {
     if (!cancellationReason.trim()) return;
     try {
-      await cancelReservation(reservationId, cancellationReason.trim());
+      const result = await cancelReservation(reservationId, cancellationReason.trim());
       setCancelDialogOpen(false);
       setCancellationReason("");
+      toast.success("Reservation cancelled.");
+      if (result.autoAssigned) {
+        toast.info("The first team in queue has been assigned the freed slot.");
+      } else if (result.queueNotified) {
+        toast.info("The first team in queue has been notified.");
+      }
     } catch (error) {
       console.error("Failed to cancel reservation:", error);
-      alert(
+      toast.error(
         error instanceof Error ? error.message : "Failed to cancel reservation"
       );
     }
@@ -169,7 +177,7 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
           <h3 className="text-base sm:text-lg font-semibold leading-tight">
             {activity.activityName}
           </h3>
-          <Badge variant={statusBadge.variant} className="w-fit">
+          <Badge variant={statusBadge.variant} className={cn(statusBadge.className, "w-fit")}>
             {statusBadge.text}
           </Badge>
         </div>
@@ -196,7 +204,7 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
           <div className="flex items-center gap-2">
             <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
             <span className="text-xs text-muted-foreground">
-              Soldo collected
+              Saldo collected
             </span>
           </div>
           <div className="space-y-2">
@@ -248,7 +256,7 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
         )}
 
         {/* Cancel Reservation (team creator only) */}
-        {isTeamCreator && status !== "cancelled" && (
+        {isTeamCreator && status !== "cancelled" && status !== "fulfilled" && (
           <div className="pt-2">
             <Button
               variant="destructive"
@@ -319,7 +327,7 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
         onOpenChange={setReviewDialogOpen}
         activityId={activity._id}
         activityName={activity.activityName}
-        onSuccess={() => {}}
+        onSuccess={() => { }}
       />
 
       {/* Cancel Reservation Dialog */}

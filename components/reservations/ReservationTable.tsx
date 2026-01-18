@@ -4,6 +4,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { X, Users, AlertCircle, Calendar, MapPin, User } from "lucide-react";
+import { toast } from "sonner";
 import { format } from "date-fns";
 import { useCancelReservation } from "@/lib/hooks/useReservations";
 import { useState } from "react";
@@ -80,16 +81,22 @@ export function ReservationTable({ reservations }: ReservationTableProps) {
 
     setProcessingId(selectedReservation._id);
     try {
-      await cancelReservation(
+      const result = await cancelReservation(
         selectedReservation._id,
         cancellationReason.trim()
       );
       setCancelDialogOpen(false);
       setSelectedReservation(null);
       setCancellationReason("");
+      toast.success("Reservation cancelled.");
+      if (result.autoAssigned) {
+        toast.info("The first team in queue has been assigned the freed slot.");
+      } else if (result.queueNotified) {
+        toast.info("The first team in queue has been notified.");
+      }
     } catch (error) {
       console.error("Failed to cancel reservation:", error);
-      alert(
+      toast.error(
         error instanceof Error
           ? error.message
           : "Failed to cancel reservation"

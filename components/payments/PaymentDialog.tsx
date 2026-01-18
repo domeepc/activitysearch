@@ -130,7 +130,7 @@ function PaymentForm({
         }
 
         // Record payment with SetupIntent ID and payment method ID
-        // PaymentIntent will be created when team's soldo is fulfilled
+        // PaymentIntent will be created when team's saldo is fulfilled
         await recordPayment({
           reservationId,
           amount: Number(totalAmount),

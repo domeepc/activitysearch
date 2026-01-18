@@ -38,6 +38,7 @@ import {
   AlertCircle,
   Clock,
 } from "lucide-react";
+import { toast } from "sonner";
 import { format } from "date-fns";
 
 interface ReservationDialogProps {
@@ -226,12 +227,15 @@ export function ReservationDialog({
           teamIds: [selectedTeamId as Id<"teams">],
           userCount,
         });
-        setError(null);
-        // Show success message with queue position
-        alert(
-          `Successfully joined the queue! Your position: ${result.position} of ${result.totalInQueue}`
-        );
-        onOpenChange(false);
+        if (result.success) {
+          setError(null);
+          toast.success(
+            `Successfully joined the queue! Your position: ${result.position} of ${result.totalInQueue}`
+          );
+          onOpenChange(false);
+        } else {
+          setError(result.error ?? "Failed to join queue");
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to join queue");
       }
@@ -288,7 +292,7 @@ export function ReservationDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto border-border border-2 shadow-xl">
         <DialogHeader>
           <DialogTitle>Reserve Activity</DialogTitle>
           <DialogDescription>
@@ -307,7 +311,7 @@ export function ReservationDialog({
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="w-full justify-start text-left font-normal"
+                  className="w-full justify-start text-left font-normal border-border"
                 >
                   {selectedDate ? (
                     format(selectedDate, "PPP")
@@ -316,7 +320,7 @@ export function ReservationDialog({
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
+              <PopoverContent className="w-auto p-0 border-border border-2 shadow-xl" align="start">
                 <Calendar
                   mode="single"
                   selected={selectedDate}
@@ -396,7 +400,7 @@ export function ReservationDialog({
                 Time Slot
               </Label>
               {!selectedDate ? (
-                <div className="p-3 border rounded-md bg-muted/50 text-sm text-muted-foreground">
+                <div className="p-3 border border-border rounded-md bg-muted/50 text-sm text-muted-foreground">
                   Please select a date first
                 </div>
               ) : availableTimeSlotsForDate.length === 0 ? (
@@ -477,13 +481,12 @@ export function ReservationDialog({
               <Users className="inline h-4 w-4 mr-2" />
               Number of Participants
             </Label>
-            <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
+            <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50 border-border">
               <span className="text-sm font-medium text-foreground">
                 {userCount === 0
                   ? "Select a team to see participant count"
-                  : `${userCount} ${
-                      userCount === 1 ? "participant" : "participants"
-                    }`}
+                  : `${userCount} ${userCount === 1 ? "participant" : "participants"
+                  }`}
               </span>
               {selectedTeamId && activity?.maxParticipants && (
                 <span className="text-xs text-muted-foreground">
@@ -510,6 +513,7 @@ export function ReservationDialog({
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={isPending || isJoiningQueue}
+              className="border border-border"
             >
               Cancel
             </Button>
@@ -528,10 +532,10 @@ export function ReservationDialog({
               {isJoiningQueue
                 ? "Joining Queue..."
                 : isPending
-                ? "Creating..."
-                : isDateFulfilled
-                ? "Join Queue"
-                : "Create Reservation"}
+                  ? "Creating..."
+                  : isDateFulfilled
+                    ? "Join Queue"
+                    : "Create Reservation"}
             </Button>
           </DialogFooter>
         </form>

@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useState } from "react";
@@ -16,11 +16,15 @@ export function useReservations(activityId: Id<"activities"> | undefined) {
 }
 
 export function useMyTeamsAsCreator() {
-  const teams = useQuery(api.reservations.getMyTeamsAsCreator);
+  const { isAuthenticated } = useConvexAuth();
+  const teams = useQuery(
+    api.reservations.getMyTeamsAsCreator,
+    isAuthenticated ? undefined : "skip"
+  );
 
   return {
     teams: teams ?? [],
-    isLoading: teams === undefined,
+    isLoading: isAuthenticated && teams === undefined,
     hasTeams: (teams?.length ?? 0) > 0,
   };
 }
@@ -78,11 +82,15 @@ export function useReservationStatus(
 }
 
 export function useOrganiserReservations() {
-  const reservations = useQuery(api.reservations.getReservationsForOrganiser);
+  const { isAuthenticated } = useConvexAuth();
+  const reservations = useQuery(
+    api.reservations.getReservationsForOrganiser,
+    isAuthenticated ? undefined : "skip"
+  );
 
   return {
     reservations: reservations ?? [],
-    isLoading: reservations === undefined,
+    isLoading: isAuthenticated && reservations === undefined,
   };
 }
 

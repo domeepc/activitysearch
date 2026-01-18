@@ -75,10 +75,10 @@ export function AddressAutocomplete({
       const data = await res.json();
       const filtered = Array.isArray(data)
         ? data.filter(
-            (d) =>
-              d.address &&
-              (d.address.road || d.address.pedestrian || d.address.footway)
-          )
+          (d) =>
+            d.address &&
+            (d.address.road || d.address.pedestrian || d.address.footway)
+        )
         : [];
 
       // Deduplicate suggestions based on formatted address
@@ -89,10 +89,10 @@ export function AddressAutocomplete({
         const road = addr.road || addr.pedestrian || addr.footway || "";
         const townName =
           addr.city || addr.town || addr.village || addr.county || "";
-        
+
         // Create a normalized address key for deduplication
         const addressKey = `${road.toLowerCase().trim()}-${townName.toLowerCase().trim()}-${house}`;
-        
+
         if (seenAddresses.has(addressKey)) {
           return false;
         }
@@ -254,7 +254,7 @@ export function AddressAutocomplete({
       )}
 
       {isOpen && (suggestions.length > 0 || isLoading) && (
-        <div className="absolute z-50 w-full mt-1 bg-popover text-popover-foreground rounded-md border shadow-md">
+        <div className="absolute z-50 w-full mt-1 bg-popover text-popover-foreground rounded-md border-border border-2 shadow-md">
           {isLoading ? (
             <div className="flex items-center justify-center py-6">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />

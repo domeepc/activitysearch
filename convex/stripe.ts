@@ -423,7 +423,7 @@ export const createTeamPaymentIntentInternal = internalAction({
   },
 });
 
-// Create payment intent for a team when their soldo is fulfilled
+// Create payment intent for a team when their saldo is fulfilled
 export const createTeamPaymentIntent = action({
   args: {
     reservationId: v.id("reservations"),
@@ -2637,7 +2637,7 @@ export const getStripePaymentIntentsForOrganiser = action({
               status: displayStatus,
               stripeStatus: paymentIntent.status,
               amount: paymentIntent.amount / 100, // Convert from cents (this is the team's payment intent amount)
-              collectedAmount: teamCollectedAmount, // Team's collected amount (soldo)
+              collectedAmount: teamCollectedAmount, // Team's collected amount (saldo)
               remainingAmount, // Reservation-level remaining
               currency: paymentIntent.currency.toUpperCase(),
               createdAt: paymentIntent.created * 1000, // Convert to milliseconds

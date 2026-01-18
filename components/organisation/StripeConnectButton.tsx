@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreditCard, CheckCircle, Loader2, AlertCircle, AlertTriangle } from "lucide-react";
 import { Id } from "@/convex/_generated/dataModel";
-import { useQuery, useAction } from "convex/react";
+import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
 interface StripeConnectButtonProps {
@@ -33,11 +33,10 @@ export function StripeConnectButton({ organisationId }: StripeConnectButtonProps
     detailsSubmitted?: boolean;
   } | null>(null);
   const [isLoadingStatus, setIsLoadingStatus] = useState(false);
-  
-  const organisation = useQuery(api.organisation.getById, { organisationId });
+
   const createConnectAccountLink = useAction(api.stripe.createConnectAccountLink);
   const getStripeAccountStatus = useAction(api.stripe.getStripeAccountStatus);
-  
+
   // Fetch Stripe account status on mount and when organisation changes
   // Also auto-refresh periodically to check for new requirements
   useEffect(() => {
@@ -103,23 +102,17 @@ export function StripeConnectButton({ organisationId }: StripeConnectButtonProps
 
   // Determine connection status from fetched data
   const isConnected = accountStatus?.connected || false;
-  const needsUpdate = accountStatus?.needsUpdate || false;
   const requirements = accountStatus?.requirements;
   const hasRequirements = requirements && (
-    requirements.currentlyDue.length > 0 || 
+    requirements.currentlyDue.length > 0 ||
     requirements.pastDue.length > 0 ||
     requirements.eventuallyDue.length > 0
   );
-  const hasUrgentRequirements = requirements && (
-    requirements.currentlyDue.length > 0 || 
-    requirements.pastDue.length > 0
-  );
-  const hasDueSoonRequirements = requirements && requirements.eventuallyDue.length > 0;
-  
+
   // Show loading state while fetching status
   if (isLoadingStatus) {
     return (
-      <Card>
+      <Card className="border-2 border-border shadow-xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
@@ -139,7 +132,7 @@ export function StripeConnectButton({ organisationId }: StripeConnectButtonProps
   }
 
   return (
-    <Card>
+    <Card className="border-2 border-border shadow-xl">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <CreditCard className="h-5 w-5" />
@@ -269,7 +262,7 @@ export function StripeConnectButton({ organisationId }: StripeConnectButtonProps
                   Connect your Stripe account
                 </p>
                 <p className="text-xs text-blue-700 mt-1">
-                  You need to connect a Stripe account to receive payments. 
+                  You need to connect a Stripe account to receive payments.
                   Funds will be held until the activity date and then transferred to your account.
                 </p>
               </div>

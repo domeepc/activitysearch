@@ -29,7 +29,7 @@ export function PasswordSection({
         variant="outline"
         size="sm"
         onClick={onSetPassword}
-        className="w-full"
+        className="w-full border-border border-2"
       >
         {hasPassword ? "Change Password" : "Set Password"}
       </Button>

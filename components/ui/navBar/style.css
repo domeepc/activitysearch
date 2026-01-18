@@ -37,7 +37,6 @@ nav > ul > li > * {
   cursor: pointer;
 }
 .profile_menu {
-  border: lightgray 1px solid;
   width: 10rem;
 }
 

@@ -29,15 +29,17 @@ export default function ActivityFilters({
         onClearSelection={onClearSelection}
         placeholder="Search by activity or location..."
       />
-      {uniqueCategories.length > 0 && (
-        <MultiSelect
-          values={selectedCategories}
-          onValuesChange={onCategoryChange}
-        >
-          <MultiSelectTrigger className="w-full max-w-62">
-            <MultiSelectValue placeholder="Select category..." />
-          </MultiSelectTrigger>
+
+      <MultiSelect
+        values={selectedCategories}
+        onValuesChange={onCategoryChange}
+      >
+        <MultiSelectTrigger className="w-full max-w-62">
+          <MultiSelectValue placeholder="Select category..." />
+        </MultiSelectTrigger>
+        {uniqueCategories.length > 0 && (
           <MultiSelectContent search={false} className="filter_tab_content">
+
             <MultiSelectGroup>
               {uniqueCategories.map((category) => (
                 <MultiSelectItem key={category} value={category}>
@@ -46,8 +48,9 @@ export default function ActivityFilters({
               ))}
             </MultiSelectGroup>
           </MultiSelectContent>
-        </MultiSelect>
-      )}
+        )}
+      </MultiSelect>
+
     </>
   );
 }

@@ -179,14 +179,36 @@ export const getMyTeams = query({
         .map((t) => [t._id.toString(), t])
     );
 
-    // Get last message for each team
+    // Get all messages for each team (to compute lastMessage, unreadCount)
     const teamsWithLastMessage = await Promise.all(
       myTeams.map(async (team) => {
-        const lastMessage = await ctx.db
+        const messages = await ctx.db
           .query("groupMessages")
           .withIndex("byTeam", (q) => q.eq("teamId", team._id))
-          .order("desc")
-          .first();
+          .collect();
+
+        const lastMessage = messages.length > 0
+          ? messages.reduce((latest, msg) =>
+              msg._creationTime > latest._creationTime ? msg : latest
+            )
+          : null;
+
+        const unreadCount = messages.filter(
+          (m) =>
+            m.senderId !== currentUser._id &&
+            !(m.readBy || []).includes(currentUser._id)
+        ).length;
+
+        const lastMessageSenderName = lastMessage
+          ? lastMessage.senderId === currentUser._id
+            ? "You"
+            : (() => {
+                const sender = teammateMap.get(lastMessage.senderId.toString());
+                return sender
+                  ? `${sender.name} ${sender.lastname}`
+                  : null;
+              })()
+          : null;
 
         // Get teammate details from the pre-fetched map
         const teammates = team.teammates
@@ -246,6 +268,8 @@ export const getMyTeams = query({
               }
             : null,
           lastMessageReadStatus,
+          lastMessageSenderName,
+          unreadCount,
         };
       })
     );
