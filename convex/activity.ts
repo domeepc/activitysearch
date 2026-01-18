@@ -1,6 +1,5 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { Doc, Id } from "./_generated/dataModel";
 
 export const getActivities = query({
     args: {},
@@ -69,10 +68,9 @@ export const createActivity = mutation({
         reviewCount: v.optional(v.int64()),
         equipment: v.optional(v.array(v.string())),
         images: v.optional(v.array(v.string())),
-        availableTimeSlots: v.optional(v.array(v.string())),
     },
     handler: async (ctx, args) => {
-        // Check if user is authenticated and is an organiser
+        // Check if user is authenticated and is an organizer
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) {
             throw new Error("You must be logged in to create an activity");
@@ -87,11 +85,11 @@ export const createActivity = mutation({
             throw new Error("User not found");
         }
 
-        if (user.role !== "organiser") {
-            throw new Error("Only organisers can create activities");
+        if (user.role !== "organizer") {
+            throw new Error("Only organizers can create activities");
         }
 
-        const doc: Omit<Doc<"activities">, "_id" | "_creationTime"> = {
+        const doc: any = {
             activityName: args.activityName ?? "",
             longitude: args.longitude,
             latitude: args.latitude,
@@ -101,22 +99,22 @@ export const createActivity = mutation({
             tags: args.tags ?? [],
             equipment: args.equipment ?? [],
             images: args.images ?? [],
-            duration: args.duration !== undefined ? BigInt(args.duration) : BigInt(0),
-            difficulty: args.difficulty ?? "",
-            maxParticipants: args.maxParticipants !== undefined ? BigInt(args.maxParticipants) : BigInt(0),
-            minAge: args.minAge !== undefined ? BigInt(args.minAge) : BigInt(0),
-            rating: args.rating,
-            reviewCount: args.reviewCount,
-            availableTimeSlots: args.availableTimeSlots,
         };
+
+        if (args.duration !== undefined) doc.duration = args.duration;
+        if (args.difficulty !== undefined) doc.difficulty = args.difficulty;
+        if (args.maxParticipants !== undefined) doc.maxParticipants = args.maxParticipants;
+        if (args.minAge !== undefined) doc.minAge = args.minAge;
+        if (args.rating !== undefined) doc.rating = args.rating;
+        if (args.reviewCount !== undefined) doc.reviewCount = args.reviewCount;
 
         const activityId = await ctx.db.insert("activities", doc);
 
         // Add this activity ID to the user's organisation
         try {
-            // Find organisation that contains this user in organisersIDs
+            // Find organisation that contains this user in organizerIDs
             const organisations = await ctx.db.query("organisations").collect();
-            const organisation = organisations.find((o: Doc<"organisations">) => Array.isArray(o.organisersIDs) && o.organisersIDs.some((id: Id<"users">) => String(id) === String(user._id)));
+            const organisation = organisations.find((o: any) => Array.isArray(o.organizerIDs) && o.organizerIDs.some((id: any) => String(id) === String(user._id)));
 
             if (organisation) {
                 const existing = Array.isArray(organisation.activityIDs) ? organisation.activityIDs : [];

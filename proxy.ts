@@ -4,26 +4,13 @@ const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/sso-callback(.*)',
+  
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
-  // Allow public routes to pass through without any auth checks
-  if (isPublicRoute(req)) {
-    return;
+  if (!isPublicRoute(req)) {
+    await auth.protect();
   }
-  
-  // For protected routes, check auth state first
-  // This prevents false redirects during page refresh when session is loading
-  const { userId, sessionId } = await auth();
-  
-  // If user has a valid session, allow through
-  if (userId && sessionId) {
-    return;
-  }
-  
-  // If no valid session, protect the route (will redirect to sign-in)
-  // This only happens when user is definitely not authenticated
-  await auth.protect();
 });
 
 export const config = {
