@@ -23,6 +23,7 @@ export default clerkMiddleware(async (auth, req) => {
   
   // If no valid session, protect the route (will redirect to sign-in)
   // This only happens when user is definitely not authenticated
+  // ClerkProvider signInUrl configuration will handle the redirect
   await auth.protect();
 });
 

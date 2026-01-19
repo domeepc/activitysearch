@@ -44,7 +44,10 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Suspense fallback={<Loading />}>
-          <ClerkProvider>
+          <ClerkProvider
+            signInUrl="/sign-in"
+            signUpUrl="/sign-up"
+          >
             <ConvexClientProvider>
               <PresenceProviderWrapper>
                 <header>
