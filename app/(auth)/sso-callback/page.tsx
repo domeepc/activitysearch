@@ -11,8 +11,8 @@ export default function SSOCallbackPage() {
           continueSignUpUrl="/sign-up/continue"
           signInUrl="/sign-in"
           signUpUrl="/sign-up"
-          signInForceRedirectUrl="/"
-          signUpForceRedirectUrl="/"
+          signInForceRedirectUrl="/sso-callback"
+          signUpForceRedirectUrl="/sso-callback"
         />
         <div className="mt-4 flex items-center gap-2 text-muted-foreground">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
