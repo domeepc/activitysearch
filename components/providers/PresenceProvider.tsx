@@ -100,6 +100,14 @@ export function PresenceProvider({ children }: PresenceProviderProps) {
       ablyClient.connection.on("disconnected", handleDisconnected);
       ablyClient.connection.on("closed", handleClosed);
 
+      // Re-check mounted before setState (component may have unmounted during getAblyClient)
+      if (!mounted) {
+        ablyClient.connection.off("connected", handleConnected);
+        ablyClient.connection.off("disconnected", handleDisconnected);
+        ablyClient.connection.off("closed", handleClosed);
+        return;
+      }
+
       // Check if already connected
       if (ablyClient.connection.state === "connected") {
         startTransition(() => {

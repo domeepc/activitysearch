@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useState, useMemo, useEffect } from "react";
 import "./home.css";
 import { ActivityData } from "@/lib/types/activity";
-import DialogAddActivity from "@/components/ui/dialogAddActivity";
+import DialogAddActivity from "@/components/activities/DialogAddActivity";
 import DialogAddActivityMobile from "@/components/activities/DialogAddActivityMobile";
 import DesktopFilterSection from "@/components/activities/DesktopFilterSection";
 import MobileFilterDialog from "@/components/activities/MobileFilterDialog";

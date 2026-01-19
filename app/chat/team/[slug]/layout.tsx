@@ -20,7 +20,7 @@ export async function generateMetadata({
         description: `Team chat for ${messagesData.team.teamName} on ActivitySearch.`,
       };
     }
-  } catch (error) {
+  } catch {
     // Fallback if team not found or error
   }
 

@@ -9,6 +9,8 @@ import { ChatHeader } from "./ChatHeader";
 import { ChatInput } from "./ChatInput";
 import { useUpdatePresence } from "@/lib/hooks/usePresence";
 import { useEncryptionWithUser } from "@/lib/hooks/useEncryption";
+import { extractErrorMessage } from "@/lib/errors";
+import { toast } from "sonner";
 import { Lock } from "lucide-react";
 
 interface ChatViewProps {
@@ -167,22 +169,18 @@ export function ChatView({
                   migrateMessageToEncrypted({
                     messageId: msg._id as Id<"messages">,
                     encryptedText,
-                  }).catch((error) => {
-                    console.error("Failed to migrate message:", error);
+                  }).catch(() => {
+                    // Best-effort migration; fail silently
                   });
                 } else if (type === "team" && teamId) {
                   migrateTeamMessageToEncrypted({
                     messageId: msg._id as Id<"groupMessages">,
                     encryptedText,
-                  }).catch((error) => {
-                    console.error("Failed to migrate team message:", error);
+                  }).catch(() => {
+                    // Best-effort migration; fail silently
                   });
                 }
-              } catch (error) {
-                console.error(
-                  "Failed to encrypt message for migration:",
-                  error
-                );
+              } catch {
                 // Continue with unencrypted text
               }
             }
@@ -245,8 +243,8 @@ export function ChatView({
         }
         // Update presence when messages are read
         updatePresence("online");
-      } catch (error) {
-        console.error("Failed to mark messages as read:", error);
+      } catch {
+        // Best-effort; fail silently
       }
     };
 
@@ -275,8 +273,7 @@ export function ChatView({
           // Use asymmetric encryption by default
           encryptedText = await encryptMessage(text, "asymmetric");
           encryptionVersion = "asymmetric";
-        } catch (error) {
-          console.error("Failed to encrypt message:", error);
+        } catch {
           // Fallback to unencrypted if encryption fails
         }
       }
@@ -299,7 +296,8 @@ export function ChatView({
         scrollToBottom();
       }, 200);
     } catch (error) {
-      console.error("Failed to send message:", error);
+      toast.error(extractErrorMessage(error));
+      throw error;
     }
   };
 
@@ -319,7 +317,7 @@ export function ChatView({
       />
 
       {/* Messages - Scrollable */}
-      
+
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 min-h-0 bg-gray-200 relative">
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -356,12 +354,12 @@ export function ChatView({
       {/* Message Input Section with E2E Encryption Badge */}
       <div className="relative shrink-0">
 
-      {isEncryptionAvailable && (
-        <div className="absolute -top-1/2 left-1/2 transform -translate-x-1/2 cursor-default select-none flex items-center gap-1.5 text-xs text-muted-foreground/60 bg-background/80 px-2 py-1 rounded-full backdrop-blur-sm">
-          <Lock className="h-3 w-3" />
-          <span>End-to-end encrypted</span>
-        </div>
-      )}
+        {isEncryptionAvailable && (
+          <div className="absolute -top-1/2 left-1/2 transform -translate-x-1/2 cursor-default select-none flex items-center gap-1.5 text-xs text-muted-foreground/60 bg-background/80 px-2 py-1 rounded-full backdrop-blur-sm">
+            <Lock className="h-3 w-3" />
+            <span>End-to-end encrypted</span>
+          </div>
+        )}
         <ChatInput onSend={handleSend} />
       </div>
     </div>

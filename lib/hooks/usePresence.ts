@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { usePresenceContext } from "@/components/PresenceProvider";
+import { usePresenceContext } from "@/components/providers/PresenceProvider";
 
 export type PresenceStatus = "online" | "away" | "offline";
 
@@ -147,6 +147,7 @@ export function usePresenceList(userIds: string[]) {
     new Map()
   );
   const [isLoading, setIsLoading] = useState(true);
+  const userIdsKey = userIds.join(",");
 
   useEffect(() => {
     if (!client || userIds.length === 0 || !isConnected) {
@@ -237,7 +238,7 @@ export function usePresenceList(userIds: string[]) {
         (channel.presence.unsubscribe as unknown as (callback: (message: AblyPresenceMessage) => void) => void)(handlePresenceMessage);
       }
     };
-  }, [client, userIds.join(","), isConnected]);
+  }, [client, userIdsKey, isConnected, userIds]);
 
   return { presences, isLoading };
 }

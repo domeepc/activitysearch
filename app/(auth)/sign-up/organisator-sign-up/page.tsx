@@ -1,5 +1,5 @@
 import NoScrollWrapper from "@/components/auth/NoScrollWrapper";
-import CustomSignUpORG from "@/components/CustomSignUpORG";
+import CustomSignUpORG from "@/components/auth/CustomSignUpORG";
 import OrganisatorSignUpLoading from "./loading";
 import { Suspense } from "react";
 

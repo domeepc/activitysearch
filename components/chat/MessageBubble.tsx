@@ -211,7 +211,7 @@ export function MessageBubble({
           >
             <p
               className={cn(
-                "text-sm whitespace-pre-wrap wrap-break-word",
+                "text-xs md:text-sm whitespace-pre-wrap wrap-break-word",
                 decryptionError && "italic text-muted-foreground"
               )}
             >

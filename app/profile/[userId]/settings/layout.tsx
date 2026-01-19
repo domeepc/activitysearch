@@ -40,7 +40,7 @@ export async function generateMetadata({
         };
       }
     }
-  } catch (error) {
+  } catch {
     // Fallback if user not found or error
   }
 

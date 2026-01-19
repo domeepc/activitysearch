@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import React, { Dispatch, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import { Id } from "@/convex/_generated/dataModel";
 import {
   BasicInformationSection,
   LocationSection,
@@ -28,12 +29,14 @@ const steps = [
   { label: "Finalize" },
 ];
 
-export default function DialogAddActivityMobile({
+export default function DialogAddActivity({
   showDialog,
   setShowDialog,
+  activityId,
 }: {
   showDialog: boolean;
   setShowDialog: Dispatch<React.SetStateAction<boolean>>;
+  activityId?: Id<"activities">;
 }) {
   const {
     formData,
@@ -53,7 +56,9 @@ export default function DialogAddActivityMobile({
     isFormValid,
     handleSubmit,
     resetForm,
+    isEdit,
   } = useActivityForm({
+    activityId,
     onSuccess: () => setShowDialog(false),
   });
 
@@ -66,20 +71,24 @@ export default function DialogAddActivityMobile({
   );
 
   return (
-    <div className="md:hidden">
+    <div className={isEdit ? "" : "hidden md:block"}>
       <Dialog open={showDialog} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-y-auto p-4">
-          <DialogHeader className="space-y-2 pb-4">
-            <DialogTitle className="text-xl">Add New Activity</DialogTitle>
-            <DialogDescription className="text-sm">
-              Fill in all required fields. Fields marked with * are required.
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {isEdit ? "Edit Activity" : "Add New Activity"}
+            </DialogTitle>
+            <DialogDescription>
+              {isEdit
+                ? "Update the activity details. Fields marked with * are required."
+                : "Fill in all required fields to create a new activity. Fields marked with * are required."}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="py-2">
-            <Stepper steps={steps} currentStep={currentStep} className="mb-4" />
+          <div className="py-4">
+            <Stepper steps={steps} currentStep={currentStep} className="mb-6" />
 
-            <div className="grid gap-4">
+            <div className="grid gap-6">
               {currentStep === 1 && (
                 <>
                   <BasicInformationSection
@@ -142,13 +151,13 @@ export default function DialogAddActivityMobile({
             </div>
           </div>
 
-          <DialogFooter className="flex-col gap-2 pt-4 sm:flex-row">
+          <DialogFooter>
             <Button
               type="button"
               variant="outline"
+              className="border-border"
               onClick={() => setShowDialog(false)}
               disabled={isSubmitting}
-              className="w-full rounded-full sm:w-auto"
             >
               Cancel
             </Button>
@@ -158,7 +167,7 @@ export default function DialogAddActivityMobile({
                 variant="outline"
                 onClick={() => setCurrentStep(currentStep - 1)}
                 disabled={isSubmitting}
-                className="w-full rounded-full sm:w-auto border-2 border-border"
+                className="border-2 border-border"
               >
                 Previous
               </Button>
@@ -168,7 +177,6 @@ export default function DialogAddActivityMobile({
                 type="button"
                 onClick={() => setCurrentStep(currentStep + 1)}
                 disabled={isSubmitting}
-                className="w-full rounded-full sm:w-auto"
               >
                 Next
               </Button>
@@ -177,9 +185,14 @@ export default function DialogAddActivityMobile({
                 type="button"
                 onClick={handleSubmit}
                 disabled={!isFormValid()}
-                className="w-full rounded-full sm:w-auto"
               >
-                {isSubmitting ? "Creating..." : "Create Activity"}
+                {isSubmitting
+                  ? isEdit
+                    ? "Saving..."
+                    : "Creating..."
+                  : isEdit
+                    ? "Save"
+                    : "Create Activity"}
               </Button>
             )}
           </DialogFooter>

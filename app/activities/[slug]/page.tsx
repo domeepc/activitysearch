@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ReservationDialog } from "@/components/activities/ReservationDialog";
-import DialogAddActivity from "@/components/ui/dialogAddActivity";
+import DialogAddActivity from "@/components/activities/DialogAddActivity";
 import { useMyTeamsAsCreator } from "@/lib/hooks/useReservations";
 import {
   Card,

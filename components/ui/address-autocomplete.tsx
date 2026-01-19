@@ -5,16 +5,15 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { MapPin, Loader2 } from "lucide-react";
 
+import type { AddressCoordinates } from "@/lib/types/coordinates";
+
+export type { AddressCoordinates } from "@/lib/types/coordinates";
+
 export interface AddressSuggestion {
   display_name: string;
   lat: string;
   lon: string;
   address?: Partial<Record<string, string>>;
-}
-
-export interface AddressCoordinates {
-  latitude: number;
-  longitude: number;
 }
 
 interface AddressAutocompleteProps {

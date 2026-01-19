@@ -31,7 +31,6 @@ interface ActivityCardProps {
   };
   onClose?: () => void;
   onEdit?: (activityId: string) => void;
-  isExpanded?: boolean;
 }
 
 export default function ActivityCardInList(props: ActivityCardProps) {

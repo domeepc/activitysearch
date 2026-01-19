@@ -27,6 +27,7 @@ export interface FormErrors {
   maxParticipants?: string;
   minAge?: string;
   tags?: string;
+  _general?: string;
 }
 
 export const initialFormData: ActivityFormData = {

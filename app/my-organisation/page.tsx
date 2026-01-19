@@ -22,7 +22,7 @@ import { validateOrganisationField, validateEmail } from "@/lib/validation";
 import { extractErrorMessage } from "@/lib/errors";
 import ActivityListSection from "@/components/organisation/activityListSection";
 import { StripeConnectButton } from "@/components/organisation/StripeConnectButton";
-import DialogAddActivity from "@/components/ui/dialogAddActivity";
+import DialogAddActivity from "@/components/activities/DialogAddActivity";
 import { useAction } from "convex/react";
 
 export default function MyOrganisationPage() {

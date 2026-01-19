@@ -1,7 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUserOrThrow } from "./users";
-import { Id } from "./_generated/dataModel";
 
 /**
  * Create a review for an activity. User must have participated in a fulfilled

@@ -399,7 +399,7 @@ export function useEncryptionWithUser({
               : await EncryptionService.getOrCreateConversationKey(String(currentUserId), String(otherUserId!));
             return await EncryptionService.decryptMessage(encryptedText, key);
           }
-        } catch (fallbackError) {
+        } catch {
           // Both failed
         }
 

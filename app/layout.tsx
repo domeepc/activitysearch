@@ -2,8 +2,10 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { ClerkProvider } from '@clerk/nextjs';
-import ConvexClientProvider from '@/components/ConvexClientProvider';
-import { PresenceProviderWrapper } from '@/components/PresenceProviderWrapper';
+import ConvexClientProvider from '@/components/providers/ConvexClientProvider';
+import { PostHogIdentify } from '@/components/providers/PostHogIdentify';
+import { PostHogProvider } from '@/components/providers/PostHogProvider';
+import { PresenceProviderWrapper } from '@/components/providers/PresenceProviderWrapper';
 import Navbar from '@/components/ui/navBar/NavBar';
 import { Toaster } from '@/components/ui/sonner';
 import { Suspense } from 'react';
@@ -49,12 +51,15 @@ export default function RootLayout({
             signUpUrl="/sign-up"
           >
             <ConvexClientProvider>
-              <PresenceProviderWrapper>
+              <PostHogProvider>
+                <PostHogIdentify />
+                <PresenceProviderWrapper>
                 <header>
                   <Navbar />
                 </header>
                 {children}
               </PresenceProviderWrapper>
+              </PostHogProvider>
             </ConvexClientProvider>
           </ClerkProvider>
         </Suspense>

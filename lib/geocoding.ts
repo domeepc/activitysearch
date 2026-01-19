@@ -1,4 +1,4 @@
-import { AddressCoordinates } from "@/components/ui/address-autocomplete";
+import type { AddressCoordinates } from "@/lib/types/coordinates";
 
 /**
  * Geocode an address using OpenStreetMap Nominatim

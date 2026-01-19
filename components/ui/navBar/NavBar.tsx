@@ -116,22 +116,9 @@ export default function Navbar() {
                 )}
               </DropdownMenuGroup>
 
-              <DropdownMenuGroup className="block md:hidden">
-                <DropdownMenuSeparator />
-                <Link href="/chat">
-                  <DropdownMenuItem className="relative">
-                    <MessageSquare className="icon" /> Chat
-                    {unreadMessageCount > 0 && (
-                      <Badge
-                        variant="destructive"
-                        className="ml-auto h-5 min-w-5 rounded-full p-0 flex items-center justify-center text-xs"
-                      >
-                        {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
-                      </Badge>
-                    )}
-                  </DropdownMenuItem>
-                </Link>
-                {isOrganiser && (
+              {isOrganiser && (
+                <DropdownMenuGroup className="block md:hidden">
+                  <DropdownMenuSeparator />
                   <Link href="/reservations">
                     <DropdownMenuItem className="relative">
                       <Inbox className="icon" /> Reservations
@@ -145,8 +132,8 @@ export default function Navbar() {
                       )}
                     </DropdownMenuItem>
                   </Link>
-                )}
-              </DropdownMenuGroup>
+                </DropdownMenuGroup>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="sign_out"

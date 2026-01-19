@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProfileView } from "@/components/profile/ProfileView";
 import { RemoveFriendDialog } from "@/components/profile/dialogs/RemoveFriendDialog";
-import { ConfirmDialog } from "@/components/chat/ConfirmDialog";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 

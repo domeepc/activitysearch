@@ -29,8 +29,8 @@ export function ChatHeader({
   };
 
   return (
-    <div className="border-y border-gray-300 p-4 shrink-0 bg-background">
-      <div className="flex items-center gap-3">
+    <div className="border-y border-gray-300 p-2 md:p-4 shrink-0 bg-background">
+      <div className="flex items-center gap-2 md:gap-3">
         {/* Back button - only visible on mobile */}
         {isMobile && (
           <button
@@ -38,7 +38,7 @@ export function ChatHeader({
             className="md:hidden p-1 hover:bg-gray-200 rounded-full transition-colors"
             aria-label="Back to conversations"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-4 w-4" />
           </button>
         )}
         {isTeam && teamId && (
@@ -49,9 +49,9 @@ export function ChatHeader({
           />
         )}
         <div>
-          <h2 className="text-lg font-semibold">{displayName}</h2>
+          <h2 className="text-base md:text-lg font-semibold">{displayName}</h2>
           {username && (
-            <p className="text-sm text-muted-foreground">@{username}</p>
+            <p className="text-xs md:text-sm text-muted-foreground">@{username}</p>
           )}
         </div>
       </div>

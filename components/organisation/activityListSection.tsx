@@ -106,7 +106,6 @@ export default function ActivityListSection({
                   images: activity.images,
                 }}
                 onEdit={onEdit}
-                isExpanded={true}
               />
             </div>
           ))}

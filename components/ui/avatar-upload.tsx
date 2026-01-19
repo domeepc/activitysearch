@@ -21,6 +21,7 @@ interface AvatarUploadProps {
   onAvatarChange: (file: File) => Promise<void>;
   className?: string;
   disabled?: boolean;
+  size?: "sm" | "md";
 }
 
 export function AvatarUpload({
@@ -29,6 +30,7 @@ export function AvatarUpload({
   onAvatarChange,
   className,
   disabled = false,
+  size = "md",
 }: AvatarUploadProps) {
   const [open, setOpen] = React.useState(false);
   const [preview, setPreview] = React.useState<string | null>(null);
@@ -117,13 +119,24 @@ export function AvatarUpload({
           )}
           disabled={disabled}
         >
-          <Avatar className="size-24 border-4 border-background">
+          <Avatar
+            className={cn(
+              "border-4 border-background",
+              size === "sm" ? "size-16" : "size-24"
+            )}
+          >
             <AvatarImage src={currentAvatar} alt={userName} />
-            <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
+            <AvatarFallback
+              className={size === "sm" ? "text-lg" : "text-2xl"}
+            >
+              {initials}
+            </AvatarFallback>
           </Avatar>
           {!disabled && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-              <Camera className="size-6 text-white" />
+              <Camera
+                className={cn("text-white", size === "sm" ? "size-4" : "size-6")}
+              />
             </div>
           )}
         </button>
@@ -140,9 +153,18 @@ export function AvatarUpload({
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col items-center gap-4 py-4">
-          <Avatar className="size-32 border-4 border-background">
+          <Avatar
+            className={cn(
+              "border-4 border-background",
+              size === "sm" ? "size-24" : "size-32"
+            )}
+          >
             <AvatarImage src={preview || currentAvatar} alt={userName} />
-            <AvatarFallback className="text-3xl">{initials}</AvatarFallback>
+            <AvatarFallback
+              className={size === "sm" ? "text-2xl" : "text-3xl"}
+            >
+              {initials}
+            </AvatarFallback>
           </Avatar>
 
           <input

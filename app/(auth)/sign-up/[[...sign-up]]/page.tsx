@@ -1,4 +1,4 @@
-import CustomSignUp from "@/components/CustomSignUp";
+import CustomSignUp from "@/components/auth/CustomSignUp";
 import NoScrollWrapper from "@/components/auth/NoScrollWrapper";
 import "./style.css";
 import { Suspense } from "react";
