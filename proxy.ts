@@ -11,16 +11,16 @@ export default clerkMiddleware(async (auth, req) => {
   if (isPublicRoute(req)) {
     return;
   }
-  
+
   // For protected routes, check auth state first
   // This prevents false redirects during page refresh when session is loading
   const { userId, sessionId } = await auth();
-  
+
   // If user has a valid session, allow through
   if (userId && sessionId) {
     return;
   }
-  
+
   // If no valid session, protect the route (will redirect to sign-in)
   // This only happens when user is definitely not authenticated
   // ClerkProvider signInUrl configuration will handle the redirect

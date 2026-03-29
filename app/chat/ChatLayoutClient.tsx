@@ -154,7 +154,7 @@ function ChatLayoutClientContent({
         {/* Chat View - Desktop: always visible, Mobile: only when in conversation */}
         <div
           className={`${!isOnChatListPage ? "block" : "hidden"
-            } md:block flex-1 flex flex-col min-h-0 overflow-hidden`}
+            } md:flex flex-1 flex flex-col min-h-0 overflow-hidden`}
         >
           {headerData && (
             <ChatHeader

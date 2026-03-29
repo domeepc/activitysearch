@@ -1,0 +1,62 @@
+[
+  {
+    "event": "activity_viewed",
+    "description": "Fired when a user views an activity detail page",
+    "file": "app/activities/[slug]/page.tsx"
+  },
+  {
+    "event": "reserve_activity_clicked",
+    "description": "Fired when a user clicks the Reserve button on an activity detail page",
+    "file": "app/activities/[slug]/page.tsx"
+  },
+  {
+    "event": "activity_reservation_created",
+    "description": "Fired when a user successfully creates a reservation for an activity",
+    "file": "components/activities/ReservationDialog.tsx"
+  },
+  {
+    "event": "activity_queue_joined",
+    "description": "Fired when a user joins the waitlist queue for a fully booked activity",
+    "file": "components/activities/ReservationDialog.tsx"
+  },
+  {
+    "event": "activity_created",
+    "description": "Fired when an organiser successfully creates a new activity",
+    "file": "lib/hooks/useActivityForm.ts"
+  },
+  {
+    "event": "activity_updated",
+    "description": "Fired when an organiser successfully updates an existing activity",
+    "file": "lib/hooks/useActivityForm.ts"
+  },
+  {
+    "event": "review_submitted",
+    "description": "Fired when a user submits a review for an activity",
+    "file": "components/reservations/ReviewDialog.tsx"
+  },
+  {
+    "event": "queue_reservation_accepted",
+    "description": "Fired when a user accepts a queue slot that became available",
+    "file": "components/reservations/QueueNotificationDialog.tsx"
+  },
+  {
+    "event": "queue_reservation_declined",
+    "description": "Fired when a user declines a queue slot that became available",
+    "file": "components/reservations/QueueNotificationDialog.tsx"
+  },
+  {
+    "event": "organisation_updated",
+    "description": "Fired when an organiser saves changes to their organisation profile",
+    "file": "app/my-organisation/page.tsx"
+  },
+  {
+    "event": "activity_filter_applied",
+    "description": "Fired when a user applies a category filter on the home page activity map",
+    "file": "app/page.tsx"
+  },
+  {
+    "event": "activity_search_performed",
+    "description": "Fired when a user performs a search on mobile for activities",
+    "file": "app/page.tsx"
+  }
+]

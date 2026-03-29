@@ -1,6 +1,7 @@
 "use client";
 
 import { Id } from "@/convex/_generated/dataModel";
+import { usePostHog } from "@posthog/react";
 import {
   Dialog,
   DialogContent,
@@ -59,6 +60,7 @@ export function QueueNotificationDialog({
   onAccept,
   onDecline,
 }: QueueNotificationDialogProps) {
+  const posthog = usePostHog();
   const [selectedTime, setSelectedTime] = useState<string>("");
   const { acceptQueueReservation, isPending: isAccepting } =
     useAcceptQueueReservation();
@@ -92,6 +94,12 @@ export function QueueNotificationDialog({
     setError(null);
     try {
       await acceptQueueReservation(notification._id, selectedTime);
+      posthog?.capture("queue_reservation_accepted", {
+        activity_id: String(notification.activityId),
+        activity_name: notification.activity?.activityName,
+        date: notification.date,
+        time: selectedTime,
+      });
       onAccept?.();
       onOpenChange(false);
       setSelectedTime("");
@@ -106,6 +114,11 @@ export function QueueNotificationDialog({
     setError(null);
     try {
       await declineQueueReservation(notification._id);
+      posthog?.capture("queue_reservation_declined", {
+        activity_id: String(notification.activityId),
+        activity_name: notification.activity?.activityName,
+        date: notification.date,
+      });
       onDecline?.();
       onOpenChange(false);
     } catch (err) {

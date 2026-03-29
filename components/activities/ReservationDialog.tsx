@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { Id } from "@/convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { usePostHog } from "@posthog/react";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +53,8 @@ export function ReservationDialog({
   open,
   onOpenChange,
 }: ReservationDialogProps) {
+  const posthog = usePostHog();
+
   // Use open state and activityId as key to reset form when dialog opens
   const formKey = `${activityId}-${open}`;
 
@@ -228,6 +231,11 @@ export function ReservationDialog({
           userCount,
         });
         if (result.success) {
+          posthog?.capture("activity_queue_joined", {
+            activity_id: String(activityId),
+            date: dateStr,
+            queue_position: result.position,
+          });
           setError(null);
           toast.success(
             `Successfully joined the queue! Your position: ${result.position} of ${result.totalInQueue}`
@@ -257,6 +265,11 @@ export function ReservationDialog({
     });
 
     if (result.success) {
+      posthog?.capture("activity_reservation_created", {
+        activity_id: String(activityId),
+        date: dateStr,
+        time: selectedTime,
+      });
       onOpenChange(false);
     } else {
       setError(result.error || "Failed to create reservation");
