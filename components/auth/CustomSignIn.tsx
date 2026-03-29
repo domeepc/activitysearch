@@ -41,8 +41,8 @@ export default function CustomSignIn() {
   // Show loading state while checking authentication
   if (!userLoaded || !isLoaded) {
     return (
-      <div className="flex h-screen items-center justify-center p-4">
-        <Card className="w-full max-w-md">
+      <div className="flex h-screen items-center justify-center p-3 sm:p-4">
+        <Card className="w-full max-w-sm sm:max-w-md">
           <CardContent className="flex items-center justify-center py-8">
             <div className="text-muted-foreground">Loading...</div>
           </CardContent>
@@ -98,15 +98,15 @@ export default function CustomSignIn() {
   };
 
   return (
-    <div className="flex h-screen items-center justify-center p-4 overflow-hidden">
-      <Card className="w-full max-w-md border-border border-2 shadow-xl">
-        <CardHeader className="space-y-1">
+    <div className="flex h-screen items-center justify-center p-3 sm:p-4 overflow-hidden">
+      <Card className="w-full max-w-sm sm:max-w-md border-border border-2 shadow-xl">
+        <CardHeader className="space-y-1 p-4 sm:p-6">
           <CardTitle className="text-2xl font-bold">Sign in</CardTitle>
           <CardDescription>
             Choose your preferred sign in method
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 p-4 sm:p-6">
           <OAuthButtons
             onGoogleClick={() => signInWith("oauth_google")}
             onMicrosoftClick={() => signInWith("oauth_microsoft")}
@@ -172,7 +172,7 @@ export default function CustomSignIn() {
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-2">
+        <CardFooter className="flex flex-col space-y-2 p-4 pt-0 sm:p-6 sm:pt-0">
           <div className="text-sm text-muted-foreground text-center">
             Don&apos;t have an account?{" "}
             <Link href="/sign-up" className="text-primary hover:underline">
