@@ -31,6 +31,19 @@ const stripe = new Stripe(stripeSecretKey, {
   apiVersion: "2025-12-15.preview" as any,
 });
 
+const PLATFORM_FEE_BPS = 500; // 5.00%
+const MINOR_UNITS_PER_MAJOR = 100;
+const HISTORY_LOOKBACK_BUFFER_DAYS = 14;
+const MAX_BALANCE_TRANSACTION_PAGES = 20;
+
+function toMajorUnits(amountMinor: number): number {
+  return amountMinor / MINOR_UNITS_PER_MAJOR;
+}
+
+function calculatePlatformFeeMinor(amountMinor: number): number {
+  return Math.round((amountMinor * PLATFORM_FEE_BPS) / 10_000);
+}
+
 const supportedCountryCodes = new Set(
   STRIPE_SUPPORTED_COUNTRIES.map((country) => country.code)
 );
@@ -94,6 +107,46 @@ type OrganiserStripeBalanceResponse = {
   pending: number;
   currency: string;
 };
+
+type BalanceHistoryRange = "7d" | "30d" | "90d" | "all";
+
+type OrganiserStripeBalanceHistoryPoint = {
+  date: string;
+  available: number;
+  pending: number;
+  grossInflow: number;
+  payoutOutflow: number;
+  net: number;
+};
+
+type OrganiserStripeBalanceHistoryResponse = {
+  hasConnectedAccount: boolean;
+  currency: string;
+  range: BalanceHistoryRange;
+  points: OrganiserStripeBalanceHistoryPoint[];
+};
+
+function formatDateKeyFromUnixSeconds(unixSeconds: number): string {
+  return new Date(unixSeconds * 1000).toISOString().slice(0, 10);
+}
+
+function roundCurrency(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function buildDateRangeKeys(startMs: number, endMs: number): string[] {
+  const keys: string[] = [];
+  const cursor = new Date(startMs);
+  cursor.setUTCHours(0, 0, 0, 0);
+  const end = new Date(endMs);
+  end.setUTCHours(0, 0, 0, 0);
+
+  while (cursor.getTime() <= end.getTime()) {
+    keys.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return keys;
+}
 
 async function getOrganiserStripeOrganisation(
   ctx: ActionCtx
@@ -445,8 +498,8 @@ export const createTeamPaymentIntentInternal = internalAction({
         };
 
         if (stripeAccountId) {
-          paymentIntentParams.application_fee_amount = Math.round(
-            row.amount * 100 * 0.02
+          paymentIntentParams.application_fee_amount = calculatePlatformFeeMinor(
+            amountCents
           );
           paymentIntentParams.transfer_data = {
             destination: stripeAccountId,
@@ -708,9 +761,9 @@ export const createPaymentIntent = action({
 
         // If using Stripe Connect, update application fee
         if (stripeAccountId) {
-          const totalAmount = (existingPaymentIntent.amount + amountInCents) / 100;
-          updateParams.application_fee_amount = Math.round(
-            totalAmount * 100 * 0.02
+          const updatedAmountMinor = existingPaymentIntent.amount + amountInCents;
+          updateParams.application_fee_amount = calculatePlatformFeeMinor(
+            updatedAmountMinor
           );
         }
 
@@ -751,9 +804,8 @@ export const createPaymentIntent = action({
       // If using Stripe Connect, transfer to connected account
       // When using transfer_data, create on platform account (not on connected account)
       if (stripeAccountId) {
-        paymentIntentParams.application_fee_amount = Math.round(
-          amount * 100 * 0.02
-        ); // 2% platform fee
+        paymentIntentParams.application_fee_amount =
+          calculatePlatformFeeMinor(amountInCents);
         paymentIntentParams.transfer_data = {
           destination: stripeAccountId,
         };
@@ -2109,6 +2161,192 @@ export const getOrganiserStripeBalance = action({
   },
 });
 
+export const getOrganiserStripeBalanceHistory = action({
+  args: {
+    range: v.optional(
+      v.union(v.literal("7d"), v.literal("30d"), v.literal("90d"), v.literal("all"))
+    ),
+  },
+  handler: async (
+    ctx,
+    { range = "30d" }
+  ): Promise<OrganiserStripeBalanceHistoryResponse> => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Unauthorized");
+    }
+
+    const orgStripeData = await getOrganiserStripeOrganisation(ctx);
+    if (!orgStripeData.hasConnectedAccount || !orgStripeData.stripeAccountId) {
+      return {
+        hasConnectedAccount: false,
+        currency: "EUR",
+        range,
+        points: [],
+      };
+    }
+
+    const stripeAccountId = orgStripeData.stripeAccountId;
+    const [stripeBalance] = await Promise.all([
+      stripe.balance.retrieve({}, { stripeAccount: stripeAccountId }),
+    ]);
+
+    const availableBalances = stripeBalance.available ?? [];
+    const pendingBalances = stripeBalance.pending ?? [];
+    const preferredCurrency = "eur";
+    const fallbackCurrency =
+      availableBalances[0]?.currency ?? pendingBalances[0]?.currency ?? preferredCurrency;
+    const selectedCurrency =
+      availableBalances.find((entry) => entry.currency === preferredCurrency)?.currency ??
+      fallbackCurrency;
+
+    const currentAvailableMinor = availableBalances
+      .filter((entry) => entry.currency === selectedCurrency)
+      .reduce((sum, entry) => sum + entry.amount, 0);
+    const currentPendingMinor = pendingBalances
+      .filter((entry) => entry.currency === selectedCurrency)
+      .reduce((sum, entry) => sum + entry.amount, 0);
+
+    const nowMs = Date.now();
+    const rangeDays: Record<Exclude<BalanceHistoryRange, "all">, number> = {
+      "7d": 7,
+      "30d": 30,
+      "90d": 90,
+    };
+
+    const rangeStartMs =
+      range === "all"
+        ? 0
+        : nowMs - rangeDays[range] * 24 * 60 * 60 * 1000;
+    const historyStartMs =
+      range === "all"
+        ? 0
+        : rangeStartMs - HISTORY_LOOKBACK_BUFFER_DAYS * 24 * 60 * 60 * 1000;
+
+    const allTransactions: Stripe.BalanceTransaction[] = [];
+    let startingAfter: string | undefined;
+
+    for (let page = 0; page < MAX_BALANCE_TRANSACTION_PAGES; page += 1) {
+      const list = await stripe.balanceTransactions.list(
+        {
+          limit: 100,
+          ...(historyStartMs > 0
+            ? { created: { gte: Math.floor(historyStartMs / 1000) } }
+            : {}),
+          ...(startingAfter ? { starting_after: startingAfter } : {}),
+        },
+        { stripeAccount: stripeAccountId }
+      );
+
+      allTransactions.push(
+        ...list.data.filter((txn) => txn.currency === selectedCurrency)
+      );
+
+      if (!list.has_more || list.data.length === 0) {
+        break;
+      }
+      startingAfter = list.data[list.data.length - 1].id;
+    }
+
+    const transactions = allTransactions.sort((a, b) => a.created - b.created);
+    const allAvailableOnKeys = transactions
+      .map((txn) => txn.available_on)
+      .filter((value): value is number => typeof value === "number")
+      .map((unix) => formatDateKeyFromUnixSeconds(unix));
+    const earliestAvailableOnKey = allAvailableOnKeys[0];
+    const effectiveStartMs =
+      range === "all" && earliestAvailableOnKey
+        ? new Date(`${earliestAvailableOnKey}T00:00:00.000Z`).getTime()
+        : rangeStartMs;
+    const dateKeys = buildDateRangeKeys(effectiveStartMs, nowMs);
+    if (dateKeys.length === 0) {
+      return {
+        hasConnectedAccount: true,
+        currency: selectedCurrency.toUpperCase(),
+        range,
+        points: [],
+      };
+    }
+
+    const firstDateKey = dateKeys[0];
+    const availableDeltaByDay = new Map<string, number>();
+    const pendingDeltaByDay = new Map<string, number>();
+    const inflowByDay = new Map<string, number>();
+    const outflowByDay = new Map<string, number>();
+    const netByDay = new Map<string, number>();
+
+    for (const txn of transactions) {
+      const createdKey = formatDateKeyFromUnixSeconds(txn.created);
+      const availableOnKey = formatDateKeyFromUnixSeconds(txn.available_on);
+      const amountMinor = txn.amount;
+
+      availableDeltaByDay.set(
+        availableOnKey,
+        (availableDeltaByDay.get(availableOnKey) ?? 0) + amountMinor
+      );
+      pendingDeltaByDay.set(
+        createdKey,
+        (pendingDeltaByDay.get(createdKey) ?? 0) + amountMinor
+      );
+      pendingDeltaByDay.set(
+        availableOnKey,
+        (pendingDeltaByDay.get(availableOnKey) ?? 0) - amountMinor
+      );
+
+      netByDay.set(createdKey, (netByDay.get(createdKey) ?? 0) + amountMinor);
+      if (amountMinor > 0) {
+        inflowByDay.set(createdKey, (inflowByDay.get(createdKey) ?? 0) + amountMinor);
+      }
+      if (amountMinor < 0 && (txn.type === "payout" || txn.type === "transfer")) {
+        outflowByDay.set(
+          createdKey,
+          (outflowByDay.get(createdKey) ?? 0) + Math.abs(amountMinor)
+        );
+      }
+    }
+
+    let startAvailableMinor = currentAvailableMinor;
+    let startPendingMinor = currentPendingMinor;
+    for (const key of dateKeys) {
+      startAvailableMinor -= availableDeltaByDay.get(key) ?? 0;
+      startPendingMinor -= pendingDeltaByDay.get(key) ?? 0;
+    }
+
+    const points: OrganiserStripeBalanceHistoryPoint[] = [];
+    let runningAvailableMinor = startAvailableMinor;
+    let runningPendingMinor = startPendingMinor;
+
+    for (const key of dateKeys) {
+      runningAvailableMinor += availableDeltaByDay.get(key) ?? 0;
+      runningPendingMinor += pendingDeltaByDay.get(key) ?? 0;
+
+      const grossInflowMinor = inflowByDay.get(key) ?? 0;
+      const payoutOutflowMinor = outflowByDay.get(key) ?? 0;
+      const netMinor = netByDay.get(key) ?? 0;
+
+      if (key < firstDateKey) {
+        continue;
+      }
+
+      points.push({
+        date: key,
+        available: roundCurrency(toMajorUnits(runningAvailableMinor)),
+        pending: roundCurrency(toMajorUnits(runningPendingMinor)),
+        grossInflow: roundCurrency(toMajorUnits(grossInflowMinor)),
+        payoutOutflow: roundCurrency(toMajorUnits(payoutOutflowMinor)),
+        net: roundCurrency(toMajorUnits(netMinor)),
+      });
+    }
+
+    return {
+      hasConnectedAccount: true,
+      currency: selectedCurrency.toUpperCase(),
+      range,
+      points,
+    };
+  },
+});
+
 export const requestOrganiserPayout = action({
   args: {
     amount: v.number(),
@@ -2253,9 +2491,7 @@ export const getStripePaymentIntentsForOrganiser = action({
     const allReservations = await ctx.runQuery(
       api.reservations.getReservationsForOrganiser
     );
-    const organiserReservations = allReservations.filter(
-      (r: Doc<"reservations">) => !r.cancelledAt
-    );
+    const organiserReservations = allReservations;
 
     if (organiserReservations.length === 0) {
       return [];
@@ -2276,7 +2512,7 @@ export const getStripePaymentIntentsForOrganiser = action({
     }> = [];
 
     for (const reservationId of reservationIds) {
-      const payments = await ctx.runQuery(api.reservations.getReservationPayments, {
+      const payments = await ctx.runQuery(internal.reservations.getReservationPaymentsInternal, {
         reservationId,
       });
       for (const payment of payments) {

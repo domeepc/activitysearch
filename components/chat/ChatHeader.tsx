@@ -12,6 +12,7 @@ interface ChatHeaderProps {
   teamId?: Id<"teams">;
   teamIcon?: string;
   isTeam?: boolean;
+  sticky?: boolean;
 }
 
 export function ChatHeader({
@@ -20,6 +21,7 @@ export function ChatHeader({
   teamId,
   teamIcon,
   isTeam = false,
+  sticky = true,
 }: ChatHeaderProps) {
   const router = useRouter();
   const isMobile = useIsMobile();
@@ -29,7 +31,9 @@ export function ChatHeader({
   };
 
   return (
-    <div className="border-b border-border px-4 py-1.5 md:px-8 md:py-4 shrink-0 bg-background">
+    <div
+      className={`${sticky ? "sticky top-(--app-navbar-height) z-40" : ""} border-b border-border px-4 py-1.5 md:px-8 md:py-4 shrink-0 bg-background`}
+    >
       <div className="flex items-center gap-2 md:gap-3">
         {/* Back button - only visible on mobile */}
         {isMobile && (

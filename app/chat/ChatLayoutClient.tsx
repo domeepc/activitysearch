@@ -12,8 +12,25 @@ import { useUpdatePresence } from "@/lib/hooks/usePresence";
 import { usePresenceContext } from "@/components/providers/PresenceProvider";
 import { Id } from "@/convex/_generated/dataModel";
 import { Spinner } from "@/components/ui/spinner";
+import { ChatHeader } from "@/components/chat/ChatHeader";
+import {
+  ChatHeaderStateProvider,
+  useChatHeaderState,
+} from "@/components/chat/ChatHeaderState";
 
 export default function ChatLayoutClient({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <ChatHeaderStateProvider>
+      <ChatLayoutClientContent>{children}</ChatLayoutClientContent>
+    </ChatHeaderStateProvider>
+  );
+}
+
+function ChatLayoutClientContent({
   children,
 }: {
   children: React.ReactNode;
@@ -23,6 +40,7 @@ export default function ChatLayoutClient({
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [inviteTeamId, setInviteTeamId] = useState<string | null>(null);
   const pathname = usePathname();
+  const { headerData } = useChatHeaderState();
 
   const currentUser = useQuery(api.users.current);
   const { userId } = usePresenceContext();
@@ -138,6 +156,16 @@ export default function ChatLayoutClient({
           className={`${!isOnChatListPage ? "block" : "hidden"
             } md:block flex-1 flex flex-col min-h-0 overflow-hidden`}
         >
+          {headerData && (
+            <ChatHeader
+              displayName={headerData.displayName}
+              username={headerData.username}
+              teamId={headerData.teamId}
+              teamIcon={headerData.teamIcon}
+              isTeam={headerData.isTeam}
+              sticky={false}
+            />
+          )}
           {children}
         </div>
         <CreateTeamDialog

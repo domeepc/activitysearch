@@ -24,6 +24,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 
 type PaymentIntentStatus = "on_hold" | "paid" | "canceled" | "pending" | "refunded";
+type BalanceHistoryRange = "7d" | "30d" | "90d" | "all";
 
 interface StripePaymentIntent {
   paymentIntentId: string;
@@ -47,6 +48,135 @@ interface StripePaymentIntent {
   refundedAt?: number;
 }
 
+interface StripeBalanceHistoryPoint {
+  date: string;
+  available: number;
+  pending: number;
+  grossInflow: number;
+  payoutOutflow: number;
+  net: number;
+}
+
+interface StripeBalanceHistoryData {
+  hasConnectedAccount: boolean;
+  currency: string;
+  range: BalanceHistoryRange;
+  points: StripeBalanceHistoryPoint[];
+}
+
+const HISTORY_RANGES: Array<{ key: BalanceHistoryRange; label: string }> = [
+  { key: "7d", label: "7D" },
+  { key: "30d", label: "30D" },
+  { key: "90d", label: "90D" },
+  { key: "all", label: "All" },
+];
+
+function buildLinePath(
+  values: number[],
+  width: number,
+  height: number,
+  minValue: number,
+  maxValue: number
+): string {
+  if (values.length === 0) return "";
+  const xStep = values.length > 1 ? width / (values.length - 1) : width;
+  const valueRange = Math.max(maxValue - minValue, 1);
+
+  return values
+    .map((value, idx) => {
+      const x = idx * xStep;
+      const y = height - ((value - minValue) / valueRange) * height;
+      return `${idx === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
+    })
+    .join(" ");
+}
+
+function MiniTrendChart({
+  title,
+  currency,
+  points,
+  series,
+}: {
+  title: string;
+  currency: string;
+  points: StripeBalanceHistoryPoint[];
+  series: Array<{
+    label: string;
+    lineClass: string;
+    dotClass: string;
+    getValue: (point: StripeBalanceHistoryPoint) => number;
+  }>;
+}) {
+  const width = 720;
+  const height = 220;
+
+  if (points.length === 0) {
+    return (
+      <div className="rounded-md border border-border shadow-sm p-4">
+        <p className="font-medium mb-2">{title}</p>
+        <p className="text-sm text-muted-foreground">No balance history for this range.</p>
+      </div>
+    );
+  }
+
+  const allValues = series.flatMap((entry) => points.map(entry.getValue));
+  const minValue = Math.min(...allValues);
+  const maxValue = Math.max(...allValues);
+
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 2,
+    }).format(amount);
+
+  return (
+    <div className="rounded-md border border-border shadow-sm p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-medium">{title}</p>
+        <p className="text-xs text-muted-foreground">
+          {points[0]?.date} - {points[points.length - 1]?.date}
+        </p>
+      </div>
+      <div className="w-full overflow-x-auto">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          className="w-full min-w-[520px] h-44"
+          role="img"
+          aria-label={title}
+        >
+          <line x1="0" y1={height} x2={width} y2={height} className="stroke-border" />
+          {series.map((entry) => {
+            const values = points.map(entry.getValue);
+            const path = buildLinePath(values, width, height, minValue, maxValue);
+            return (
+              <path
+                key={entry.label}
+                d={path}
+                fill="none"
+                strokeWidth="2.5"
+                className={entry.lineClass}
+              />
+            );
+          })}
+        </svg>
+      </div>
+      <div className="flex flex-wrap gap-3 text-xs">
+        {series.map((entry) => {
+          const latest = entry.getValue(points[points.length - 1]);
+          return (
+            <div key={entry.label} className="inline-flex items-center gap-2">
+              <span className={`h-2.5 w-2.5 rounded-full ${entry.dotClass}`} />
+              <span className="text-muted-foreground">{entry.label}</span>
+              <span className="font-medium">{formatCurrency(latest)}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function StripeDashboard() {
   const isMobile = useIsMobile();
   const [statusFilter, setStatusFilter] = useState<
@@ -68,9 +198,14 @@ export function StripeDashboard() {
   const [payoutError, setPayoutError] = useState<string | null>(null);
   const [payoutSuccess, setPayoutSuccess] = useState<string | null>(null);
   const [isRequestingPayout, setIsRequestingPayout] = useState(false);
+  const [historyRange, setHistoryRange] = useState<BalanceHistoryRange>("30d");
+  const [historyData, setHistoryData] = useState<StripeBalanceHistoryData | null>(null);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   const getPaymentIntents = useAction(api.stripe.getStripePaymentIntentsForOrganiser);
   const getStripeBalance = useAction(api.stripe.getOrganiserStripeBalance);
+  const getStripeBalanceHistory = useAction(api.stripe.getOrganiserStripeBalanceHistory);
   const requestPayout = useAction(api.stripe.requestOrganiserPayout);
 
   const loadDashboardData = async () => {
@@ -94,12 +229,30 @@ export function StripeDashboard() {
     }
   };
 
-  // Fetch payment intents and balance once on mount
+  const loadHistoryData = async (range: BalanceHistoryRange) => {
+    setIsHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      const history = await getStripeBalanceHistory({ range });
+      setHistoryData(history);
+    } catch (err) {
+      setHistoryError(
+        err instanceof Error ? err.message : "Failed to load balance history."
+      );
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  };
+
+  // Fetch payment intents and balance on mount.
   useEffect(() => {
     void loadDashboardData();
-    // Intentionally no interval polling; refresh is action-driven.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getPaymentIntents, getStripeBalance]);
+
+  // Fetch graph history only when range changes.
+  useEffect(() => {
+    void loadHistoryData(historyRange);
+  }, [getStripeBalanceHistory, historyRange]);
 
   const handleRequestPayout = async () => {
     if (!balanceData?.hasConnectedAccount) {
@@ -135,7 +288,7 @@ export function StripeDashboard() {
           result.currency
         )}.`
       );
-      await loadDashboardData();
+      await Promise.all([loadDashboardData(), loadHistoryData(historyRange)]);
     } catch (err) {
       setPayoutError(
         err instanceof Error ? err.message : "Failed to request payout."
@@ -222,6 +375,10 @@ export function StripeDashboard() {
       pending: paymentIntents.filter((pi) => pi.status === "pending").length,
     };
   }, [paymentIntents]);
+
+  const handleHistoryRangeChange = (range: BalanceHistoryRange) => {
+    setHistoryRange(range);
+  };
 
   if (isLoading) {
     return (
@@ -340,6 +497,87 @@ export function StripeDashboard() {
             <p className="text-sm text-green-600 flex items-center gap-1">
               <CheckCircle className="h-4 w-4" />
               {payoutSuccess}
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-md border border-border shadow-sm p-4 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="font-medium">Balance History</p>
+            <div className="flex flex-wrap gap-2">
+              {HISTORY_RANGES.map((range) => (
+                <Button
+                  key={range.key}
+                  variant={historyRange === range.key ? "default" : "outline"}
+                  size="sm"
+                  className="border border-border shadow-sm"
+                  onClick={() => void handleHistoryRangeChange(range.key)}
+                >
+                  {range.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {historyError ? (
+            <p className="text-sm text-destructive flex items-center gap-1">
+              <AlertCircle className="h-4 w-4" />
+              {historyError}
+            </p>
+          ) : isHistoryLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : historyData?.hasConnectedAccount ? (
+            <div className="space-y-4">
+              <MiniTrendChart
+                title="Available vs Pending Balance"
+                currency={historyData.currency}
+                points={historyData.points}
+                series={[
+                  {
+                    label: "Available",
+                    lineClass: "stroke-green-500",
+                    dotClass: "bg-green-500",
+                    getValue: (point) => point.available,
+                  },
+                  {
+                    label: "Pending",
+                    lineClass: "stroke-amber-500",
+                    dotClass: "bg-amber-500",
+                    getValue: (point) => point.pending,
+                  },
+                ]}
+              />
+              <MiniTrendChart
+                title="Inflow, Payouts, Net"
+                currency={historyData.currency}
+                points={historyData.points}
+                series={[
+                  {
+                    label: "Inflow",
+                    lineClass: "stroke-blue-500",
+                    dotClass: "bg-blue-500",
+                    getValue: (point) => point.grossInflow,
+                  },
+                  {
+                    label: "Payouts",
+                    lineClass: "stroke-rose-500",
+                    dotClass: "bg-rose-500",
+                    getValue: (point) => point.payoutOutflow,
+                  },
+                  {
+                    label: "Net",
+                    lineClass: "stroke-violet-500",
+                    dotClass: "bg-violet-500",
+                    getValue: (point) => point.net,
+                  },
+                ]}
+              />
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Connect Stripe to view balance history graphs.
             </p>
           )}
         </div>

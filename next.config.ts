@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
+module.exports = {
+  allowedDevOrigins: ['192.168.1.120'],
+}
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
