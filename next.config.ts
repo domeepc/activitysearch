@@ -1,20 +1,30 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 import { withSentryConfig } from "@sentry/nextjs";
 
-module.exports = {
-  allowedDevOrigins: ['192.168.1.120'],
-}
+/** Project root when build/dev is run from this directory (avoids wrong root if parent has another lockfile). */
+const projectRoot = path.resolve(process.cwd());
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ["192.168.1.120"],
+  // Pin workspace root when a parent directory has another lockfile (silences multi-lockfile warning).
+  outputFileTracingRoot: projectRoot,
+  turbopack: {
+    root: projectRoot,
+  },
   images: {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "**",
+        hostname: "images.clerk.dev",
       },
       {
-        protocol: "http",
-        hostname: "**",
+        protocol: "https",
+        hostname: "img.clerk.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.convex.cloud",
       },
     ],
     unoptimized: false,
@@ -49,14 +59,6 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-};
-
-const sentryWebpackPluginOptions = {
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
-  authToken: process.env.SENTRY_AUTH_TOKEN,
-  silent: true,
-  hideSourceMaps: true,
 };
 
 export default withSentryConfig(nextConfig, {

@@ -19,6 +19,14 @@ function generateSlug(username: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+function isCustomAvatar(value: string): boolean {
+  return (
+    value.startsWith("data:") ||
+    value.includes(".convex.cloud/api/storage/") ||
+    value.includes("/avatar/")
+  );
+}
+
 /**
  * OAuth sign-ups often omit `username` until the user completes their profile.
  * Missing fields caused Convex inserts to throw; the Clerk user existed but the app never synced.
@@ -104,9 +112,9 @@ export const upsertFromClerk = internalMutation({
       await ctx.db.insert("users", userAttributes);
     } else {
       // Preserve local database values for certain fields
-      // Only update avatar from Clerk if it's not a custom base64 image
+      // Only update avatar from Clerk if local avatar is not custom.
       const shouldUpdateAvatar =
-        user.avatar === userAttributes.avatar || !user.avatar.startsWith("data:");
+        user.avatar === userAttributes.avatar || !isCustomAvatar(user.avatar);
 
       await ctx.db.patch(user._id, {
         name: userAttributes.name,
@@ -498,11 +506,13 @@ export const updateUserProfile = action({
       firstName?: string;
       lastName?: string;
       username?: string;
+      imageUrl?: string;
     } = {};
 
     if (args.name !== undefined) clerkUpdates.firstName = args.name;
     if (args.lastname !== undefined) clerkUpdates.lastName = args.lastname;
     if (args.username !== undefined) clerkUpdates.username = args.username;
+    if (args.avatar !== undefined) clerkUpdates.imageUrl = args.avatar;
 
     // Update Clerk if there are fields to update
     if (Object.keys(clerkUpdates).length > 0) {
@@ -575,10 +585,6 @@ export const updateUserProfile = action({
         }
       }
     }
-
-    // Note: Avatar updates are only stored in local database
-    // Clerk avatar updates require uploading to their storage service
-    // For now, we store avatars (base64 or URLs) locally
 
     // Update local database AFTER Clerk update (but exclude email if it's pending verification)
     const dbUpdateArgs = { ...args };

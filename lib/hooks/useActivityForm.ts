@@ -13,6 +13,11 @@ import {
 } from "@/components/activities/ActivityFormTypes";
 import { validateActivityField } from "@/lib/validation";
 import { geocodeAddress } from "@/lib/geocoding";
+import { uploadImage } from "@/lib/uploadImage";
+import {
+  MAX_IMAGE_UPLOAD_BYTES,
+  MAX_IMAGE_UPLOAD_LABEL,
+} from "@/lib/uploadLimits";
 
 function buildActivityMutationArgs(
   formData: ActivityFormData,
@@ -153,39 +158,52 @@ export function useActivityForm({
   );
 
   const handleImageSelect = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
       if (!files) return;
 
-      const MAX_FILE_SIZE = 1024 * 1024;
       const arr = Array.from(files);
       const invalidFiles: string[] = [];
+      const validFiles: File[] = [];
 
       arr.forEach((file) => {
         if (!file.type.startsWith("image/")) {
           invalidFiles.push(`${file.name} is not an image file`);
           return;
         }
-        if (file.size > MAX_FILE_SIZE) {
+        if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
           invalidFiles.push(
-            `${file.name} exceeds 1MB limit (${(file.size / 1024 / 1024).toFixed(2)}MB)`
+            `${file.name} exceeds ${MAX_IMAGE_UPLOAD_LABEL} limit (${(file.size / 1024 / 1024).toFixed(2)}MB)`
           );
           return;
         }
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setFormData((prev) => ({
-            ...prev,
-            images: [...prev.images, reader.result as string],
-          }));
-          setImageError("");
-        };
-        reader.readAsDataURL(file);
+        validFiles.push(file);
       });
 
       if (invalidFiles.length > 0) {
         setImageError(invalidFiles.join(", "));
         setTimeout(() => setImageError(""), 5000);
+      }
+
+      if (validFiles.length > 0) {
+        try {
+          const urls = await Promise.all(
+            validFiles.map((file) => uploadImage(file, "activity"))
+          );
+          setFormData((prev) => ({
+            ...prev,
+            images: [...prev.images, ...urls],
+          }));
+          setImageError("");
+        } catch (error) {
+          console.error("Activity image upload failed:", error);
+          setImageError(
+            error instanceof Error
+              ? error.message
+              : "Failed to upload one or more images."
+          );
+          setTimeout(() => setImageError(""), 5000);
+        }
       }
 
       e.currentTarget.value = "";

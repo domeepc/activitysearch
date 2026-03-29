@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useSignUp } from "@clerk/nextjs";
+import { useSignUp } from "@clerk/nextjs/legacy";
 import { useRouter } from "next/navigation";
 import { useMutation, useAction } from "convex/react";
 import { Button } from "@/components/ui/button";

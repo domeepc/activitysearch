@@ -19,6 +19,7 @@ import type * as reviews from "../reviews.js";
 import type * as scheduled from "../scheduled.js";
 import type * as stripe from "../stripe.js";
 import type * as teams from "../teams.js";
+import type * as uploads from "../uploads.js";
 import type * as users from "../users.js";
 
 import type {
@@ -39,6 +40,7 @@ declare const fullApi: ApiFromModules<{
   scheduled: typeof scheduled;
   stripe: typeof stripe;
   teams: typeof teams;
+  uploads: typeof uploads;
   users: typeof users;
 }>;
 
