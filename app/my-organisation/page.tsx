@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { validateOrganisationField, validateEmail } from "@/lib/validation";
 import { extractErrorMessage } from "@/lib/errors";
+import { SIGNED_IN_HOME_HREF } from "@/lib/routes";
 import ActivityListSection from "@/components/organisation/activityListSection";
 import { StripeConnectButton } from "@/components/organisation/StripeConnectButton";
 import DialogAddActivity from "@/components/activities/DialogAddActivity";
@@ -272,7 +273,7 @@ export default function MyOrganisationPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => router.push("/")}>Go to Home</Button>
+            <Button onClick={() => router.push(SIGNED_IN_HOME_HREF)}>Go to Home</Button>
           </CardContent>
         </Card>
       </div>
@@ -291,7 +292,7 @@ export default function MyOrganisationPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => router.push("/")}>Go to Home</Button>
+            <Button onClick={() => router.push(SIGNED_IN_HOME_HREF)}>Go to Home</Button>
           </CardContent>
         </Card>
       </div>
@@ -310,7 +311,7 @@ export default function MyOrganisationPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => router.push("/")}>Go to Home</Button>
+            <Button onClick={() => router.push(SIGNED_IN_HOME_HREF)}>Go to Home</Button>
           </CardContent>
         </Card>
       </div>

@@ -2,6 +2,7 @@
 
 import { AuthenticateWithRedirectCallback } from "@clerk/nextjs";
 import { Card } from "@/components/ui/card";
+import { SIGNED_IN_HOME_HREF } from "@/lib/routes";
 
 export default function SSOCallbackPage() {
   return (
@@ -13,6 +14,8 @@ export default function SSOCallbackPage() {
           signUpUrl="/sign-up"
           signInForceRedirectUrl="/sso-callback"
           signUpForceRedirectUrl="/sso-callback"
+          signInFallbackRedirectUrl={SIGNED_IN_HOME_HREF}
+          signUpFallbackRedirectUrl={SIGNED_IN_HOME_HREF}
         />
         <div className="mt-4 flex items-center gap-2 text-muted-foreground">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />

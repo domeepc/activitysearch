@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useUser } from "@clerk/nextjs";
 import { useSignUp } from "@clerk/nextjs/legacy";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -19,9 +20,11 @@ import { OAuthButtons } from "@/components/auth/OAuthButtons";
 import { EmailVerificationDialog } from "@/components/auth/EmailVerificationDialog";
 import { AuthFormShell, authFormStyles } from "@/components/auth/AuthFormShell";
 import { extractErrorMessage } from "@/lib/errors";
+import { SIGNED_IN_HOME_HREF } from "@/lib/routes";
 import { Eye, EyeOff } from "lucide-react";
 
 export default function CustomSignUp() {
+  const { isSignedIn, isLoaded: userLoaded } = useUser();
   const { isLoaded, signUp, setActive } = useSignUp();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -35,6 +38,12 @@ export default function CustomSignUp() {
   const [error, setError] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const router = useRouter();
+
+  React.useEffect(() => {
+    if (userLoaded && isSignedIn) {
+      router.push(SIGNED_IN_HOME_HREF);
+    }
+  }, [userLoaded, isSignedIn, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,7 +93,7 @@ export default function CustomSignUp() {
 
       if (completeSignUp.status === "complete") {
         await setActive({ session: completeSignUp.createdSessionId });
-        router.push("/");
+        router.push(SIGNED_IN_HOME_HREF);
       } else {
         setError("Verification incomplete. Please try again.");
       }
@@ -104,13 +113,27 @@ export default function CustomSignUp() {
       await signUp.authenticateWithRedirect({
         strategy,
         redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/",
+        redirectUrlComplete: SIGNED_IN_HOME_HREF,
       });
     } catch (err: unknown) {
       console.error("OAuth error:", err);
       setError(extractErrorMessage(err));
     }
   };
+
+  if (!userLoaded || !isLoaded) {
+    return (
+      <AuthFormShell containerClassName="items-center">
+        <CardContent className="flex items-center justify-center py-8">
+          <div className="text-muted-foreground">Loading...</div>
+        </CardContent>
+      </AuthFormShell>
+    );
+  }
+
+  if (isSignedIn) {
+    return null;
+  }
 
   if (verifying) {
     return (
