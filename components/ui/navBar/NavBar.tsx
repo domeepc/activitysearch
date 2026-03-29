@@ -24,13 +24,15 @@ import "./style.css";
 import { AvatarImage, Avatar } from "@/components/ui/avatar";
 import { Authenticated, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { useClerk } from "@clerk/nextjs";
+import { useAuth, useClerk } from "@clerk/nextjs";
+import { SIGNED_IN_HOME_HREF } from "@/lib/routes";
 import { DropdownMenuLabel } from "@radix-ui/react-dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { useUnreadReservationCount } from "@/lib/hooks/useReservations";
 import { useUnreadMessageCount } from "@/lib/hooks/useUnreadMessageCount";
 
 export default function Navbar() {
+  const { isSignedIn } = useAuth();
   const { signOut } = useClerk();
   const user = useQuery(api.users.current);
   const { count: unreadReservationCount } = useUnreadReservationCount();
@@ -39,7 +41,10 @@ export default function Navbar() {
 
   return (
     <nav>
-      <Link href="/" className="logo-link">
+      <Link
+        href={isSignedIn ? SIGNED_IN_HOME_HREF : "/"}
+        className="logo-link"
+      >
         <Image
           src="/full-logo.svg"
           alt="ActivitySearch"

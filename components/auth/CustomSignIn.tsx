@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { OAuthButtons } from "@/components/auth/OAuthButtons";
 import { AuthFormShell, authFormStyles } from "@/components/auth/AuthFormShell";
 import { extractErrorMessage } from "@/lib/errors";
+import { SIGNED_IN_HOME_HREF } from "@/lib/routes";
 import { Eye, EyeOff } from "lucide-react";
 
 export default function CustomSignIn() {
@@ -35,7 +36,7 @@ export default function CustomSignIn() {
   // Redirect authenticated users away from sign-in page
   React.useEffect(() => {
     if (userLoaded && isSignedIn) {
-      router.push("/");
+      router.push(SIGNED_IN_HOME_HREF);
     }
   }, [userLoaded, isSignedIn, router]);
 
@@ -70,7 +71,7 @@ export default function CustomSignIn() {
 
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        router.push("/");
+        router.push(SIGNED_IN_HOME_HREF);
       }
     } catch (err: unknown) {
       setError(extractErrorMessage(err));
@@ -88,7 +89,7 @@ export default function CustomSignIn() {
       await signIn.authenticateWithRedirect({
         strategy,
         redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/",
+        redirectUrlComplete: SIGNED_IN_HOME_HREF,
       });
     } catch (err: unknown) {
       console.error("OAuth error:", err);

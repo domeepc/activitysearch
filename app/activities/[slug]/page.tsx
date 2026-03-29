@@ -33,6 +33,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { SIGNED_IN_HOME_HREF } from "@/lib/routes";
 import { getTagColorScheme, getDifficultyColorScheme } from "@/lib/tagColors";
 import {
   Carousel,
@@ -97,7 +98,7 @@ export default function ActivityPage({
     if (activity === null) {
       // Activity not found, redirect after a short delay
       setTimeout(() => {
-        router.push("/");
+        router.push(SIGNED_IN_HOME_HREF);
       }, 2000);
     }
   }, [activity, router]);

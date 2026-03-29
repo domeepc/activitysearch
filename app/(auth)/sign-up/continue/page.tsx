@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SIGNED_IN_HOME_HREF } from "@/lib/routes";
 
 export default function SignUpContinuePage() {
   const { isLoaded, signUp, setActive } = useSignUp();
@@ -22,7 +23,7 @@ export default function SignUpContinuePage() {
       return;
     }
     if (signUp.status !== "missing_requirements") {
-      router.replace("/");
+      router.replace(SIGNED_IN_HOME_HREF);
       return;
     }
     if (signUp.username) setUsername(signUp.username);
@@ -46,7 +47,7 @@ export default function SignUpContinuePage() {
 
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId! });
-        router.push("/");
+        router.push(SIGNED_IN_HOME_HREF);
       } else if (result.status === "missing_requirements") {
         setError(`Still missing: ${result.missingFields?.join(", ")}`);
       } else {

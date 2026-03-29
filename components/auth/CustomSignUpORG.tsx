@@ -20,6 +20,7 @@ import { Stepper } from "@/components/ui/stepper";
 import { api } from "@/convex/_generated/api";
 import { validateEmail, validateIBAN, validateContact, validateURL } from "@/lib/validation";
 import { extractErrorMessage } from "@/lib/errors";
+import { SIGNED_IN_HOME_HREF } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { getCountryName, STRIPE_SUPPORTED_COUNTRIES } from "@/lib/countries";
 import { Eye, EyeOff, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Check, Loader2 } from "lucide-react";
@@ -421,7 +422,7 @@ export default function CustomSignUpORG() {
                 "Account created but organisation setup failed. Please contact support or try creating an organisation from your profile."
               );
               setLoading(false);
-              setTimeout(() => router.push("/"), 2000);
+              setTimeout(() => router.push(SIGNED_IN_HOME_HREF), 2000);
               return;
             }
           }
@@ -431,11 +432,11 @@ export default function CustomSignUpORG() {
           setError(
             "Account created but organisation setup is taking longer than expected. You can create it from your profile."
           );
-          setTimeout(() => router.push("/"), 2000);
+          setTimeout(() => router.push(SIGNED_IN_HOME_HREF), 2000);
           return;
         }
 
-        router.push("/");
+        router.push(SIGNED_IN_HOME_HREF);
       } else {
         setError("Verification incomplete. Please try again.");
       }
