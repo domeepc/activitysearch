@@ -5,8 +5,8 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { MessageBubble } from "./MessageBubble";
-import { ChatHeader } from "./ChatHeader";
 import { ChatInput } from "./ChatInput";
+import { useChatHeaderState } from "./ChatHeaderState";
 import { useUpdatePresence } from "@/lib/hooks/usePresence";
 import { useEncryptionWithUser } from "@/lib/hooks/useEncryption";
 import { extractErrorMessage } from "@/lib/errors";
@@ -68,6 +68,7 @@ export function ChatView({
     api.teams.migrateTeamMessageToEncrypted
   );
   const { updatePresence } = useUpdatePresence();
+  const { setHeaderData, clearHeaderData } = useChatHeaderState();
 
   // Get current user for encryption
   const currentUser = useQuery(api.users.current);
@@ -306,16 +307,30 @@ export function ChatView({
       ? `${otherUser.name} ${otherUser.lastname}`
       : teamName || "Team Chat";
 
-  return (
-    <div className="flex flex-col h-full overflow-hidden relative">
-      <ChatHeader
-        displayName={displayName}
-        username={type === "individual" ? otherUser?.username : undefined}
-        teamId={type === "team" ? teamId : undefined}
-        teamIcon={type === "team" ? teamIcon : undefined}
-        isTeam={type === "team"}
-      />
+  useEffect(() => {
+    setHeaderData({
+      displayName,
+      username: type === "individual" ? otherUser?.username : undefined,
+      teamId: type === "team" ? teamId : undefined,
+      teamIcon: type === "team" ? teamIcon : undefined,
+      isTeam: type === "team",
+    });
 
+    return () => {
+      clearHeaderData();
+    };
+  }, [
+    clearHeaderData,
+    displayName,
+    otherUser?.username,
+    setHeaderData,
+    teamIcon,
+    teamId,
+    type,
+  ]);
+
+  return (
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden relative">
       {/* Messages - Scrollable */}
 
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 min-h-0 bg-gray-200 relative">

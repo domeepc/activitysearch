@@ -115,25 +115,6 @@ export default function Navbar() {
                   </Link>
                 )}
               </DropdownMenuGroup>
-
-              {isOrganiser && (
-                <DropdownMenuGroup className="block md:hidden">
-                  <DropdownMenuSeparator />
-                  <Link href="/reservations">
-                    <DropdownMenuItem className="relative">
-                      <Inbox className="icon" /> Reservations
-                      {unreadReservationCount > 0 && (
-                        <Badge
-                          variant="destructive"
-                          className="ml-auto h-5 min-w-5 rounded-full p-0 flex items-center justify-center text-xs"
-                        >
-                          {unreadReservationCount > 99 ? "99+" : unreadReservationCount}
-                        </Badge>
-                      )}
-                    </DropdownMenuItem>
-                  </Link>
-                </DropdownMenuGroup>
-              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="sign_out"
