@@ -104,7 +104,7 @@ export default function ChatLayoutClient({
 
   if (!currentUser) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-[calc(100vh-var(--app-navbar-height))]">
         <Spinner className="h-8 w-8" />
       </div>
     );
@@ -116,7 +116,7 @@ export default function ChatLayoutClient({
 
   return (
     <>
-      <div className="flex h-[calc(100vh-72px)] md:h-[calc(100vh-80px)] overflow-hidden">
+      <div className="flex h-[calc(100vh-var(--app-navbar-height))] overflow-hidden">
         {/* Conversation List - Desktop: always visible, Mobile: only on /chat */}
         <div
           className={`${isOnChatListPage ? "block" : "hidden"

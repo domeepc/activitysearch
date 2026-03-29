@@ -198,6 +198,17 @@ Make sure to set all environment variables in your deployment platform:
 - **Clerk**: Use production keys from Clerk Dashboard
 - **Stripe**: Use live keys from Stripe Dashboard (not test keys)
 
+### Production: Google SSO on a custom domain
+
+If Google sign-in works on `localhost` but fails on production (for example `https://activitysearch.eu`):
+
+1. **Clerk** — In the Clerk Dashboard for your **production** application, add the live domain under **Domains**. On Vercel, set production `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` (do not use test keys on production unless you intentionally use a single Clerk instance for both).
+2. **Google Cloud Console** — Edit the OAuth 2.0 client used by Clerk’s Google connection. Under **Authorized JavaScript origins**, add `https://activitysearch.eu` (and `https://www.activitysearch.eu` if you serve traffic on `www`). Under **Authorized redirect URIs**, add the **exact** callback URL from Clerk (**User & Authentication → Social connections → Google**). It is usually `https://<your-clerk-frontend-domain>/v1/oauth_callback`. A wrong or missing URI causes `redirect_uri_mismatch`.
+3. **Convex** — In the [Convex Dashboard](https://dashboard.convex.dev) for your **production** deployment, set `CLERK_FRONTEND_API_URL` to the same **Frontend API URL** as production Clerk (**Configure → Environment variables**). It must match the Clerk instance your production app uses; a dev-only URL here breaks auth after sign-in on the live site.
+4. Redeploy the Next.js app and run `npx convex deploy` (or your CI) after changing environment variables.
+
+If you use a **custom Clerk Frontend API domain** (for example `clerk.yourdomain.com`), complete Clerk’s DNS steps first, then add that origin and any Clerk-provided redirect URIs to the Google OAuth client.
+
 ## Security Notes
 
 - Never commit `.env.local` or `.env` files

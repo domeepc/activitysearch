@@ -76,6 +76,14 @@
   --sidebar-ring: oklch(0.708 0 0);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
+  /* Matches nav padding + logo max-height; used by chat shell (see ChatLayoutClient) */
+  --app-navbar-height: 4.5rem;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --app-navbar-height: 5rem;
+  }
 }
 
 .dark {
@@ -121,7 +129,7 @@
   }
 
   header {
-    @apply sticky top-0 z-50 w-full bg-white;
+    @apply sticky top-0 z-50 w-full border-b border-border bg-background;
   }
 
   body.auth-page-no-scroll-body {
