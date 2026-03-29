@@ -8,6 +8,13 @@ import {
 import type { Doc, Id } from "./_generated/dataModel";
 import { getCurrentUser, getCurrentUserOrThrow } from "./users";
 
+function generateSlug(username: string): string {
+  return username
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 async function assertCurrentUserIsOrganiserOf(
   ctx: { db: { get: (id: Id<"organisations">) => Promise<Doc<"organisations"> | null> } },
   organisationId: Id<"organisations">,
@@ -87,15 +94,42 @@ export const createOrganisation = mutation({
       throw new Error("You must be signed in to create an organisation");
     }
 
-    const user = await ctx.db
+    let user = await ctx.db
       .query("users")
       .withIndex("byExternalId", (q) => q.eq("externalId", identity.subject))
       .unique();
 
     if (!user) {
-      throw new Error(
-        "User not found in Convex database. Please try again in a moment."
-      );
+      const identityName = (identity.name || "User").trim();
+      const [firstNameFromIdentity, ...restName] = identityName.split(" ");
+      const lastNameFromIdentity = restName.join(" ").trim();
+      const fallbackEmail = (identity.email || "").trim();
+      const emailPrefix = fallbackEmail.split("@")[0] || "user";
+      const fallbackUsername = `${emailPrefix}_${identity.subject.slice(-8)}`
+        .replace(/[^a-zA-Z0-9_]/g, "")
+        .slice(0, 48);
+
+      const userId = await ctx.db.insert("users", {
+        externalId: identity.subject,
+        name: firstNameFromIdentity || "User",
+        lastname: lastNameFromIdentity,
+        username: fallbackUsername,
+        slug: generateSlug(fallbackUsername),
+        description: "",
+        email: fallbackEmail,
+        contact: "",
+        avatar: "",
+        totalExp: BigInt(0),
+        friends: [],
+        role: "user",
+      });
+
+      user = await ctx.db.get(userId);
+      if (!user) {
+        throw new Error(
+          "User setup is still in progress. Please retry in a few seconds."
+        );
+      }
     }
 
     const organisationId = await ctx.db.insert("organisations", {
