@@ -18,6 +18,7 @@ import {
   AddressCoordinates,
 } from "@/components/ui/address-autocomplete";
 import { cn } from "@/lib/utils";
+import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploadLimits";
 import {
   MultiSelect,
   MultiSelectContent,
@@ -604,7 +605,7 @@ export function ImagesSection({
             <Upload className="size-4 mr-2" /> Upload Images
           </Button>
           <p className="text-xs text-muted-foreground">
-            Maximum file size: 1MB per image
+            Maximum file size: {MAX_IMAGE_UPLOAD_LABEL} per image
           </p>
           {error && (
             <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 border border-destructive/20">

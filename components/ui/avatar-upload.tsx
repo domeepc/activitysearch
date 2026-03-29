@@ -14,6 +14,10 @@ import {
 } from "./dialog";
 import { Camera, Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  MAX_IMAGE_UPLOAD_BYTES,
+  MAX_IMAGE_UPLOAD_LABEL,
+} from "@/lib/uploadLimits";
 
 interface AvatarUploadProps {
   currentAvatar?: string;
@@ -49,13 +53,11 @@ export function AvatarUpload({
       return;
     }
 
-    // Validate file size (max 750KB to account for base64 encoding overhead)
-    // Base64 encoding adds ~33% overhead, so 750KB becomes ~1MB when encoded
-    // This ensures we stay under Convex's 1MB document size limit
-    const MAX_FILE_SIZE = 750 * 1024; // 750KB in bytes
-    if (file.size > MAX_FILE_SIZE) {
+    if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
       const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
-      setError(`File is too large (${fileSizeMB}MB)`);
+      setError(
+        `File is too large (${fileSizeMB}MB). Maximum is ${MAX_IMAGE_UPLOAD_LABEL}.`
+      );
       return;
     }
 
@@ -149,7 +151,7 @@ export function AvatarUpload({
           <DialogTitle>Change Avatar</DialogTitle>
           <DialogDescription>
             Upload a new profile picture. Recommended size: 400x400px. Maximum
-            file size: 750KB.
+            file size: {MAX_IMAGE_UPLOAD_LABEL}.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col items-center gap-4 py-4">
