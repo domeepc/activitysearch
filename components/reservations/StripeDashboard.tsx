@@ -30,6 +30,8 @@ interface StripePaymentIntent {
   reservationId: Id<"reservations">;
   teamId: Id<"teams"> | null;
   teamName: string;
+  payerName: string;
+  personsPaidFor: number;
   activityName: string;
   activityAddress: string;
   date: string;
@@ -200,6 +202,11 @@ export function StripeDashboard() {
           <CreditCard className="h-5 w-5" />
           Stripe Payment Intents
         </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Each row is one teammate&apos;s card hold. Multiple rows per team are
+          normal. Customer totals are all-in; your net after Stripe and platform
+          fees may be lower than the listed activity price.
+        </p>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Status Filter */}
@@ -250,7 +257,10 @@ export function StripeDashboard() {
         ) : isMobile ? (
           <div className="space-y-4">
             {filteredIntents.map((intent) => (
-              <Card key={intent.paymentIntentId} className="overflow-hidden border-border">
+              <Card
+                key={`${intent.paymentIntentId}-${intent.reservationId}`}
+                className="overflow-hidden border-border"
+              >
                 <CardContent className="p-4 space-y-3">
                   {/* Activity & Status */}
                   <div className="flex items-start justify-between gap-2">
@@ -268,10 +278,18 @@ export function StripeDashboard() {
                     {getStatusBadge(intent.status)}
                   </div>
 
-                  {/* Team */}
+                  {/* Team & payer */}
                   <div className="flex items-center gap-2 text-sm">
                     <Users className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="font-medium truncate">{intent.teamName}</span>
+                    <span className="font-medium truncate">
+                      {intent.teamName}
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground pl-6">
+                    Payer: {intent.payerName}
+                    {intent.personsPaidFor > 1
+                      ? ` · covers ${intent.personsPaidFor} people`
+                      : ""}
                   </div>
 
                   {/* Date & Time */}
@@ -294,7 +312,9 @@ export function StripeDashboard() {
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Total</span>
+                      <span className="text-muted-foreground">
+                        This card (auth)
+                      </span>
                       <span>{formatCurrency(intent.amount, intent.currency)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
@@ -337,6 +357,9 @@ export function StripeDashboard() {
                     Team
                   </th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                    Payer
+                  </th>
+                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
                     Activity
                   </th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
@@ -349,7 +372,7 @@ export function StripeDashboard() {
                     Collected (Saldo)
                   </th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                    Total Amount
+                    This card
                   </th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
                     Remaining
@@ -362,7 +385,7 @@ export function StripeDashboard() {
               <tbody>
                 {filteredIntents.map((intent) => (
                   <tr
-                    key={intent.paymentIntentId}
+                    key={`${intent.paymentIntentId}-${intent.reservationId}`}
                     className="border-b transition-colors hover:bg-muted/50"
                   >
                     <td className="p-4 align-middle font-mono text-xs">
@@ -370,6 +393,14 @@ export function StripeDashboard() {
                     </td>
                     <td className="p-4 align-middle">
                       <div className="font-medium">{intent.teamName}</div>
+                    </td>
+                    <td className="p-4 align-middle">
+                      <div className="font-medium">{intent.payerName}</div>
+                      {intent.personsPaidFor > 1 && (
+                        <div className="text-xs text-muted-foreground">
+                          {intent.personsPaidFor} people
+                        </div>
+                      )}
                     </td>
                     <td className="p-4 align-middle">
                       <div>

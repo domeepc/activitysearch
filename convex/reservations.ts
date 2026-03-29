@@ -657,23 +657,20 @@ export const cancelReservation = mutation({
       .collect();
 
     const activePayments = payments.filter((p) => !p.refundedAt);
+    const scheduledRefundPis = new Set<string>();
+    const now = Date.now();
     for (const payment of activePayments) {
-      // If payment has Stripe payment intent, refund it
       if (payment.stripePaymentIntentId) {
-        // Schedule action to refund payment (actions can use Stripe SDK)
-        await ctx.scheduler.runAfter(0, internal.stripe.refundPayment, {
-          paymentIntentId: payment.stripePaymentIntentId,
-          reservationId,
-        });
-        // Mark as refunded in our database immediately (action will also update it)
-        await ctx.db.patch(payment._id, {
-          refundedAt: Date.now(),
-        });
+        if (!scheduledRefundPis.has(payment.stripePaymentIntentId)) {
+          scheduledRefundPis.add(payment.stripePaymentIntentId);
+          await ctx.scheduler.runAfter(0, internal.stripe.refundPayment, {
+            paymentIntentId: payment.stripePaymentIntentId,
+            reservationId,
+          });
+        }
+        await ctx.db.patch(payment._id, { refundedAt: now });
       } else {
-        // No Stripe payment intent, just mark as refunded in our database
-        await ctx.db.patch(payment._id, {
-          refundedAt: Date.now(),
-        });
+        await ctx.db.patch(payment._id, { refundedAt: now });
       }
     }
 
@@ -1721,8 +1718,8 @@ export const recordPayment = mutation({
   },
 });
 
-// Internal query to get reservation payments without authentication (for use by actions)
-export const getReservationPaymentsInternal = internalMutation({
+// Internal query: reservation payments + payer profile (for Stripe actions)
+export const getReservationPaymentsInternal = internalQuery({
   args: {
     reservationId: v.id("reservations"),
   },
@@ -1756,6 +1753,25 @@ export const getReservationPaymentsInternal = internalMutation({
     );
 
     return paymentsWithUsers;
+  },
+});
+
+/** Set Stripe PaymentIntent on a single payer row (per-payer authorisations). */
+export const patchReservationPaymentIntentId = internalMutation({
+  args: {
+    paymentId: v.id("reservationPayments"),
+    paymentIntentId: v.string(),
+  },
+  handler: async (ctx, { paymentId, paymentIntentId }) => {
+    const row = await ctx.db.get(paymentId);
+    if (!row || row.refundedAt) {
+      return { success: false as const };
+    }
+    if (row.stripePaymentIntentId) {
+      return { success: true as const, skipped: true as const };
+    }
+    await ctx.db.patch(paymentId, { stripePaymentIntentId: paymentIntentId });
+    return { success: true as const };
   },
 });
 
@@ -2027,59 +2043,40 @@ async function checkAndCreateTeamPaymentIntent(
     (p) => teamMemberIds.has(p.userId) && !p.refundedAt
   );
 
-  // Check if team already has a payment intent that is modifiable
-  // Get all unique payment intent IDs for this team
-  const teamPaymentIntentIds = Array.from(
-    new Set(
-      teamPayments
-        .map((p) => p.stripePaymentIntentId)
-        .filter((id): id is string => id !== undefined)
-    )
-  );
-
-  if (teamPaymentIntentIds.length > 0) {
-    // Team already has payment intent(s), check if any are modifiable
-    // If multiple exist, they should be consolidated (handled by getStripePaymentIntentsForOrganiser)
-    // For now, if any payment intent exists, don't create another one
-    // The consolidation logic will handle merging multiple intents
-    return;
-  }
-
   // Calculate team's collected amount (saldo)
   const teamCollectedAmount = teamPayments.reduce(
     (sum, p) => sum + p.amount,
     0
   );
 
-  // Calculate how much the team needs to pay
-  // For simplicity, assume team pays for all participants in reservation
-  // You may need to adjust this based on your business logic
+  // Team must cover activity price and declare enough personsPaidFor (sponsorship OK)
   const teamRequiredAmount = totalAmount;
-
-  // Check if all team members have provided payment methods (via SetupIntent)
-  const teamPaymentsWithPaymentMethods = teamPayments.filter(
-    (p) => p.stripePaymentMethodId !== undefined
+  const teamPersonsCovered = teamPayments.reduce(
+    (sum, p) => sum + Number(p.personsPaidFor),
+    0
   );
+  const teamSize = userTeam.teammates.length;
 
-  // If team's saldo is fulfilled AND all team members have provided payment methods, create payment intent
-  // Note: Payment intent creation must happen in an action (not mutation) because
-  // Stripe SDK uses setTimeout internally. We use ctx.scheduler to schedule it.
+  const payingRows = teamPayments.filter((p) => p.amount > 0 && !p.refundedAt);
+  const payingRowsHavePm = payingRows.every((p) => !!p.stripePaymentMethodId);
+  const allPayingRowsHavePi = payingRows.every((p) => !!p.stripePaymentIntentId);
+
+  // Per-payer PaymentIntents: schedule when saldo + coverage is complete, every payer row has a PM,
+  // and at least one row still needs a PI (idempotent retries).
   if (
     teamCollectedAmount >= teamRequiredAmount &&
-    teamPaymentsWithPaymentMethods.length === teamPayments.length &&
-    teamPayments.length > 0
+    teamPersonsCovered >= teamSize &&
+    payingRows.length > 0 &&
+    payingRowsHavePm &&
+    !allPayingRowsHavePi
   ) {
-    // Schedule the payment intent creation to run as an action
-    // This is necessary because Stripe SDK uses setTimeout which isn't allowed in mutations
     try {
-      // Schedule the action to run immediately (delay 0)
       await ctx.scheduler.runAfter(
         0,
         internal.stripe.createTeamPaymentIntentInternal,
         {
           reservationId,
           teamId: userTeam._id,
-          amount: teamCollectedAmount,
         }
       );
     } catch (error) {
@@ -2127,23 +2124,20 @@ export const checkAndCancelUnpaidReservations = internalMutation({
         .collect();
 
       const activePayments = payments.filter((p) => !p.refundedAt);
+      const scheduledRefundPis = new Set<string>();
+      const nowRefund = Date.now();
       for (const payment of activePayments) {
-        // If payment has Stripe payment intent, refund it
         if (payment.stripePaymentIntentId) {
-          // Schedule action to refund payment (actions can use Stripe SDK)
-          await ctx.scheduler.runAfter(0, internal.stripe.refundPayment, {
-            paymentIntentId: payment.stripePaymentIntentId,
-            reservationId: reservation._id,
-          });
-          // Mark as refunded in our database immediately (action will also update it)
-          await ctx.db.patch(payment._id, {
-            refundedAt: Date.now(),
-          });
+          if (!scheduledRefundPis.has(payment.stripePaymentIntentId)) {
+            scheduledRefundPis.add(payment.stripePaymentIntentId);
+            await ctx.scheduler.runAfter(0, internal.stripe.refundPayment, {
+              paymentIntentId: payment.stripePaymentIntentId,
+              reservationId: reservation._id,
+            });
+          }
+          await ctx.db.patch(payment._id, { refundedAt: nowRefund });
         } else {
-          // No Stripe payment intent, just mark as refunded in our database
-          await ctx.db.patch(payment._id, {
-            refundedAt: Date.now(),
-          });
+          await ctx.db.patch(payment._id, { refundedAt: nowRefund });
         }
       }
 
@@ -2276,16 +2270,18 @@ export const checkAndFulfillReservations = internalMutation({
         (p) => p.stripePaymentIntentId && !p.capturedAt && !p.refundedAt
       );
 
+      const scheduledCapturePis = new Set<string>();
       for (const payment of uncapturedPayments) {
-        if (payment.stripePaymentIntentId) {
-          try {
-            await ctx.scheduler.runAfter(0, internal.stripe.capturePaymentIntent, {
-              paymentIntentId: payment.stripePaymentIntentId,
-              reservationId: reservation._id,
-            });
-          } catch (error) {
-            console.error("Error scheduling payment capture:", error);
-          }
+        const pi = payment.stripePaymentIntentId;
+        if (!pi || scheduledCapturePis.has(pi)) continue;
+        scheduledCapturePis.add(pi);
+        try {
+          await ctx.scheduler.runAfter(0, internal.stripe.capturePaymentIntent, {
+            paymentIntentId: pi,
+            reservationId: reservation._id,
+          });
+        } catch (error) {
+          console.error("Error scheduling payment capture:", error);
         }
       }
 
@@ -2359,15 +2355,17 @@ export const captureReservationPayments = mutation({
       (p) => p.stripePaymentIntentId && !p.capturedAt && !p.refundedAt
     );
 
+    const scheduledCapturePis = new Set<string>();
     let scheduled = 0;
     for (const payment of uncapturedPayments) {
-      if (payment.stripePaymentIntentId) {
-        await ctx.scheduler.runAfter(0, internal.stripe.capturePaymentIntent, {
-          paymentIntentId: payment.stripePaymentIntentId,
-          reservationId,
-        });
-        scheduled += 1;
-      }
+      const pi = payment.stripePaymentIntentId;
+      if (!pi || scheduledCapturePis.has(pi)) continue;
+      scheduledCapturePis.add(pi);
+      await ctx.scheduler.runAfter(0, internal.stripe.capturePaymentIntent, {
+        paymentIntentId: pi,
+        reservationId,
+      });
+      scheduled += 1;
     }
 
     return {
@@ -2431,21 +2429,15 @@ export const updatePaymentRefundedAt = internalMutation({
     refundedAt: v.number(),
   },
   handler: async (ctx, { paymentIntentId, reservationId, refundedAt }) => {
-    // Get all payments for this reservation
     const payments = await ctx.db
       .query("reservationPayments")
       .withIndex("byReservation", (q) => q.eq("reservationId", reservationId))
       .collect();
-    
-    // Find the payment with this payment intent ID
-    const payment = payments.find(
-      (p) => p.stripePaymentIntentId === paymentIntentId
-    );
-    
-    if (payment) {
-      await ctx.db.patch(payment._id, {
-        refundedAt,
-      });
+
+    for (const p of payments) {
+      if (p.stripePaymentIntentId === paymentIntentId) {
+        await ctx.db.patch(p._id, { refundedAt });
+      }
     }
   },
 });
@@ -2458,24 +2450,20 @@ export const updatePaymentFromWebhook = internalMutation({
     capturedAt: v.number(),
   },
   handler: async (ctx, { paymentIntentId, reservationId, capturedAt }) => {
-    // Get all payments for this reservation
     const payments = await ctx.db
       .query("reservationPayments")
       .withIndex("byReservation", (q) => q.eq("reservationId", reservationId))
       .collect();
-    
-    // Find the payment with this payment intent ID
-    const payment = payments.find(
-      (p) => p.stripePaymentIntentId === paymentIntentId
-    );
-    
-    if (payment && !payment.capturedAt) {
-      // Update payment record
-      await ctx.db.patch(payment._id, {
-        capturedAt,
-      });
-      
-      // Check if all payments are captured and update reservation status
+
+    let updated = false;
+    for (const p of payments) {
+      if (p.stripePaymentIntentId === paymentIntentId && !p.capturedAt) {
+        await ctx.db.patch(p._id, { capturedAt });
+        updated = true;
+      }
+    }
+
+    if (updated) {
       await checkAndUpdateFulfilledStatusHelper(ctx, reservationId);
     }
   },

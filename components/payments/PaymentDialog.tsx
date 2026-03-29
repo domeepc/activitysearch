@@ -337,8 +337,11 @@ export function PaymentDialog({
         <DialogHeader>
           <DialogTitle>Complete Payment</DialogTitle>
           <DialogDescription>
-            Enter your payment details to complete the reservation payment.
-            Funds will be held until the activity date.
+            Save a card for your share (or pay for multiple teammates in one go).
+            Each payer gets their own authorisation so refunds return to the right
+            card. The total shown is what your team pays; Stripe processing fees
+            are deducted before payout to the organiser—there is no separate fee
+            line at checkout. Funds stay on hold until the activity date.
           </DialogDescription>
         </DialogHeader>
 
