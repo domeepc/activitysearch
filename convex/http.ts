@@ -15,21 +15,26 @@ http.route({
     if (!event) {
       return new Response('Webhook verification failed', { status: 401 });
     }
-    switch (event.type) {
-      case 'user.created': // intentional fallthrough
-      case 'user.updated':
-        await ctx.runMutation(internal.users.upsertFromClerk, {
-          data: event.data,
-        });
-        break;
+    try {
+      switch (event.type) {
+        case 'user.created': // intentional fallthrough
+        case 'user.updated':
+          await ctx.runMutation(internal.users.upsertFromClerk, {
+            data: event.data,
+          });
+          break;
 
-      case 'user.deleted': {
-        const clerkUserId = event.data.id!;
-        await ctx.runMutation(internal.users.deleteFromClerk, { clerkUserId });
-        break;
+        case 'user.deleted': {
+          const clerkUserId = event.data.id!;
+          await ctx.runMutation(internal.users.deleteFromClerk, { clerkUserId });
+          break;
+        }
+        default:
+          console.log('Ignored Clerk webhook event', event.type);
       }
-      default:
-        console.log('Ignored Clerk webhook event', event.type);
+    } catch (error) {
+      console.error('Clerk webhook handler error', event.type, error);
+      return new Response('Webhook handler failed', { status: 500 });
     }
 
     return new Response(null, { status: 200 });

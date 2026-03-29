@@ -19,6 +19,46 @@ function generateSlug(username: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+/**
+ * OAuth sign-ups often omit `username` until the user completes their profile.
+ * Missing fields caused Convex inserts to throw; the Clerk user existed but the app never synced.
+ */
+function attributesFromClerkUser(data: UserJSON) {
+  const id = data.id!;
+  const primaryEmail = data.email_addresses?.[0]?.email_address ?? "";
+
+  let username = (data.username ?? "").trim();
+  if (!username) {
+    const local =
+      primaryEmail.split("@")[0]?.replace(/[^a-zA-Z0-9_]/g, "") ?? "";
+    const suffix = id.replace(/[^a-zA-Z0-9]/g, "").slice(-8);
+    username =
+      local.length >= 1
+        ? `${local}_${suffix}`.slice(0, 48)
+        : `user_${suffix}`;
+  }
+
+  const name = (data.first_name ?? "").trim() || "User";
+  const lastname = (data.last_name ?? "").trim();
+  const slug = generateSlug(username);
+  const avatar = (data.image_url ?? "").trim();
+
+  return {
+    name,
+    lastname,
+    username,
+    slug,
+    email: primaryEmail,
+    externalId: id,
+    avatar,
+    description: "",
+    contact: "",
+    totalExp: BigInt(0),
+    friends: [],
+    role: "user",
+  };
+}
+
 export const current = query({
   args: {},
   handler: async (ctx) => {
@@ -57,20 +97,7 @@ export const getUserByExternalIdInternal = internalQuery({
 export const upsertFromClerk = internalMutation({
   args: { data: v.any() as Validator<UserJSON> }, // no runtime validation, trust Clerk
   async handler(ctx, { data }) {
-    const userAttributes = {
-      name: data.first_name!,
-      lastname: data.last_name!,
-      username: data.username!,
-      slug: generateSlug(data.username!),
-      email: data.email_addresses[0]?.email_address,
-      externalId: data.id!,
-      avatar: data.image_url!,
-      description: "",
-      contact: "",
-      totalExp: BigInt(0),
-      friends: [],
-      role: "user",
-    };
+    const userAttributes = attributesFromClerkUser(data);
 
     const user = await userByExternalId(ctx, data.id);
     if (user === null) {
@@ -79,7 +106,7 @@ export const upsertFromClerk = internalMutation({
       // Preserve local database values for certain fields
       // Only update avatar from Clerk if it's not a custom base64 image
       const shouldUpdateAvatar =
-        user.avatar === data.image_url || !user.avatar.startsWith("data:");
+        user.avatar === userAttributes.avatar || !user.avatar.startsWith("data:");
 
       await ctx.db.patch(user._id, {
         name: userAttributes.name,
