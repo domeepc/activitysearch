@@ -1,5 +1,24 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import {
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import { getCurrentUser, getCurrentUserOrThrow } from "./users";
+
+async function assertCurrentUserIsOrganiserOf(
+  ctx: { db: { get: (id: Id<"organisations">) => Promise<Doc<"organisations"> | null> } },
+  organisationId: Id<"organisations">,
+  userId: Id<"users">
+): Promise<Doc<"organisations">> {
+  const org = await ctx.db.get(organisationId);
+  if (!org || !org.organisersIDs.includes(userId)) {
+    throw new Error("Forbidden: you are not an organiser of this organisation");
+  }
+  return org;
+}
 
 export const updateOrganisation = mutation({
   args: {
@@ -11,9 +30,11 @@ export const updateOrganisation = mutation({
     IBAN: v.string(),
   },
   handler: async (ctx, args) => {
+    const currentUser = await getCurrentUserOrThrow(ctx);
+    await assertCurrentUserIsOrganiserOf(ctx, args.organisationId, currentUser._id);
+
     const { organisationId, name, email, ...rest } = args;
 
-    // Map mutation args to schema field names
     const updates: {
       description?: string;
       address: string;
@@ -38,7 +59,6 @@ export const updateOrganisation = mutation({
   },
 });
 
-// Query to get user by external Clerk ID
 export const getUserByExternalId = query({
   args: { externalId: v.string() },
   handler: async (ctx, args) => {
@@ -55,7 +75,6 @@ export const createOrganisation = mutation({
     name: v.string(),
     email: v.string(),
     description: v.optional(v.string()),
-    ownerExternalId: v.string(), // Clerk user ID
     address: v.string(),
     IBAN: v.string(),
     country: v.optional(v.string()),
@@ -63,12 +82,14 @@ export const createOrganisation = mutation({
     taxId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // Look up the Convex user by their Clerk external ID
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("You must be signed in to create an organisation");
+    }
+
     const user = await ctx.db
       .query("users")
-      .withIndex("byExternalId", (q) =>
-        q.eq("externalId", args.ownerExternalId)
-      )
+      .withIndex("byExternalId", (q) => q.eq("externalId", identity.subject))
       .unique();
 
     if (!user) {
@@ -89,7 +110,6 @@ export const createOrganisation = mutation({
       activityIDs: [],
     });
 
-    // Update user role to organiser
     await ctx.db.patch(user._id, {
       role: "organiser",
     });
@@ -98,12 +118,13 @@ export const createOrganisation = mutation({
   },
 });
 
-// Query to check if organisation exists for a user
 export const getOrganisationByOwnerId = query({
   args: { ownerId: v.id("users") },
   handler: async (ctx, args) => {
-    // Collect all organisations and find the first match
-    // Note: Without an index on array fields, we must query all and filter in memory
+    const currentUser = await getCurrentUser(ctx);
+    if (!currentUser || currentUser._id !== args.ownerId) {
+      return null;
+    }
     const allOrganisations = await ctx.db.query("organisations").collect();
     const organisation = allOrganisations.find((org) =>
       org.organisersIDs.includes(args.ownerId)
@@ -112,17 +133,74 @@ export const getOrganisationByOwnerId = query({
   },
 });
 
+/** @deprecated Prefer getOrganisationForActivityInternal from server code. */
 export const getAll = query({
   args: {},
-  handler: async (ctx) => {
-    return await ctx.db.query("organisations").collect();
+  handler: async () => {
+    return [];
   },
 });
+
+function publicOrganisationProjection(org: Doc<"organisations">) {
+  return {
+    _id: org._id,
+    organisationName: org.organisationName,
+    description: org.description,
+    address: org.address,
+    longitude: org.longitude,
+    latitude: org.latitude,
+    activityIDs: org.activityIDs,
+  };
+}
 
 export const getById = query({
   args: { organisationId: v.id("organisations") },
   handler: async (ctx, { organisationId }) => {
+    const org = await ctx.db.get(organisationId);
+    if (!org) {
+      return null;
+    }
+    const currentUser = await getCurrentUser(ctx);
+    if (currentUser && org.organisersIDs.includes(currentUser._id)) {
+      return org;
+    }
+    return publicOrganisationProjection(org);
+  },
+});
+
+/** Full organisation row — Convex-internal use only (actions, other internal functions). */
+export const getByIdInternal = internalQuery({
+  args: { organisationId: v.id("organisations") },
+  handler: async (ctx, { organisationId }) => {
     return await ctx.db.get(organisationId);
+  },
+});
+
+export const getOrganisationForActivityInternal = internalQuery({
+  args: { activityId: v.id("activities") },
+  handler: async (ctx, { activityId }) => {
+    const activity = await ctx.db.get(activityId);
+    if (activity?.organisationId) {
+      return await ctx.db.get(activity.organisationId);
+    }
+    const allOrganisations = await ctx.db.query("organisations").collect();
+    return (
+      allOrganisations.find((o) => o.activityIDs.includes(activityId)) ?? null
+    );
+  },
+});
+
+export const getMyOrganisationsAsOrganiser = query({
+  args: {},
+  handler: async (ctx) => {
+    const currentUser = await getCurrentUser(ctx);
+    if (!currentUser || currentUser.role !== "organiser") {
+      return [];
+    }
+    const allOrganisations = await ctx.db.query("organisations").collect();
+    return allOrganisations.filter((org) =>
+      org.organisersIDs.includes(currentUser._id)
+    );
   },
 });
 
@@ -132,9 +210,26 @@ export const updateStripeAccount = mutation({
     stripeAccountId: v.string(),
   },
   handler: async (ctx, { organisationId, stripeAccountId }) => {
+    const currentUser = await getCurrentUserOrThrow(ctx);
+    await assertCurrentUserIsOrganiserOf(ctx, organisationId, currentUser._id);
     await ctx.db.patch(organisationId, {
       stripeAccountId,
-      stripeAccountOnboardingComplete: false, // Will be updated via webhook
+      stripeAccountOnboardingComplete: false,
+    });
+    return { success: true };
+  },
+});
+
+/** Called from Convex actions after the action has verified organiser access. */
+export const updateStripeAccountInternal = internalMutation({
+  args: {
+    organisationId: v.id("organisations"),
+    stripeAccountId: v.string(),
+  },
+  handler: async (ctx, { organisationId, stripeAccountId }) => {
+    await ctx.db.patch(organisationId, {
+      stripeAccountId,
+      stripeAccountOnboardingComplete: false,
     });
     return { success: true };
   },

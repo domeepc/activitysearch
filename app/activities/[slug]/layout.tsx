@@ -22,7 +22,7 @@ export async function generateMetadata({
         description: activity.description || `View details and book ${activity.activityName} on ActivitySearch.`,
       };
     }
-  } catch (error) {
+  } catch {
     // Fallback if activity not found or error
   }
 

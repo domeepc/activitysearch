@@ -1,0 +1,108 @@
+---
+description: Best practices for object-oriented programming languages (Java, C++, Python, C#, etc.)
+globs: **/*.java, **/*.cpp, **/*.hpp, **/*.cs, **/*.py
+alwaysApply: false
+---
+
+# Object-Oriented Programming Best Practices
+
+## Core OOP Principles
+
+### Encapsulation
+- Keep fields **private** by default; expose only what is necessary via well-named getters/setters or properties
+- Validate state inside setters — never let an object enter an invalid state
+- Prefer returning copies of mutable internal collections, not the originals
+
+### Abstraction
+- Program to **interfaces/abstract types**, not concrete implementations
+- Expose **what** an object does, hide **how** it does it
+- Keep public APIs minimal and stable; internals can change freely
+
+### Inheritance
+- Favour **composition over inheritance** — inherit only to model a true *is-a* relationship
+- Never inherit solely to reuse code; use delegation or mixins instead
+- Keep inheritance hierarchies **shallow** (≤ 2–3 levels deep where possible)
+- Always honour the **Liskov Substitution Principle**: a subclass must be usable wherever its parent is expected without breaking behaviour
+
+### Polymorphism
+- Use **method overriding** and interfaces to write generic, extensible code
+- Avoid large `if/else` or `switch` blocks on type — reach for polymorphism instead
+- Prefer **strategy / template-method patterns** when behaviour varies by context
+
+---
+
+## SOLID Principles
+
+| Principle | Rule |
+|-----------|------|
+| **S** ingle Responsibility | Every class has exactly **one reason to change** |
+| **O** pen/Closed | Classes are **open for extension, closed for modification** — add behaviour by subclassing or composing, not by editing existing code |
+| **L** iskov Substitution | Subtypes must be substitutable for their base types |
+| **I** nterface Segregation | Prefer **many small, focused interfaces** over one fat interface |
+| **D** ependency Inversion | High-level modules depend on **abstractions**, not on concrete low-level details |
+
+---
+
+## Class Design
+
+- Class names are **nouns** (`OrderProcessor`, `UserRepository`); method names are **verbs** (`processOrder`, `findById`)
+- A class should fit comfortably in one screen (~200–300 lines); split larger classes
+- Constructors should only **initialise state**, not perform complex logic or I/O
+- Use **factory methods or builder patterns** for complex object creation
+- Implement `equals`/`hashCode` (or `__eq__`/`__hash__`) consistently whenever objects are compared or used in hash-based collections
+- Make classes **final/sealed** unless they are explicitly designed for extension
+
+## Method Design
+
+- Methods do **one thing only**; if you need "and" to describe it, split it
+- Keep methods **short** (ideally ≤ 20 lines); extract helpers aggressively
+- Limit parameters to **≤ 3–4**; group related params into a value object
+- Return **early** to avoid deep nesting (guard clauses)
+- Avoid side-effects in query methods (Command-Query Separation)
+
+---
+
+## Error Handling
+
+- Use **typed exceptions/result types** for expected failure modes; avoid returning `null` or magic values
+- Catch exceptions at the **right level** — only where you can meaningfully handle them
+- Never swallow exceptions silently (`catch (Exception e) {}`)
+- Clean up resources with `try-with-resources`, `using`, or context managers
+
+## Immutability & State
+
+- Prefer **immutable value objects** for domain concepts (money, coordinates, dates)
+- Mark fields `final` / `readonly` / `val` wherever they should not change after construction
+- Minimise shared mutable state; prefer passing data explicitly
+
+## Dependencies & Coupling
+
+- Use **dependency injection** — objects receive their collaborators, they don't create them
+- Depend on **abstractions** (interfaces/protocols), not concrete classes
+- Avoid static state and singleton abuse; they create hidden coupling and hinder testing
+
+## Testing
+
+- Design every class to be **independently testable** (no hidden globals, no hard-coded dependencies)
+- One test class per production class; test behaviour, not implementation details
+- Use **mocks/stubs only for boundaries** (I/O, network, DB) — not for every collaborator
+
+---
+
+## Naming Conventions (language-agnostic)
+
+- Classes: `PascalCase`
+- Methods / functions: `camelCase` (Java/C#/JS) or `snake_case` (Python)
+- Constants: `UPPER_SNAKE_CASE`
+- Interfaces: prefix with `I` only where the language convention demands it (C#); otherwise plain noun (`Serializable`, `Repository`)
+- Booleans: name as predicates (`isActive`, `hasPermission`, `canRetry`)
+
+## Code Smells to Avoid
+
+- **God Class** — knows and does too much
+- **Feature Envy** — a method more interested in another class's data than its own
+- **Data Class** — a class with only fields and no behaviour
+- **Long Parameter List** — introduce a parameter object
+- **Primitive Obsession** — wrap domain concepts (e.g. `EmailAddress`) instead of passing raw strings/ints
+- **Inappropriate Intimacy** — classes accessing each other's private internals
+- **Divergent Change / Shotgun Surgery** — signs that responsibilities are misallocated

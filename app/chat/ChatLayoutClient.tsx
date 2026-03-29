@@ -9,7 +9,7 @@ import { TeamInviteDialog } from "@/components/chat/TeamInviteDialog";
 import { AddFriendDialog } from "@/components/chat/AddFriendDialog";
 import { usePathname } from "next/navigation";
 import { useUpdatePresence } from "@/lib/hooks/usePresence";
-import { usePresenceContext } from "@/components/PresenceProvider";
+import { usePresenceContext } from "@/components/providers/PresenceProvider";
 import { Id } from "@/convex/_generated/dataModel";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -78,14 +78,12 @@ export default function ChatLayoutClient({
   const chatInfo = getCurrentChatInfo();
   const currentConversationId = chatInfo.conversationId;
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
-  const handleSelectIndividual = (_slug: string) => {
-    // Navigation will be handled by ConversationList using router
+  const handleSelectIndividual = (slug: string) => {
+    void slug; // Required by ConversationList; navigation handled by ConversationList
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
-  const handleSelectTeam = (_slug: string) => {
-    // Navigation will be handled by ConversationList using router
+  const handleSelectTeam = (slug: string) => {
+    void slug; // Required by ConversationList; navigation handled by ConversationList
   };
 
   const handleCreateTeamSuccess = () => {
@@ -117,52 +115,52 @@ export default function ChatLayoutClient({
   const isOnChatListPage = pathname === "/chat";
 
   return (
-    <div className="flex h-[calc(100vh-72px)] md:h-[calc(100vh-80px)] overflow-hidden">
-      {/* Conversation List - Desktop: always visible, Mobile: only on /chat */}
-      <div
-        className={`${
-          isOnChatListPage ? "block" : "hidden"
-        } md:block w-full md:w-80 shrink-0 overflow-hidden flex flex-col`}
-      >
-        <ConversationList
-          currentChatType={chatInfo.type}
-          currentChatSlug={chatInfo.slug ?? null}
-          currentConversationId={currentConversationId}
-          onSelectIndividual={handleSelectIndividual}
-          onSelectTeam={handleSelectTeam}
-          onAddFriend={() => setShowAddFriend(true)}
-          onCreateTeam={() => setShowCreateTeam(true)}
-          onInviteToTeam={handleInviteToTeam}
+    <>
+      <div className="flex h-[calc(100vh-72px)] md:h-[calc(100vh-80px)] overflow-hidden">
+        {/* Conversation List - Desktop: always visible, Mobile: only on /chat */}
+        <div
+          className={`${isOnChatListPage ? "block" : "hidden"
+            } md:block w-full md:w-80 shrink-0 overflow-hidden flex flex-col`}
+        >
+          <ConversationList
+            currentChatType={chatInfo.type}
+            currentChatSlug={chatInfo.slug ?? null}
+            currentConversationId={currentConversationId}
+            onSelectIndividual={handleSelectIndividual}
+            onSelectTeam={handleSelectTeam}
+            onAddFriend={() => setShowAddFriend(true)}
+            onCreateTeam={() => setShowCreateTeam(true)}
+            onInviteToTeam={handleInviteToTeam}
+          />
+        </div>
+        {/* Chat View - Desktop: always visible, Mobile: only when in conversation */}
+        <div
+          className={`${!isOnChatListPage ? "block" : "hidden"
+            } md:block flex-1 flex flex-col min-h-0 overflow-hidden`}
+        >
+          {children}
+        </div>
+        <CreateTeamDialog
+          open={showCreateTeam}
+          onOpenChange={setShowCreateTeam}
+          onSuccess={handleCreateTeamSuccess}
+        />
+        {inviteTeamId && (
+          <TeamInviteDialog
+            open={showInviteTeam}
+            onOpenChange={setShowInviteTeam}
+            teamSlug={inviteTeamId}
+            onSuccess={handleInviteSuccess}
+          />
+        )}
+        <AddFriendDialog
+          open={showAddFriend}
+          onOpenChange={setShowAddFriend}
+          onSuccess={() => {
+            // Optionally refresh or show success message
+          }}
         />
       </div>
-      {/* Chat View - Desktop: always visible, Mobile: only when in conversation */}
-      <div
-        className={`${
-          !isOnChatListPage ? "block" : "hidden"
-        } md:block flex-1 flex flex-col min-h-0 overflow-hidden`}
-      >
-        {children}
-      </div>
-      <CreateTeamDialog
-        open={showCreateTeam}
-        onOpenChange={setShowCreateTeam}
-        onSuccess={handleCreateTeamSuccess}
-      />
-      {inviteTeamId && (
-        <TeamInviteDialog
-          open={showInviteTeam}
-          onOpenChange={setShowInviteTeam}
-          teamSlug={inviteTeamId}
-          onSuccess={handleInviteSuccess}
-        />
-      )}
-      <AddFriendDialog
-        open={showAddFriend}
-        onOpenChange={setShowAddFriend}
-        onSuccess={() => {
-          // Optionally refresh or show success message
-        }}
-      />
-    </div>
+    </>
   );
 }

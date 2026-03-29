@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as ably from "../ably.js";
 import type * as activity from "../activity.js";
 import type * as http from "../http.js";
 import type * as messages from "../messages.js";
@@ -27,6 +28,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  ably: typeof ably;
   activity: typeof activity;
   http: typeof http;
   messages: typeof messages;

@@ -1,4 +1,4 @@
-import { AddressCoordinates } from "@/components/ui/address-autocomplete";
+import type { AddressCoordinates } from "@/lib/types/coordinates";
 
 /**
  * Validates an email address format
@@ -96,7 +96,7 @@ export function validateActivityField(
       }
       break;
     case "coordinates":
-      if (!value || (typeof value === "object" && value === null)) {
+      if (!value) {
         return "Please select an address from the suggestions";
       }
       break;

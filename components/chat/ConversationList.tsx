@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import { api } from "@/convex/_generated/api";
@@ -18,7 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { StatusDot } from "./ActiveStatus";
 import { TeamMembersDialog } from "./TeamMembersDialog";
-import { ConfirmDialog } from "./ConfirmDialog";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import {
   Users,
@@ -283,7 +283,7 @@ export function ConversationList({
         {/* Friends Section */}
         <div className="mb-4">
           {(!searchQuery.trim() || filteredFriendsList.length > 0) && (
-            <div className="mb-4 bg-cyan-100 p-2 rounded-lg text-sm font-semibold text-foreground flex items-center justify-between">
+            <div className="mb-4 bg-cyan-100 p-2 rounded-lg text-xs md:text-sm font-semibold text-foreground flex items-center justify-between">
               <span>Friends {!searchQuery.trim() && friendCount}</span>
               {!searchQuery.trim() &&
                 onAddFriend &&
@@ -370,7 +370,7 @@ export function ConversationList({
                     </div>
                     <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate text-sm">
+                        <h3 className="font-semibold truncate text-xs md:text-sm">
                           {friend.name} {friend.lastname}
                         </h3>
                         <p className="text-xs text-muted-foreground truncate">
@@ -480,7 +480,7 @@ export function ConversationList({
         <div className="mb-4">
           {(!searchQuery.trim() ||
             (filteredTeams && filteredTeams.length > 0)) && (
-              <div className="mb-4 bg-cyan-100 p-2 rounded-lg text-sm font-semibold text-foreground flex items-center justify-between">
+              <div className="mb-4 bg-cyan-100 p-2 rounded-lg text-xs md:text-sm font-semibold text-foreground flex items-center justify-between">
                 <span>Teams</span>
                 {!searchQuery.trim() &&
                   filteredTeams &&
@@ -528,7 +528,7 @@ export function ConversationList({
                     </div>
                     <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate text-sm">
+                        <h3 className="font-semibold truncate text-xs md:text-sm">
                           {team.teamName}
                         </h3>
                         <p className="text-xs text-muted-foreground truncate">
@@ -688,7 +688,7 @@ export function ConversationList({
         {/* Reservation Chats Section */}
         {filteredReservationConversations.length > 0 && (
           <div className="mb-4">
-            <div className="mb-4 bg-purple-100 p-2 rounded-lg text-sm font-semibold text-foreground flex items-center justify-between">
+            <div className="mb-4 bg-purple-100 p-2 rounded-lg text-xs md:text-sm font-semibold text-foreground flex items-center justify-between">
               <span>Reservation Chats {!searchQuery.trim() && reservationCount}</span>
             </div>
             {filteredReservationConversations.map((conv) => {
@@ -731,7 +731,7 @@ export function ConversationList({
                   </div>
                   <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold truncate text-sm">
+                      <h3 className="font-semibold truncate text-xs md:text-sm">
                         {conv.name} {conv.lastname}
                       </h3>
                       {conv.activityName && (

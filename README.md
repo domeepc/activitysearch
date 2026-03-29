@@ -68,11 +68,20 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 # Ably Real-time Communication
 NEXT_PUBLIC_ABLY_API_KEY=your-ably-api-key
 
+# Sentry (Error Monitoring and Session Replay)
+NEXT_PUBLIC_SENTRY_DSN=https://...@sentry.io/...
+SENTRY_DSN=https://...@sentry.io/...          # optional; falls back to NEXT_PUBLIC_SENTRY_DSN
+SENTRY_ORG=your-org-slug
+SENTRY_PROJECT=your-project-slug
+SENTRY_AUTH_TOKEN=sntrys_...                  # for source map upload at build time
+
+# PostHog (Analytics) – with proxy, use your app origin
+NEXT_PUBLIC_POSTHOG_KEY=phc_...
+NEXT_PUBLIC_POSTHOG_HOST=https://yourdomain.com   # app origin for proxy (or http://localhost:3000 in dev); /ingest is appended. For direct: https://us.i.posthog.com
+
 # Environment
 NODE_ENV=development
 ```
-
-See `.env.example` for a template with detailed descriptions.
 
 ### 4. Set up Convex
 
@@ -112,7 +121,19 @@ npx convex dev
 2. Create a new app and get your API key
 3. Add to `.env.local` as `NEXT_PUBLIC_ABLY_API_KEY`
 
-### 8. Run the development server
+### 8. Set up Sentry (optional)
+
+1. Create a project at [sentry.io](https://sentry.io) and copy the DSN
+2. Add `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN` to `.env.local`
+3. `SENTRY_AUTH_TOKEN` is used at build time for source map uploads
+
+### 9. Set up PostHog (optional)
+
+1. Create a project at [posthog.com](https://posthog.com) and copy the Project API key
+2. Add `NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_POSTHOG_HOST` to `.env.local`
+3. With the built-in proxy, set `NEXT_PUBLIC_POSTHOG_HOST` to your app origin (e.g. `http://localhost:3000` in dev, `https://yourdomain.com` in production); `/ingest` is appended automatically. For direct ingest, set it to `https://us.i.posthog.com` or `https://eu.i.posthog.com`.
+
+### 10. Run the development server
 
 ```bash
 pnpm dev

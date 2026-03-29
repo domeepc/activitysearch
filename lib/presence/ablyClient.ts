@@ -1,9 +1,6 @@
 // Client-side only Ably client initialization
 // Using dynamic import to prevent SSR bundling issues
 
-// Ably types - using unknown since Ably is dynamically imported
-// The actual Ably types are complex and vary by version, so we use a minimal interface
-// and type assertions where needed
 interface AblyConnection {
   close: () => void;
   state: string;
@@ -20,12 +17,23 @@ interface AblyRealtime {
   close?: () => void;
   connect?: () => void;
   auth?: unknown;
-  [key: string]: unknown; // Allow additional properties
+  [key: string]: unknown;
+}
+
+interface AblyRealtimeConstructor {
+  new (config: {
+    key?: string;
+    clientId?: string;
+    authCallback?: (
+      tokenParams: unknown,
+      callback: (error: Error | string | null, tokenRequest?: unknown) => void
+    ) => void;
+  }): AblyRealtime;
 }
 
 interface AblyModule {
-  Realtime: new (config: { key: string; clientId: string }) => AblyRealtime;
-  [key: string]: unknown; // Allow additional exports
+  Realtime: AblyRealtimeConstructor;
+  [key: string]: unknown;
 }
 
 let ablyClient: AblyRealtime | null = null;
@@ -41,26 +49,27 @@ function loadAblyModule() {
     return ablyModulePromise;
   }
 
-  ablyModulePromise = import("ably").then((module) => {
-    // Use the browser build by accessing the default export or Realtime directly
-    return module as unknown as AblyModule;
-  }).catch((error) => {
-    console.error("Failed to load Ably:", error);
-    return null;
-  });
+  ablyModulePromise = import("ably")
+    .then((module) => {
+      return module as unknown as AblyModule;
+    })
+    .catch((error) => {
+      console.error("Failed to load Ably:", error);
+      return null;
+    });
 
   return ablyModulePromise;
 }
 
-export async function getAblyClient(userId?: string): Promise<AblyRealtime | null> {
+/**
+ * @param userId Convex user id (must match token clientId from server)
+ * @param fetchTokenRequest Convex action that returns Ably token request JSON
+ */
+export async function getAblyClient(
+  userId: string,
+  fetchTokenRequest: () => Promise<unknown>
+): Promise<AblyRealtime | null> {
   if (typeof window === "undefined") {
-    // Server-side: return null
-    return null;
-  }
-
-  const apiKey = process.env.NEXT_PUBLIC_ABLY_API_KEY;
-  if (!apiKey) {
-    console.warn("NEXT_PUBLIC_ABLY_API_KEY is not set. Presence features will be disabled.");
     return null;
   }
 
@@ -68,19 +77,16 @@ export async function getAblyClient(userId?: string): Promise<AblyRealtime | nul
     return null;
   }
 
-  // If client exists and userId hasn't changed, return existing client
   if (ablyClient && currentClientId === userId) {
     return ablyClient;
   }
 
-  // If userId changed, close old client and create new one
   if (ablyClient && currentClientId !== userId) {
     ablyClient.connection.close();
     ablyClient = null;
     currentClientId = undefined;
   }
 
-  // Load Ably module
   const AblyModule = await loadAblyModule();
   if (!AblyModule) {
     return null;
@@ -88,8 +94,19 @@ export async function getAblyClient(userId?: string): Promise<AblyRealtime | nul
 
   try {
     ablyClient = new AblyModule.Realtime({
-      key: apiKey,
-      clientId: userId, // Use user ID as client ID for presence tracking
+      authCallback: (_tokenParams, callback) => {
+        fetchTokenRequest()
+          .then((tokenRequest) => {
+            callback(null, tokenRequest);
+          })
+          .catch((error) => {
+            callback(
+              error instanceof Error ? error : new Error(String(error)),
+              null
+            );
+          });
+      },
+      clientId: userId,
     });
     currentClientId = userId;
     return ablyClient;

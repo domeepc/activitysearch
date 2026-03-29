@@ -6,17 +6,22 @@ import { Button } from "@/components/ui/button";
 import { Send } from "lucide-react";
 
 interface ChatInputProps {
-  onSend: (message: string) => void;
+  onSend: (message: string) => void | Promise<void>;
   disabled?: boolean;
 }
 
 export function ChatInput({ onSend, disabled = false }: ChatInputProps) {
   const [messageText, setMessageText] = useState("");
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!messageText.trim() || disabled) return;
-    onSend(messageText.trim());
-    setMessageText("");
+    const text = messageText.trim();
+    try {
+      await Promise.resolve(onSend(text));
+      setMessageText("");
+    } catch {
+      // Error already surfaced by parent (e.g. toast); do not clear input
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

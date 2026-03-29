@@ -156,5 +156,6 @@ export default defineSchema({
     equipment: v.array(v.string()),
     images: v.optional(v.array(v.string())),
     availableTimeSlots: v.optional(v.array(v.string())),
+    organisationId: v.optional(v.id("organisations")),
   }),
 });

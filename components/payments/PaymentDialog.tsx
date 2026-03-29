@@ -317,7 +317,7 @@ export function PaymentDialog({
   if (!clientSecret && isLoading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-[95vw] sm:max-w-md">
+        <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Loading Payment</DialogTitle>
           </DialogHeader>
@@ -333,12 +333,15 @@ export function PaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] sm:max-w-md border-border border-2 shadow-xl">
+      <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto border-border border-2 shadow-xl">
         <DialogHeader>
           <DialogTitle>Complete Payment</DialogTitle>
           <DialogDescription>
-            Enter your payment details to complete the reservation payment.
-            Funds will be held until the activity date.
+            Save a card for your share (or pay for multiple teammates in one go).
+            Each payer gets their own authorisation so refunds return to the right
+            card. The total shown is what your team pays; Stripe processing fees
+            are deducted before payout to the organiser—there is no separate fee
+            line at checkout. Funds stay on hold until the activity date.
           </DialogDescription>
         </DialogHeader>
 

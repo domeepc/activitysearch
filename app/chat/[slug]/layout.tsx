@@ -9,7 +9,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  
+
   try {
     const conversationId = slug as Id<"conversations">;
     const messagesData = await fetchQuery(api.messages.getMessagesByConversationId, {
@@ -23,7 +23,7 @@ export async function generateMetadata({
         description: `Chat with ${fullName} on ActivitySearch.`,
       };
     }
-  } catch (error) {
+  } catch {
     // Fallback if conversation not found or error
   }
 
@@ -38,5 +38,9 @@ export default function IndividualChatLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+    </>
+  );
 }

@@ -1,0 +1,148 @@
+---
+description: Best practices for Python projects using FastAPI or Django
+globs: **/*.py
+alwaysApply: false
+---
+
+# Python Best Practices (FastAPI / Django)
+
+## Code Style & Formatting
+
+- Follow **PEP 8** at all times — use `ruff` (preferred) or `flake8` + `black` for automated enforcement
+- Format with **Black** (line length 88); never argue about formatting — let the tool decide
+- Sort imports with **isort** (compatible with Black); group: stdlib → third-party → local
+- Use **type hints** on every function signature — enforced by `mypy` in strict mode:
+  ```python
+  def get_user(user_id: int, db: Session) -> UserSchema:
+  ```
+- Prefer `pathlib.Path` over `os.path` for filesystem operations
+- Use f-strings for string interpolation; avoid `%` formatting and `.format()` in new code
+
+---
+
+## Project Structure
+
+### FastAPI
+```
+app/
+├── api/
+│   └── v1/
+│       ├── endpoints/       # Route handlers (thin)
+│       └── dependencies/    # FastAPI Depends() factories
+├── core/
+│   ├── config.py            # Settings via pydantic-settings
+│   └── security.py
+├── db/
+│   ├── base.py              # SQLAlchemy base / session
+│   └── models/
+├── schemas/                 # Pydantic request/response models
+├── services/                # Business logic
+├── repositories/            # Data access
+└── main.py
+```
+
+### Django
+```
+project/
+├── config/
+│   ├── settings/
+│   │   ├── base.py
+│   │   ├── development.py
+│   │   └── production.py
+│   ├── urls.py
+│   └── wsgi.py
+└── apps/
+    └── <feature>/
+        ├── models.py
+        ├── views.py
+        ├── serializers.py   # DRF
+        ├── urls.py
+        ├── services.py
+        └── tests/
+```
+
+---
+
+## FastAPI Specifics
+
+- Use **Pydantic models** for all request bodies and response schemas — enable `model_config = ConfigDict(from_attributes=True)` for ORM integration
+- Use `pydantic-settings` for configuration — read from environment variables with validation at startup:
+  ```python
+  class Settings(BaseSettings):
+      database_url: PostgresDsn
+      secret_key: str
+      model_config = SettingsConfigDict(env_file=".env")
+  ```
+- Use **`Depends()`** for dependency injection (DB sessions, auth, pagination params) — never instantiate dependencies inside route functions
+- Use **`APIRouter`** to group related endpoints; include routers in `main.py`
+- Return **typed response models** on every endpoint (`response_model=UserSchema`) — this enforces output validation and drives auto-docs
+- Raise **`HTTPException`** with appropriate status codes; use custom exception handlers for domain errors
+- Use **background tasks** (`BackgroundTasks`) for fire-and-forget work; use Celery/ARQ for durable queues
+
+---
+
+## Django Specifics
+
+- Use **Django REST Framework (DRF)** for API endpoints; use serializers for validation and representation
+- Keep **views thin** — business logic belongs in `services.py`, not in views or serializers
+- Use `select_related` and `prefetch_related` to eliminate N+1 queries
+- Use Django's **ORM** — write raw SQL only when ORM queries are proven to be the bottleneck
+- Use **`get_object_or_404`** / `get_list_or_404` in views rather than manual try/except for common lookups
+- Store settings in **split settings files** (`base.py` / `development.py` / `production.py`) — never a single monolithic `settings.py`
+- Use **Django signals** sparingly — they create invisible coupling; prefer explicit service calls
+
+---
+
+## Async
+
+- In FastAPI, use `async def` for I/O-bound route handlers (DB, HTTP calls, file I/O) and `def` for CPU-bound ones (FastAPI runs sync routes in a thread pool)
+- Use **`asyncio`** primitives correctly — never call blocking code inside an `async` function without offloading it (`asyncio.to_thread`, `run_in_executor`)
+- Use **`httpx.AsyncClient`** instead of `requests` in async contexts
+
+---
+
+## Error Handling
+
+- Use **custom exception classes** that inherit from a base `AppError`; map them to HTTP status codes in exception handlers
+- Never return generic `500` errors to clients — translate all expected failures to meaningful HTTP responses
+- Log the full **traceback** on unexpected exceptions before returning a generic error
+- Use `contextlib.suppress` only when you genuinely intend to silence an exception — document why
+
+---
+
+## Database
+
+- Use **Alembic** (FastAPI/SQLAlchemy) or Django migrations — never modify the schema manually in production
+- Use **connection pooling** (`pool_size`, `max_overflow` in SQLAlchemy)
+- Keep migrations **small and reversible**; one logical change per migration
+- Never run migrations automatically at app startup in production — run them as a separate deployment step
+- Use **transactions** for multi-step writes; ensure atomicity
+
+---
+
+## Security (Python-specific)
+
+- Never use `eval()`, `exec()`, or `pickle.loads()` on untrusted input
+- Use `secrets` module for generating tokens, not `random`
+- Hash passwords with **`passlib`** (`bcrypt` backend) — never store plain text or MD5/SHA1 hashes
+- Parameterise all queries — never use string formatting to build SQL
+- In Django, keep `DEBUG = False` and `ALLOWED_HOSTS` set correctly in production
+
+---
+
+## Testing
+
+- Use **pytest** with `pytest-asyncio` for async tests
+- Use **`httpx.AsyncClient`** with `ASGITransport` for FastAPI integration tests (no real server needed)
+- Use **`pytest-django`** and Django's `TestCase` / `APIClient` for Django
+- Use **`factory_boy`** for test data fixtures instead of hand-rolled dictionaries
+- Aim for isolated tests — each test sets up and tears down its own data
+
+---
+
+## Dependencies & Virtual Environments
+
+- Use **`uv`** (preferred) or `poetry` for dependency management and virtual environments
+- Pin dependencies with a lockfile (`uv.lock` / `poetry.lock`) — commit it to source control
+- Separate dependencies: `[project.dependencies]` vs `[project.optional-dependencies] dev = [...]`
+- Run `pip-audit` or `safety` regularly to catch known vulnerabilities

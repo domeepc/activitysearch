@@ -1,13 +1,62 @@
-import { httpAction, internalMutation, internalAction, action } from "./_generated/server";
+import {
+  httpAction,
+  internalMutation,
+  internalAction,
+  action,
+  type ActionCtx,
+} from "./_generated/server";
 import { v } from "convex/values";
-import { Id } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
+
+type ReservationPaymentWithUser = Doc<"reservationPayments"> & {
+  user: {
+    _id: Id<"users">;
+    name: string;
+    lastname: string;
+    avatar?: string;
+    email: string;
+  } | null;
+};
 import { api, internal } from "./_generated/api";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
+if (!stripeSecretKey) {
+  throw new Error("STRIPE_SECRET_KEY must be set");
+}
+
+const stripe = new Stripe(stripeSecretKey, {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   apiVersion: "2025-12-15.preview" as any,
 });
+
+async function requireOrganiserOfOrganisation(
+  ctx: ActionCtx,
+  organisationId: Id<"organisations">
+) {
+  const currentUser = await ctx.runQuery(api.users.current);
+  if (!currentUser) {
+    throw new Error("User not found");
+  }
+  const organisation = await ctx.runQuery(
+    internal.organisation.getByIdInternal,
+    { organisationId }
+  );
+  if (!organisation || !organisation.organisersIDs.includes(currentUser._id)) {
+    throw new Error("Forbidden: not an organiser of this organisation");
+  }
+  return { currentUser, organisation } as const;
+}
+
+async function organisationForActivity(
+  ctx: ActionCtx,
+  activityId: Id<"activities">
+) {
+  return await ctx.runQuery(
+    internal.organisation.getOrganisationForActivityInternal,
+    { activityId }
+  );
+}
 
 // Map Stripe payment intent status to display status
 function mapStripeStatusToDisplayStatus(
@@ -35,6 +84,47 @@ function mapStripeStatusToDisplayStatus(
       return "pending";
     default:
       return "pending";
+  }
+}
+
+async function getOrCreateStripeCustomerForPayer(
+  payer: {
+    email: string;
+    name: string;
+    lastname: string;
+    userId: string;
+  }
+): Promise<Stripe.Customer> {
+  const existingCustomers = await stripe.customers.list({
+    email: payer.email,
+    limit: 1,
+  });
+  if (existingCustomers.data.length > 0) {
+    return existingCustomers.data[0];
+  }
+  return stripe.customers.create({
+    email: payer.email,
+    name: `${payer.name} ${payer.lastname}`.trim(),
+    metadata: { userId: payer.userId },
+  });
+}
+
+async function attachPaymentMethodToCustomer(
+  paymentMethodId: string,
+  customerId: string
+): Promise<void> {
+  try {
+    await stripe.paymentMethods.attach(paymentMethodId, {
+      customer: customerId,
+    });
+  } catch {
+    const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+    if (paymentMethod.customer && paymentMethod.customer !== customerId) {
+      await stripe.paymentMethods.detach(paymentMethodId);
+      await stripe.paymentMethods.attach(paymentMethodId, {
+        customer: customerId,
+      });
+    }
   }
 }
 
@@ -143,11 +233,9 @@ export const createSetupIntent = action({
       throw new Error("Activity not found");
     }
 
-    // Find organisation
-    const allOrganisations = await ctx.runQuery(api.organisation.getAll);
-    const organisation = allOrganisations?.find(
-      (org: { activityIDs: Id<"activities">[] }) =>
-        org.activityIDs.includes(reservationData.activity._id)
+    const organisation = await organisationForActivity(
+      ctx,
+      reservationData.activity._id
     );
 
     if (!organisation) {
@@ -193,255 +281,161 @@ export const createTeamPaymentIntentInternal = internalAction({
   args: {
     reservationId: v.id("reservations"),
     teamId: v.id("teams"),
-    amount: v.number(),
     currency: v.optional(v.string()),
   },
-  handler: async (ctx, { reservationId, teamId, amount, currency = "eur" }): Promise<{
-    clientSecret: string | null;
-    paymentIntentId: string;
-  }> => {
-    if (!reservationId || !amount) {
-      throw new Error("Missing required fields");
-    }
-
-    // Get reservation data using runQuery (actions can't directly access db)
-    const reservation = await ctx.runQuery(api.reservations.getReservationCardData, {
-      reservationId,
-    });
-    if (!reservation) {
+  handler: async (
+    ctx,
+    { reservationId, teamId, currency = "eur" }
+  ): Promise<{ paymentIntentIds: string[] }> => {
+    const resMeta = await ctx.runQuery(
+      internal.reservations.getReservationActivityIdInternal,
+      { reservationId }
+    );
+    if (!resMeta) {
       throw new Error("Reservation not found");
     }
 
-    // Get activity
     const activity = await ctx.runQuery(api.activity.getActivityById, {
-      activityId: reservation.activity._id,
+      activityId: resMeta.activityId,
     });
     if (!activity) {
       throw new Error("Activity not found");
     }
 
-    // Find organisation
-    const allOrganisations = await ctx.runQuery(api.organisation.getAll);
-    const organisation = allOrganisations?.find(
-      (org: { activityIDs: Id<"activities">[] }) =>
-        org.activityIDs.includes(reservation.activity._id)
-    );
-
+    const organisation = await organisationForActivity(ctx, resMeta.activityId);
     if (!organisation) {
       throw new Error("Organisation not found");
     }
 
-    // Get Stripe account ID if using Connect
     const stripeAccountId: string | undefined = organisation.stripeAccountId;
 
-    try {
-      const amountInCents = Math.round(amount * 100);
+    const allPayments = (await ctx.runQuery(
+      internal.reservations.getReservationPaymentsInternal,
+      { reservationId }
+    )) as ReservationPaymentWithUser[];
 
-      // Get all payments for this reservation and team to collect payment methods
-      // Use internal mutation since we're in an action context
-      const allPayments = await ctx.runMutation(
-        internal.reservations.getReservationPaymentsInternal,
-        { reservationId }
-      );
+    const team = await ctx.runQuery(api.teams.getTeamById, { teamId });
+    if (!team) {
+      throw new Error("Team not found");
+    }
 
-      // Get team to filter payments
-      const team = await ctx.runQuery(api.teams.getTeamById, { teamId });
-      if (!team) {
-        throw new Error("Team not found");
+    const teamMemberIds = new Set(team.teammates);
+    const teamPayments = allPayments.filter(
+      (p: ReservationPaymentWithUser) =>
+        teamMemberIds.has(p.userId) &&
+        !p.refundedAt &&
+        p.stripePaymentMethodId &&
+        p.amount > 0
+    );
+
+    teamPayments.sort((a: ReservationPaymentWithUser, b: ReservationPaymentWithUser) =>
+      a._id.localeCompare(b._id)
+    );
+
+    const createdIds: string[] = [];
+
+    for (const row of teamPayments) {
+      if (row.stripePaymentIntentId) {
+        continue;
+      }
+      const pmId = row.stripePaymentMethodId;
+      if (!pmId) {
+        continue;
       }
 
-      const teamMemberIds = new Set(team.teammates);
-      const teamPayments = allPayments.filter(
-        (p) => teamMemberIds.has(p.userId) && !p.refundedAt && p.stripePaymentMethodId
-      );
-
-      // Check if team already has a payment intent - prevent duplicate creation
-      const existingPaymentIntentIds = Array.from(
-        new Set(
-          teamPayments
-            .map((p) => p.stripePaymentIntentId)
-            .filter((id): id is string => id !== undefined)
-        )
-      );
-
-      if (existingPaymentIntentIds.length > 0) {
-        // Team already has a payment intent, don't create another one
-        console.log(
-          `Team ${teamId} already has payment intent(s): ${existingPaymentIntentIds.join(", ")}, skipping creation to prevent duplicates`
+      const amountCents = Math.round(row.amount * 100);
+      if (amountCents < 50) {
+        console.warn(
+          `Skipping payment ${row._id}: amount below Stripe minimum (50 minor units)`
         );
-        // Return the first existing payment intent ID
-        // The payment records are already updated with this ID, so no need to update them again
-        return {
-          clientSecret: null,
-          paymentIntentId: existingPaymentIntentIds[0],
-        };
+        continue;
       }
 
-      // Collect all payment method IDs from team payments
-      const paymentMethodIds = teamPayments
-        .map((p) => p.stripePaymentMethodId)
-        .filter((id): id is string => id !== undefined);
-
-      if (paymentMethodIds.length === 0) {
-        throw new Error("No payment methods collected for this team");
+      const payerUser = row.user;
+      if (!payerUser) {
+        console.error(`No user profile for payment row ${row._id}`);
+        continue;
       }
 
-      // Use the first payment method as the primary payment method for the PaymentIntent
-      // Note: Stripe PaymentIntent supports one payment_method per intent
-      // We'll use the first collected payment method
-      const primaryPaymentMethodId = paymentMethodIds[0];
-      const primaryPayment = teamPayments.find(
-        (p) => p.stripePaymentMethodId === primaryPaymentMethodId
-      );
-
-      if (!primaryPayment) {
-        throw new Error("Primary payment method not found");
-      }
-
-      // Get user information for the primary payment method owner
-      // The payment record already includes user info from getReservationPaymentsInternal
-      const primaryUser = primaryPayment.user;
-
-      if (!primaryUser) {
-        throw new Error("User not found for primary payment method");
-      }
-
-      // Create or retrieve Stripe Customer for the user
-      // Search for existing customer by email
-      let customer: Stripe.Customer;
-      const existingCustomers = await stripe.customers.list({
-        email: primaryUser.email,
-        limit: 1,
-      });
-
-      if (existingCustomers.data.length > 0) {
-        customer = existingCustomers.data[0];
-      } else {
-        // Create new customer
-        customer = await stripe.customers.create({
-          email: primaryUser.email,
-          name: `${primaryUser.name} ${primaryUser.lastname}`,
-          metadata: {
-            userId: primaryPayment.userId,
-          },
-        });
-      }
-
-      // Attach the payment method to the customer
-      // Check if payment method is already attached to avoid errors
       try {
-        await stripe.paymentMethods.attach(primaryPaymentMethodId, {
-          customer: customer.id,
+        const customer = await getOrCreateStripeCustomerForPayer({
+          email: payerUser.email,
+          name: payerUser.name,
+          lastname: payerUser.lastname,
+          userId: row.userId,
         });
-      } catch {
-        // If payment method is already attached, that's fine
-        // Check if it's attached to a different customer
-        const paymentMethod = await stripe.paymentMethods.retrieve(
-          primaryPaymentMethodId
-        );
-        if (paymentMethod.customer && paymentMethod.customer !== customer.id) {
-          // Detach from old customer and attach to new one
-          await stripe.paymentMethods.detach(primaryPaymentMethodId);
-          await stripe.paymentMethods.attach(primaryPaymentMethodId, {
-            customer: customer.id,
-          });
-        }
-        // If already attached to this customer, no action needed
-      }
 
-      // Create payment intent with manual capture and the primary payment method
-      const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
-        amount: amountInCents,
-        currency: currency.toLowerCase(),
-        capture_method: "manual", // Hold funds, don't capture immediately
-        payment_method_types: ["card"], // Specify card as payment method
-        payment_method: primaryPaymentMethodId, // Use first payment method
-        customer: customer.id, // Attach customer to payment intent
-        confirm: true, // Confirm immediately to authorize and put on hold (requires_capture)
+        await attachPaymentMethodToCustomer(pmId, customer.id);
+
+        const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
+          amount: amountCents,
+          currency: currency.toLowerCase(),
+          capture_method: "manual",
+          payment_method_types: ["card"],
+          payment_method: pmId,
+          customer: customer.id,
+          confirm: true,
         metadata: {
-          reservationId,
-          activityId: reservation.activity._id,
-          organisationId: organisation._id,
-          teamId: teamId, // Store team ID in metadata
-          paymentMethodCount: paymentMethodIds.length.toString(),
-          // Store all payment method IDs in metadata for reference
-          allPaymentMethodIds: paymentMethodIds.join(","),
+          reservationId: String(reservationId),
+          reservationPaymentId: String(row._id),
+          activityId: String(activity._id),
+          organisationId: String(organisation._id),
+          teamId: String(teamId),
+          userId: String(row.userId),
         },
-      };
-
-      // If using Stripe Connect, transfer to connected account
-      if (stripeAccountId) {
-        paymentIntentParams.application_fee_amount = Math.round(
-          amount * 100 * 0.02
-        ); // 2% platform fee
-        paymentIntentParams.transfer_data = {
-          destination: stripeAccountId,
         };
-        const paymentIntent: Stripe.PaymentIntent =
+
+        if (stripeAccountId) {
+          paymentIntentParams.application_fee_amount = Math.round(
+            row.amount * 100 * 0.02
+          );
+          paymentIntentParams.transfer_data = {
+            destination: stripeAccountId,
+          };
+        }
+
+        const paymentIntent =
           await stripe.paymentIntents.create(paymentIntentParams);
 
-        const paymentIntentId = paymentIntent.id;
+        await ctx.runMutation(
+          internal.reservations.patchReservationPaymentIntentId,
+          {
+            paymentId: row._id,
+            paymentIntentId: paymentIntent.id,
+          }
+        );
 
-        // Update all team payments with the payment intent ID using a mutation
-        await ctx.runMutation(internal.reservations.updateTeamPaymentIntentIds, {
-          reservationId,
-          teamId,
-          paymentIntentId,
-        });
-
-        return {
-          clientSecret: paymentIntent.client_secret,
-          paymentIntentId: paymentIntent.id,
-        };
+        createdIds.push(paymentIntent.id);
+      } catch (error) {
+        console.error(
+          `Error creating PaymentIntent for reservationPayment ${row._id}:`,
+          error
+        );
       }
-
-      // Create payment intent on platform account (no Connect)
-      const paymentIntent: Stripe.PaymentIntent =
-        await stripe.paymentIntents.create(paymentIntentParams);
-
-      const paymentIntentId = paymentIntent.id;
-
-      // Update all team payments with the payment intent ID using a mutation
-      await ctx.runMutation(internal.reservations.updateTeamPaymentIntentIds, {
-        reservationId,
-        teamId,
-        paymentIntentId,
-      });
-
-      return {
-        clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id,
-      };
-    } catch (error) {
-      console.error("Error creating team payment intent:", error);
-      throw new Error(
-        error instanceof Error
-          ? error.message
-          : "Failed to create team payment intent"
-      );
     }
+
+    return { paymentIntentIds: createdIds };
   },
 });
 
-// Create payment intent for a team when their saldo is fulfilled
+// Create per-payer payment intents for a team (manual capture). Prefer scheduler via recordPayment.
 export const createTeamPaymentIntent = action({
   args: {
     reservationId: v.id("reservations"),
     teamId: v.id("teams"),
-    amount: v.number(),
+    /** @deprecated Ignored; each payer row uses its own amount */
+    amount: v.optional(v.number()),
     currency: v.optional(v.string()),
   },
-  handler: async (ctx, { reservationId, teamId, amount, currency = "eur" }) => {
+  handler: async (
+    ctx,
+    { reservationId, teamId, currency = "eur" }
+  ): Promise<{ paymentIntentIds: string[] }> => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Unauthorized");
     }
 
-    if (!reservationId || !amount) {
-      throw new Error("Missing required fields");
-    }
-
-    // Get reservation data
     const reservationData = await ctx.runQuery(
       api.reservations.getReservationCardData,
       { reservationId }
@@ -451,7 +445,6 @@ export const createTeamPaymentIntent = action({
       throw new Error("Reservation not found");
     }
 
-    // Get activity to find organisation
     const activity = await ctx.runQuery(api.activity.getActivityById, {
       activityId: reservationData.activity._id,
     });
@@ -460,71 +453,32 @@ export const createTeamPaymentIntent = action({
       throw new Error("Activity not found");
     }
 
-    // Find organisation
-    const allOrganisations = await ctx.runQuery(api.organisation.getAll);
-
-    const organisation = allOrganisations?.find(
-      (org: { activityIDs: Id<"activities">[] }) =>
-        org.activityIDs.includes(reservationData.activity._id)
+    const currentUser = await ctx.runQuery(api.users.current);
+    if (!currentUser) {
+      throw new Error("User not found");
+    }
+    const team = await ctx.runQuery(api.teams.getTeamById, { teamId });
+    if (!team || !team.teammates.includes(currentUser._id)) {
+      throw new Error("Forbidden: not a member of this team");
+    }
+    const teamOnReservation = (reservationData.teams || []).some(
+      (t: { _id: Id<"teams"> }) => t._id === teamId
     );
+    if (!teamOnReservation) {
+      throw new Error("Forbidden: team is not part of this reservation");
+    }
 
-    if (!organisation) {
+    if (
+      !(await organisationForActivity(ctx, reservationData.activity._id))
+    ) {
       throw new Error("Organisation not found");
     }
 
-    // Get Stripe account ID if using Connect
-    const stripeAccountId: string | undefined = organisation.stripeAccountId;
-
-    try {
-      const amountInCents = Math.round(amount * 100);
-
-      // Create payment intent with manual capture
-      const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
-        amount: amountInCents,
-        currency: currency.toLowerCase(),
-        capture_method: "manual", // Hold funds, don't capture immediately
-        payment_method_types: ["card"], // Specify card as payment method
-        metadata: {
-          reservationId,
-          activityId: reservationData.activity._id,
-          organisationId: organisation._id,
-          teamId: teamId, // Store team ID in metadata
-        },
-      };
-
-      // If using Stripe Connect, transfer to connected account
-      if (stripeAccountId) {
-        paymentIntentParams.application_fee_amount = Math.round(
-          amount * 100 * 0.02
-        ); // 2% platform fee
-        paymentIntentParams.transfer_data = {
-          destination: stripeAccountId,
-        };
-        const paymentIntent: Stripe.PaymentIntent =
-          await stripe.paymentIntents.create(paymentIntentParams);
-
-        return {
-          clientSecret: paymentIntent.client_secret,
-          paymentIntentId: paymentIntent.id,
-        };
-      }
-
-      // Create payment intent on platform account (no Connect)
-      const paymentIntent: Stripe.PaymentIntent =
-        await stripe.paymentIntents.create(paymentIntentParams);
-
-      return {
-        clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id,
-      };
-    } catch (error) {
-      console.error("Error creating team payment intent:", error);
-      throw new Error(
-        error instanceof Error
-          ? error.message
-          : "Failed to create team payment intent"
-      );
-    }
+    return await ctx.runAction(internal.stripe.createTeamPaymentIntentInternal, {
+      reservationId,
+      teamId,
+      currency,
+    });
   },
 });
 
@@ -597,12 +551,9 @@ export const createPaymentIntent = action({
       throw new Error("Activity not found");
     }
 
-    // Find organisation
-    const allOrganisations = await ctx.runQuery(api.organisation.getAll);
-
-    const organisation = allOrganisations?.find(
-      (org: { activityIDs: Id<"activities">[] }) =>
-        org.activityIDs.includes(reservationData.activity._id)
+    const organisation = await organisationForActivity(
+      ctx,
+      reservationData.activity._id
     );
 
     if (!organisation) {
@@ -784,7 +735,7 @@ export const consolidatePaymentIntents = action({
   },
   handler: async (
     ctx,
-    { reservationId, teamId }
+    { reservationId, teamId: _teamId }
   ): Promise<{
     success: boolean;
     paymentIntentId: string | null;
@@ -816,165 +767,22 @@ export const consolidatePaymentIntents = action({
       throw new Error("Activity not found");
     }
 
-    // Find organisation
-    const allOrganisations = await ctx.runQuery(api.organisation.getAll);
-    const organisation = allOrganisations?.find(
-      (org: { activityIDs: Id<"activities">[] }) =>
-        org.activityIDs.includes(reservationData.activity._id)
+    const organisation = await organisationForActivity(
+      ctx,
+      reservationData.activity._id
     );
 
     if (!organisation) {
       throw new Error("Organisation not found");
     }
 
-    const stripeAccountId: string | undefined = organisation.stripeAccountId;
-
-    // Get all payments for this reservation
-    const allPayments = await ctx.runQuery(
-      api.reservations.getReservationPayments,
-      { reservationId }
-    );
-
-    // Filter payments by team if teamId is provided
-    let paymentsToConsolidate = allPayments.filter(
-      (p) => p.stripePaymentIntentId && !p.refundedAt
-    );
-
-    if (teamId) {
-      // Get team details to filter by team members
-      const team = await ctx.runQuery(api.teams.getTeamById, { teamId });
-      if (team) {
-        const teamMemberIds = new Set(team.teammates);
-        paymentsToConsolidate = paymentsToConsolidate.filter((p) =>
-          teamMemberIds.has(p.userId)
-        );
-      }
-    }
-
-    if (paymentsToConsolidate.length === 0) {
-      throw new Error("No payment intents found to consolidate");
-    }
-
-    // Get unique payment intent IDs
-    const paymentIntentIds = Array.from(
-      new Set(
-        paymentsToConsolidate
-          .map((p) => p.stripePaymentIntentId)
-          .filter((id): id is string => !!id)
-      )
-    );
-
-    if (paymentIntentIds.length <= 1) {
-      // Already consolidated or only one intent
-      return {
-        success: true,
-        paymentIntentId: paymentIntentIds[0] || null,
-        message: "No consolidation needed",
-      };
-    }
-
-    // Retrieve all payment intents from Stripe
-    const paymentIntents: Stripe.PaymentIntent[] = [];
-    const modifiableIntents: Stripe.PaymentIntent[] = [];
-
-    for (const paymentIntentId of paymentIntentIds) {
-      try {
-        const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
-        paymentIntents.push(pi);
-
-        // Check if payment intent is in a modifiable state
-        // Note: succeeded payment intents are typically captured and cannot be consolidated
-        // We only consolidate requires_capture, requires_confirmation, or requires_payment_method
-        if (
-          pi.status === "requires_payment_method" ||
-          pi.status === "requires_confirmation" ||
-          pi.status === "requires_capture"
-        ) {
-          modifiableIntents.push(pi);
-        }
-      } catch (error) {
-        console.error(
-          `Error retrieving payment intent ${paymentIntentId}:`,
-          error
-        );
-      }
-    }
-
-    if (modifiableIntents.length === 0) {
-      throw new Error(
-        "No modifiable payment intents found. All intents may be already captured or canceled."
-      );
-    }
-
-    // Use the first modifiable intent as the base, or create a new one
-    let consolidatedIntent: Stripe.PaymentIntent;
-    const baseIntent = modifiableIntents[0];
-
-    // Calculate total amount from all modifiable intents
-    const totalAmountInCents = modifiableIntents.reduce(
-      (sum, pi) => sum + pi.amount,
-      0
-    );
-
-    // If we have multiple modifiable intents, we need to consolidate
-    if (modifiableIntents.length > 1) {
-      // Update the first intent with the total amount
-      const updateParams: Stripe.PaymentIntentUpdateParams = {
-        amount: totalAmountInCents,
-        payment_method_types: ["card"], // Ensure payment method is set
-      };
-
-      // If using Stripe Connect, update application fee
-      if (stripeAccountId) {
-        const totalAmountDecimal = totalAmountInCents / 100;
-        updateParams.application_fee_amount = Math.round(
-          totalAmountDecimal * 100 * 0.02
-        );
-      }
-
-      consolidatedIntent = await stripe.paymentIntents.update(
-        baseIntent.id,
-        updateParams
-      );
-
-      // Cancel other modifiable payment intents
-      for (let i = 1; i < modifiableIntents.length; i++) {
-        const intentToCancel = modifiableIntents[i];
-        try {
-          if (intentToCancel.status === "requires_capture") {
-            await stripe.paymentIntents.cancel(intentToCancel.id);
-          } else if (
-            intentToCancel.status === "requires_payment_method" ||
-            intentToCancel.status === "requires_confirmation"
-          ) {
-            await stripe.paymentIntents.cancel(intentToCancel.id);
-          }
-        } catch (error) {
-          console.error(
-            `Error canceling payment intent ${intentToCancel.id}:`,
-            error
-          );
-        }
-      }
-
-      // Update all payment records to point to the consolidated intent
-      await ctx.runMutation(internal.reservations.updatePaymentIntentIds, {
-        reservationId,
-        oldPaymentIntentIds: modifiableIntents
-          .slice(1)
-          .map((pi) => pi.id),
-        newPaymentIntentId: consolidatedIntent.id,
-      });
-    } else {
-      // Only one modifiable intent, no consolidation needed
-      consolidatedIntent = baseIntent;
-    }
+    void _teamId;
 
     return {
       success: true,
-      paymentIntentId: consolidatedIntent.id,
-      amount: consolidatedIntent.amount / 100,
-      consolidatedCount: modifiableIntents.length,
+      paymentIntentId: null,
+      message:
+        "Consolidation is disabled. Each payer has a separate card authorisation so refunds return to the correct payment method.",
     };
   },
 });
@@ -1034,48 +842,55 @@ export const confirmPaymentIntent = httpAction(async (ctx, request) => {
   }
 });
 
-// Capture payment (called on activity day) - internal mutation version
-// Note: Stripe's capture method doesn't use setTimeout, so this can be a mutation
-export const capturePayment = internalMutation({
+/** DB updates after a successful Stripe capture (called from capturePaymentIntent). */
+export const applyPaymentCaptureDb = internalMutation({
   args: {
     paymentIntentId: v.string(),
     reservationId: v.id("reservations"),
   },
   handler: async (ctx, { paymentIntentId, reservationId }) => {
-    // Get reservation
     const reservation = await ctx.db.get(reservationId);
     if (!reservation) {
       throw new Error("Reservation not found");
     }
 
-    try {
-      // Capture the payment
-      const paymentIntent = await stripe.paymentIntents.capture(
-        paymentIntentId
-      );
+    const payments = await ctx.db
+      .query("reservationPayments")
+      .withIndex("byReservation", (q) => q.eq("reservationId", reservationId))
+      .collect();
 
-      // Update payment record
-      const payments = await ctx.db
-        .query("reservationPayments")
-        .withIndex("byReservation", (q) => q.eq("reservationId", reservationId))
-        .collect();
-
-      const payment = payments.find(
-        (p) => p.stripePaymentIntentId === paymentIntentId
-      );
-
-      if (payment && !payment.capturedAt) {
-        await ctx.db.patch(payment._id, {
-          capturedAt: Date.now(),
-        });
-
-        // Check if all payments for this reservation are captured and update status
-        // This will also send card updates if status changes to fulfilled
-        await ctx.runMutation(internal.reservations.checkAndUpdateFulfilledStatus, {
-          reservationId,
-        });
+    const now = Date.now();
+    let updated = false;
+    for (const p of payments) {
+      if (p.stripePaymentIntentId === paymentIntentId && !p.capturedAt) {
+        await ctx.db.patch(p._id, { capturedAt: now });
+        updated = true;
       }
+    }
 
+    if (updated) {
+      await ctx.runMutation(internal.reservations.checkAndUpdateFulfilledStatus, {
+        reservationId,
+      });
+    }
+
+    return { success: true };
+  },
+});
+
+/** Stripe capture + DB update (must be an action — uses Stripe Node SDK). */
+export const capturePaymentIntent = internalAction({
+  args: {
+    paymentIntentId: v.string(),
+    reservationId: v.id("reservations"),
+  },
+  handler: async (ctx, { paymentIntentId, reservationId }) => {
+    try {
+      const paymentIntent = await stripe.paymentIntents.capture(paymentIntentId);
+      await ctx.runMutation(internal.stripe.applyPaymentCaptureDb, {
+        paymentIntentId,
+        reservationId,
+      });
       return {
         success: true,
         amount: paymentIntent.amount / 100,
@@ -1192,31 +1007,16 @@ export const createConnectAccountWithDetails = action({
       routingNumber,
     } = args;
 
-    // Debug log to verify values are received
-    console.log("Received external account parameters:", {
-      hasIBAN: !!IBAN,
-      IBAN: IBAN ? IBAN.substring(0, 4) + "..." : "NOT PROVIDED",
-      IBANLength: IBAN?.length || 0,
-      IBANTrimmed: IBAN?.trim() || "EMPTY",
-      currency: currency || "not provided",
-      bankCountry: bankCountry || "not provided",
-      externalAccountToken: externalAccountToken ? "PROVIDED" : "NOT PROVIDED",
-    });
-
     if (!organisationId || !country || !businessType || !email) {
       throw new Error("Missing required fields");
     }
 
+    const { organisation } = await requireOrganiserOfOrganisation(
+      ctx,
+      organisationId
+    );
+
     try {
-      // Get organisation
-      const organisation = await ctx.runQuery(api.organisation.getById, {
-        organisationId,
-      });
-
-      if (!organisation) {
-        throw new Error("Organisation not found");
-      }
-
       // Check if account already exists
       if (organisation.stripeAccountId) {
         return {
@@ -1397,11 +1197,7 @@ export const createConnectAccountWithDetails = action({
       const externalAccountCountry = (bankCountry && bankCountry.trim()) || "HR";
       
       if (externalAccountToken) {
-        // Use token if provided (from Stripe.js)
         accountParams.external_account = externalAccountToken;
-        console.log("Adding external account token to account creation:", {
-          token: externalAccountToken.substring(0, 10) + "...",
-        });
       } else if (IBAN && IBAN.trim()) {
         // Use IBAN details if token is not available
         const cleanedIBAN = IBAN.replace(/\s/g, "").toUpperCase();
@@ -1424,13 +1220,8 @@ export const createConnectAccountWithDetails = action({
             accountParams.external_account.routing_number = routingNumber.trim();
           }
           
-          console.log("Adding external account (IBAN) to account creation:", {
-            IBAN: cleanedIBAN.substring(0, 4) + "..." + cleanedIBAN.substring(cleanedIBAN.length - 4),
-            currency: externalAccountCurrency,
-            country: externalAccountCountry,
-          });
         } else {
-          console.warn("Invalid IBAN format, skipping external account in account creation:", cleanedIBAN);
+          console.warn("Invalid IBAN format, skipping external account in account creation");
         }
       }
 
@@ -1475,8 +1266,7 @@ export const createConnectAccountWithDetails = action({
         }
       }
 
-      // Update organisation with account ID
-      await ctx.runMutation(api.organisation.updateStripeAccount, {
+      await ctx.runMutation(internal.organisation.updateStripeAccountInternal, {
         organisationId,
         stripeAccountId: account.id,
       });
@@ -1798,14 +1588,10 @@ export const createConnectAccountLink = action({
       throw new Error("Unauthorized");
     }
 
-    // Get organisation
-    const organisation = await ctx.runQuery(api.organisation.getById, {
-      organisationId,
-    });
-
-    if (!organisation) {
-      throw new Error("Organisation not found");
-    }
+    const { organisation } = await requireOrganiserOfOrganisation(
+      ctx,
+      organisationId
+    );
 
     // Validate email
     if (
@@ -1867,8 +1653,7 @@ export const createConnectAccountLink = action({
 
         accountId = account.id;
 
-        // Update organisation with account ID
-        await ctx.runMutation(api.organisation.updateStripeAccount, {
+        await ctx.runMutation(internal.organisation.updateStripeAccountInternal, {
           organisationId,
           stripeAccountId: accountId,
         });
@@ -1964,14 +1749,10 @@ export const updateStripeAccountFromOrganisation = action({
       throw new Error("Unauthorized");
     }
 
-    // Get organisation
-    const organisation = await ctx.runQuery(api.organisation.getById, {
-      organisationId,
-    });
-
-    if (!organisation) {
-      throw new Error("Organisation not found");
-    }
+    const { organisation } = await requireOrganiserOfOrganisation(
+      ctx,
+      organisationId
+    );
 
     const accountId = organisation.stripeAccountId;
 
@@ -2155,14 +1936,10 @@ export const getStripeAccountStatus = action({
       throw new Error("Unauthorized");
     }
 
-    // Get organisation
-    const organisation = await ctx.runQuery(api.organisation.getById, {
-      organisationId,
-    });
-
-    if (!organisation) {
-      throw new Error("Organisation not found");
-    }
+    const { organisation } = await requireOrganiserOfOrganisation(
+      ctx,
+      organisationId
+    );
 
     const accountId: string | undefined = organisation.stripeAccountId;
 
@@ -2287,10 +2064,8 @@ export const getStripePaymentIntentsForOrganiser = action({
       return [];
     }
 
-    // Find organisation(s) where user is an organiser
-    const allOrganisations = await ctx.runQuery(api.organisation.getAll);
-    const userOrganisations = allOrganisations.filter((org) =>
-      org.organisersIDs.includes(currentUser._id)
+    const userOrganisations = await ctx.runQuery(
+      api.organisation.getMyOrganisationsAsOrganiser
     );
 
     if (userOrganisations.length === 0) {
@@ -2310,27 +2085,31 @@ export const getStripePaymentIntentsForOrganiser = action({
     }
 
     // Get all reservations for these activities
-    const allReservations = await ctx.runQuery(api.reservations.getReservationsForOrganiser);
-    const organiserReservations = allReservations.filter((r) => !r.cancelledAt);
-    
+    const allReservations = await ctx.runQuery(
+      api.reservations.getReservationsForOrganiser
+    );
+    const organiserReservations = allReservations.filter(
+      (r: Doc<"reservations">) => !r.cancelledAt
+    );
+
     if (organiserReservations.length === 0) {
       return [];
     }
 
-    const reservationIds = organiserReservations.map((r) => r._id);
+    const reservationIds = organiserReservations.map((r: Doc<"reservations">) => r._id);
 
     // Get all payment records for these reservations
     // We need to get payments for each reservation
     const allPayments: Array<{
       reservationId: Id<"reservations">;
       userId: Id<"users">;
+      personsPaidFor: number;
       stripePaymentIntentId?: string;
       capturedAt?: number;
       refundedAt?: number;
       amount: number;
     }> = [];
-    
-    // Get payments for each reservation
+
     for (const reservationId of reservationIds) {
       const payments = await ctx.runQuery(api.reservations.getReservationPayments, {
         reservationId,
@@ -2340,6 +2119,7 @@ export const getStripePaymentIntentsForOrganiser = action({
           allPayments.push({
             reservationId,
             userId: payment.userId,
+            personsPaidFor: Number(payment.personsPaidFor),
             stripePaymentIntentId: payment.stripePaymentIntentId,
             capturedAt: payment.capturedAt,
             refundedAt: payment.refundedAt,
@@ -2348,10 +2128,9 @@ export const getStripePaymentIntentsForOrganiser = action({
         }
       }
     }
-    
+
     const relevantPayments = allPayments;
 
-    // Get unique payment intent IDs
     const paymentIntentIds: string[] = Array.from(
       new Set(
         relevantPayments
@@ -2364,290 +2143,130 @@ export const getStripePaymentIntentsForOrganiser = action({
       return [];
     }
 
-    // Group payments by reservation and team to identify consolidation needs
-    const paymentsByReservationAndTeam = new Map<
-      string, // key: `${reservationId}_${teamId}`
-      {
-        reservationId: Id<"reservations">;
-        teamId: Id<"teams"> | null;
-        paymentIntentIds: Set<string>;
-      }
-    >();
-
-    // First pass: group all payments by reservation and team to identify which need consolidation
-    for (const payment of relevantPayments) {
-      // Get reservation to find teams
-      const reservation = organiserReservations.find(
-        (r) => r._id === payment.reservationId
-      );
-      if (!reservation) continue;
-
-      // Get teams for this reservation
-      const reservationTeams = await Promise.all(
-        reservation.teamIds.map((tid: Id<"teams">) =>
-          ctx.runQuery(api.teams.getTeamById, { teamId: tid })
-        )
-      );
-      const validTeams = reservationTeams.filter(
-        (t): t is NonNullable<typeof t> => t !== null
-      );
-
-      // Find which team this payment belongs to
-      let paymentTeamId: Id<"teams"> | null = null;
-      for (const team of validTeams) {
-        if (team.teammates.includes(payment.userId)) {
-          paymentTeamId = team._id;
-          break;
-        }
-      }
-
-      // If we can't determine team, use first team as fallback
-      if (!paymentTeamId && validTeams.length > 0) {
-        paymentTeamId = validTeams[0]._id;
-      }
-
-      const key = paymentTeamId
-        ? `${payment.reservationId}_${paymentTeamId}`
-        : `${payment.reservationId}_unknown`;
-
-      const existing = paymentsByReservationAndTeam.get(key);
-      if (existing) {
-        if (payment.stripePaymentIntentId) {
-          existing.paymentIntentIds.add(payment.stripePaymentIntentId);
-        }
-      } else {
-        paymentsByReservationAndTeam.set(key, {
-          reservationId: payment.reservationId,
-          teamId: paymentTeamId,
-          paymentIntentIds: new Set(
-            payment.stripePaymentIntentId ? [payment.stripePaymentIntentId] : []
-          ),
-        });
-      }
-    }
-
-    // Consolidate payment intents where multiple exist for same reservation/team
-    const consolidatedIntentIds = new Map<string, string>(); // old -> new
-    for (const [
-      key,
-      { reservationId, teamId, paymentIntentIds },
-    ] of paymentsByReservationAndTeam) {
-      if (paymentIntentIds.size > 1) {
-        // Multiple payment intents for this reservation/team - consolidate them
-        try {
-          const result: {
-            success: boolean;
-            paymentIntentId: string | null;
-            message?: string;
-            amount?: number;
-            consolidatedCount?: number;
-          } = await ctx.runAction(api.stripe.consolidatePaymentIntents, {
-            reservationId,
-            teamId: teamId || undefined,
-          });
-          if (result.success && result.paymentIntentId) {
-            // Map all old intent IDs to the new consolidated one
-            for (const oldIntentId of paymentIntentIds) {
-              if (oldIntentId !== result.paymentIntentId) {
-                consolidatedIntentIds.set(oldIntentId, result.paymentIntentId);
-              }
-            }
-            // Update relevantPayments to use consolidated intent ID
-            for (const payment of relevantPayments) {
-              if (
-                payment.reservationId === reservationId &&
-                payment.stripePaymentIntentId &&
-                consolidatedIntentIds.has(payment.stripePaymentIntentId)
-              ) {
-                payment.stripePaymentIntentId = consolidatedIntentIds.get(
-                  payment.stripePaymentIntentId
-                )!;
-              }
-            }
-          }
-        } catch (error) {
-          console.error(
-            `Error consolidating payment intents for ${key}:`,
-            error
-          );
-          // Continue even if consolidation fails
-        }
-      }
-    }
-
-    // Update payment intent IDs list to reflect consolidations
-    const finalPaymentIntentIds = Array.from(
-      new Set(
-        relevantPayments
-          .map((p) => p.stripePaymentIntentId)
-          .filter((id): id is string => !!id)
-      )
-    );
-
-    if (finalPaymentIntentIds.length === 0) {
-      return [];
-    }
-
-    // Retrieve payment intents from Stripe API
     const paymentIntentsData = await Promise.allSettled(
-      finalPaymentIntentIds.map(async (paymentIntentId: string) => {
+      paymentIntentIds.map(async (paymentIntentId: string) => {
         try {
-          const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-          
-          // Extract teamId from metadata (legacy payment intents might not have it)
-          const teamIdFromMetadata = paymentIntent.metadata?.teamId as Id<"teams"> | undefined;
-          
-          // Find the payment record(s) for this payment intent
+          const paymentIntent =
+            await stripe.paymentIntents.retrieve(paymentIntentId);
+
+          const teamIdFromMetadata = paymentIntent.metadata?.teamId as
+            | Id<"teams">
+            | undefined;
+
           const paymentRecords = relevantPayments.filter(
-            (p: { stripePaymentIntentId?: string }) => p.stripePaymentIntentId === paymentIntentId
+            (p) => p.stripePaymentIntentId === paymentIntentId
           );
 
           if (paymentRecords.length === 0) {
             return null;
           }
 
-          // Group by (reservation, team) - one payment intent per team per reservation
-          // If teamId is in metadata, use it; otherwise try to infer from payments
-          const paymentByReservationAndTeam = new Map<
-            string, // key: `${reservationId}_${teamId}`
-            {
-              reservationId: Id<"reservations">;
-              teamId: Id<"teams"> | null;
-              payments: Array<{
-                reservationId: Id<"reservations">;
-                stripePaymentIntentId?: string;
-                capturedAt?: number;
-                refundedAt?: number;
-                amount: number;
-              }>;
-            }
-          >();
+          const pr = paymentRecords[0];
+          const reservation = organiserReservations.find(
+            (r: Doc<"reservations">) => r._id === pr.reservationId
+          );
+          if (!reservation) {
+            return null;
+          }
 
-          for (const payment of paymentRecords) {
-            // Use teamId from metadata if available, otherwise we'll need to infer it
-            const teamId = teamIdFromMetadata || null;
-            const key = teamId 
-              ? `${payment.reservationId}_${teamId}`
-              : `${payment.reservationId}_unknown`;
-            
-            const existing = paymentByReservationAndTeam.get(key);
-            if (existing) {
-              existing.payments.push({
-                reservationId: payment.reservationId,
-                stripePaymentIntentId: payment.stripePaymentIntentId,
-                capturedAt: payment.capturedAt,
-                refundedAt: payment.refundedAt,
-                amount: payment.amount,
-              });
-            } else {
-              paymentByReservationAndTeam.set(key, {
-                reservationId: payment.reservationId,
-                teamId,
-                payments: [{
-                  reservationId: payment.reservationId,
-                  stripePaymentIntentId: payment.stripePaymentIntentId,
-                  capturedAt: payment.capturedAt,
-                  refundedAt: payment.refundedAt,
-                  amount: payment.amount,
-                }],
-              });
+          const reservationTeams = await Promise.all(
+            reservation.teamIds.map((tid: Id<"teams">) =>
+              ctx.runQuery(api.teams.getTeamById, { teamId: tid })
+            )
+          );
+          const validTeams = reservationTeams.filter(
+            (t: Doc<"teams"> | null): t is Doc<"teams"> => t !== null
+          );
+
+          let finalTeamId: Id<"teams"> | null = teamIdFromMetadata ?? null;
+          if (!finalTeamId) {
+            for (const team of validTeams) {
+              if (team.teammates.includes(pr.userId)) {
+                finalTeamId = team._id;
+                break;
+              }
+            }
+          }
+          if (!finalTeamId && validTeams.length > 0) {
+            finalTeamId = validTeams[0]._id;
+          }
+
+          let teamName = "Unknown Team";
+          let teamMemberIds = new Set<Id<"users">>();
+          if (finalTeamId) {
+            const team = await ctx.runQuery(api.teams.getTeamById, {
+              teamId: finalTeamId,
+            });
+            if (team) {
+              teamName = team.teamName;
+              teamMemberIds = new Set(team.teammates);
             }
           }
 
-          // Process each (reservation, team) combination
-          const results = [];
-          for (const [, { reservationId, teamId, payments }] of paymentByReservationAndTeam) {
-            // Find reservation details
-            const reservation = organiserReservations.find(
-              (r) => r._id === reservationId
-            );
-            if (!reservation) continue;
+          const activity = await ctx.runQuery(api.activity.getActivityById, {
+            activityId: reservation.activityId,
+          });
 
-            // If teamId wasn't in metadata, try to infer it from reservation teams
-            let finalTeamId: Id<"teams"> | null = teamId;
-            if (!finalTeamId) {
-              // Get reservation teams and try to match based on payment users
-              // For now, we'll use the first team if we can't determine
-              const reservationTeams = await Promise.all(
-                reservation.teamIds.map((tid: Id<"teams">) =>
-                  ctx.runQuery(api.teams.getTeamById, { teamId: tid })
-                )
-              );
-              const validTeams = reservationTeams.filter(
-                (t): t is NonNullable<typeof t> => t !== null
-              );
-              // Use first team as fallback (this is a legacy data case)
-              finalTeamId = validTeams.length > 0 ? validTeams[0]._id : null;
-            }
+          const teamCollectedAmount = relevantPayments
+            .filter(
+              (p) =>
+                p.reservationId === pr.reservationId &&
+                !p.refundedAt &&
+                teamMemberIds.has(p.userId)
+            )
+            .reduce((sum, p) => sum + p.amount, 0);
 
-            // Get team information
-            let teamName = "Unknown Team";
-            if (finalTeamId) {
-              const team = await ctx.runQuery(api.teams.getTeamById, {
-                teamId: finalTeamId,
-              });
-              if (team) {
-                teamName = team.teamName;
-              }
-            }
-
-            // Get activity for pricing
-            const activity = await ctx.runQuery(api.activity.getActivityById, {
-              activityId: reservation.activityId,
-            });
-
-            // Calculate team-level collected amount (sum of all payments from this team for this reservation)
-            const teamPayments = payments.filter((p) => !p.refundedAt);
-            const teamCollectedAmount = teamPayments.reduce(
-              (sum, p) => sum + p.amount,
-              0
-            );
-
-            // Calculate total reservation amount and remaining
-            const totalAmount = activity ? activity.price * Number(reservation.userCount) : 0;
-            const allReservationPayments = allPayments.filter(
-              (p) => p.reservationId === reservationId && !p.refundedAt
-            );
-            const totalCollectedAmount = allReservationPayments.reduce(
-              (sum, p) => sum + p.amount,
-              0
-            );
-            // If reservation is fulfilled, remaining should be 0
-            const remainingAmount = reservation.paymentStatus === "fulfilled"
+          const totalAmount = activity
+            ? activity.price * Number(reservation.userCount)
+            : 0;
+          const allReservationPayments = relevantPayments.filter(
+            (p) => p.reservationId === pr.reservationId && !p.refundedAt
+          );
+          const totalCollectedAmount = allReservationPayments.reduce(
+            (sum, p) => sum + p.amount,
+            0
+          );
+          const remainingAmount =
+            reservation.paymentStatus === "fulfilled"
               ? 0
               : Math.max(0, totalAmount - totalCollectedAmount);
 
-            // Determine display status
-            const paymentRecord = payments[0];
-            const displayStatus = mapStripeStatusToDisplayStatus(
-              paymentIntent.status,
-              paymentRecord.capturedAt,
-              paymentRecord.refundedAt
-            );
+          const payer = await ctx.runQuery(api.users.getUserById, {
+            userId: pr.userId,
+          });
+          const payerName = payer
+            ? `${payer.name} ${payer.lastname}`.trim()
+            : "Teammate";
 
-            results.push({
-              paymentIntentId: paymentIntent.id,
-              reservationId,
-              teamId: finalTeamId,
-              teamName,
-              activityName: reservation.activity?.activityName || "Unknown Activity",
-              activityAddress: reservation.activity?.address || "",
-              date: reservation.date,
-              time: reservation.time,
-              status: displayStatus,
-              stripeStatus: paymentIntent.status,
-              amount: paymentIntent.amount / 100, // Convert from cents (this is the team's payment intent amount)
-              collectedAmount: teamCollectedAmount, // Team's collected amount (saldo)
-              remainingAmount, // Reservation-level remaining
-              currency: paymentIntent.currency.toUpperCase(),
-              createdAt: paymentIntent.created * 1000, // Convert to milliseconds
-              capturedAt: paymentRecord.capturedAt,
-              refundedAt: paymentRecord.refundedAt,
-              stripeDashboardUrl: getStripeDashboardUrl(paymentIntent.id),
-            });
-          }
+          const displayStatus = mapStripeStatusToDisplayStatus(
+            paymentIntent.status,
+            pr.capturedAt,
+            pr.refundedAt
+          );
 
-          return results;
+          return {
+            paymentIntentId: paymentIntent.id,
+            reservationId: pr.reservationId,
+            teamId: finalTeamId,
+            teamName,
+            payerName,
+            personsPaidFor: pr.personsPaidFor,
+            activityName:
+              reservation.activity?.activityName || "Unknown Activity",
+            activityAddress: reservation.activity?.address || "",
+            date: reservation.date,
+            time: reservation.time,
+            status: displayStatus,
+            stripeStatus: paymentIntent.status,
+            amount: paymentIntent.amount / 100,
+            collectedAmount: teamCollectedAmount,
+            remainingAmount,
+            currency: paymentIntent.currency.toUpperCase(),
+            createdAt: paymentIntent.created * 1000,
+            capturedAt: pr.capturedAt,
+            refundedAt: pr.refundedAt,
+            stripeDashboardUrl: getStripeDashboardUrl(paymentIntent.id),
+          };
         } catch (error) {
           console.error(
             `Error retrieving payment intent ${paymentIntentId}:`,
@@ -2658,12 +2277,13 @@ export const getStripePaymentIntentsForOrganiser = action({
       })
     );
 
-    // Flatten results and filter out nulls
     const allResults: Array<{
       paymentIntentId: string;
       reservationId: Id<"reservations">;
       teamId: Id<"teams"> | null;
       teamName: string;
+      payerName: string;
+      personsPaidFor: number;
       activityName: string;
       activityAddress: string;
       date: string;
@@ -2681,12 +2301,12 @@ export const getStripePaymentIntentsForOrganiser = action({
     }> = [];
 
     for (const result of paymentIntentsData) {
-      if (result.status === "fulfilled" && result.value) {
-        if (Array.isArray(result.value)) {
-          allResults.push(...result.value);
-        } else if (result.value !== null) {
-          allResults.push(result.value);
-        }
+      if (
+        result.status === "fulfilled" &&
+        result.value !== null &&
+        result.value !== undefined
+      ) {
+        allResults.push(result.value);
       }
     }
 

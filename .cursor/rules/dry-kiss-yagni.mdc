@@ -1,0 +1,127 @@
+---
+description: Enforce DRY, KISS, and YAGNI principles across all code in this project
+globs: **/*
+alwaysApply: true
+---
+
+# DRY · KISS · YAGNI — Core Coding Principles
+
+These three principles apply to **every file, every language, every pull request**. They are not suggestions — treat violations as code smells that block merge.
+
+---
+
+## DRY — Don't Repeat Yourself
+
+> *"Every piece of knowledge must have a single, unambiguous, authoritative representation within a system."*
+
+### Rules
+- If you write the same logic **twice**, extract it. If you write it a **third** time, it's a bug.
+- Extract repeated code into:
+  - **functions / methods** for behaviour
+  - **constants / enums** for values
+  - **types / interfaces** for data shapes
+  - **components / templates** for UI patterns
+- Shared utilities live in a dedicated `utils/` or `lib/` directory, not scattered in-place
+- Configuration (URLs, thresholds, magic numbers) lives in **one place** and is referenced everywhere else
+- Documentation duplication is as harmful as code duplication — a comment that restates what the code does is noise; a comment that explains *why* adds value
+
+### Signals You Are Violating DRY
+- Copy-pasting a code block and changing one variable
+- The same validation logic in multiple files
+- A magic number (`42`, `"admin"`, `3600`) appearing in more than one place
+- Parallel structures that must always change together
+
+### Caveat — Accidental DRY
+Not all similarity is duplication. Two functions that look alike but represent **different domain concepts** should stay separate — premature unification creates wrong abstractions. Ask: *"Would these always change for the same reason?"* If no, keep them apart.
+
+---
+
+## KISS — Keep It Simple, Stupid
+
+> *"Simplicity is the ultimate sophistication. The best code is the code that doesn't need to be explained."*
+
+### Rules
+- Choose the **simplest solution that correctly solves the problem**
+- Prefer **readable over clever** — the next developer is you in six months
+- One function does one thing; one class has one responsibility
+- Avoid:
+  - Deep nesting (≥ 3 levels is a warning sign — use guard clauses or extraction)
+  - Long functions (rule of thumb: fits on one screen without scrolling)
+  - Complex boolean expressions — extract them into a named predicate:
+    ```ts
+    // ❌ Hard to parse
+    if (user.role === 'admin' && !user.suspended && (user.verified || user.legacyAccount)) { ... }
+
+    // ✅ Self-documenting
+    const canAccess = user.role === 'admin' && !user.suspended && isVerifiedUser(user);
+    if (canAccess) { ... }
+    ```
+  - Unnecessary abstraction layers that add indirection without adding clarity
+  - Over-engineering for hypothetical future requirements
+
+### Signals You Are Violating KISS
+- A new team member cannot understand a function in under 2 minutes
+- You need a diagram to explain a single function's control flow
+- A problem that has a 5-line solution has a 50-line implementation
+- Code requires extensive inline comments to be understood (rewrite it instead)
+
+### Simplicity Checklist (before committing)
+- [ ] Could a junior developer follow this logic without asking questions?
+- [ ] Is every abstraction layer earning its keep?
+- [ ] Is the function/method name self-explanatory without reading the body?
+- [ ] Are there any nested ternaries, chained methods, or magic expressions that could be named?
+
+---
+
+## YAGNI — You Aren't Gonna Need It
+
+> *"Always implement things when you actually need them, never when you just foresee that you might need them."*
+
+### Rules
+- **Do not build features or abstractions that are not required right now**
+- No "just in case" parameters, config flags, or extension points
+- No generic frameworks built around a single use case
+- No commented-out code "we might need later" — use version control for history
+- No `TODO: add support for X someday` code paths that don't do anything yet
+- Infrastructure (caching, queuing, microservices) should be introduced when the measured need arises, not speculatively
+
+### What to Build vs. What to Skip
+
+| ✅ Build it | ❌ Skip it |
+|------------|-----------|
+| Functionality in the current sprint | Functionality "we'll probably need" |
+| Abstractions with ≥ 2 real use cases | Abstractions for 1 hypothetical use case |
+| Config values that change between environments | Config flags for features not yet built |
+| Error handling for known failure modes | Error handling for impossible scenarios |
+
+### Signals You Are Violating YAGNI
+- A function has a parameter that is never passed anything other than its default
+- A class hierarchy exists for one concrete implementation
+- A feature flag that has been `false` for more than one release cycle
+- "Flexible" data structures designed for requirements that were never confirmed
+- Tests for code paths that cannot be reached by current production logic
+
+---
+
+## How the Three Principles Work Together
+
+| Scenario | Principle | Action |
+|----------|-----------|--------|
+| Same logic copy-pasted | DRY | Extract into a shared function |
+| Clever one-liner nobody can read | KISS | Rewrite verbosely with a clear name |
+| Generic plugin system for one use case | YAGNI | Delete the system, inline the logic |
+| Abstraction with one implementation | YAGNI + KISS | Collapse into direct code |
+| Magic number in three places | DRY | Extract to a named constant |
+| 8-level deep class hierarchy | KISS + OOP | Flatten, use composition |
+
+---
+
+## Quick Self-Review Checklist
+
+Before every commit, ask yourself:
+
+- [ ] **DRY**: Is any logic, value, or structure defined more than once?
+- [ ] **KISS**: Would a colleague understand this without explanation?
+- [ ] **YAGNI**: Does every line of code serve a current, confirmed requirement?
+
+If any answer is "no", fix it before pushing.

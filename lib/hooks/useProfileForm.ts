@@ -56,30 +56,34 @@ export function useProfileForm({ user, isEditing }: UseProfileFormProps) {
   // Initialize form data from user
   useEffect(() => {
     if (user !== undefined && user !== null) {
-      setFormData({
-        avatar: user.avatar || "https://via.placeholder.com/128",
-        name: user.name || "",
-        lastname: user.lastname || "",
-        username: user.username || "",
-        email: user.email || "",
-        description: user.description || "",
-        contact: user.contact || "",
-        exp: Number(user.totalExp || 0),
-        friends: user.friends || [],
+      queueMicrotask(() => {
+        setFormData({
+          avatar: user.avatar || "https://via.placeholder.com/128",
+          name: user.name || "",
+          lastname: user.lastname || "",
+          username: user.username || "",
+          email: user.email || "",
+          description: user.description || "",
+          contact: user.contact || "",
+          exp: Number(user.totalExp || 0),
+          friends: user.friends || [],
+        });
       });
     }
   }, [user]);
 
   // Check username availability
   useEffect(() => {
-    if (checkUsernameExists === true) {
-      setUsernameError("This username is already taken");
-    } else if (
-      checkUsernameExists === false &&
-      formData.username !== user?.username
-    ) {
-      setUsernameError("");
-    }
+    queueMicrotask(() => {
+      if (checkUsernameExists === true) {
+        setUsernameError("This username is already taken");
+      } else if (
+        checkUsernameExists === false &&
+        formData.username !== user?.username
+      ) {
+        setUsernameError("");
+      }
+    });
   }, [checkUsernameExists, formData.username, user?.username]);
 
   const validateField = (name: string, value: string) => {
