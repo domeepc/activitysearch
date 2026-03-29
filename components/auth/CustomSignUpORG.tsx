@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import {
-  Card,
   CardContent,
   CardDescription,
   CardFooter,
@@ -16,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { EmailVerificationDialog } from "@/components/auth/EmailVerificationDialog";
+import { AuthFormShell, authFormStyles } from "@/components/auth/AuthFormShell";
 import { Stepper } from "@/components/ui/stepper";
 import { api } from "@/convex/_generated/api";
 import { validateEmail, validateIBAN, validateContact, validateURL } from "@/lib/validation";
@@ -482,7 +482,7 @@ export default function CustomSignUpORG() {
                 disabled={loading}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name</Label>
                 <Input
@@ -712,7 +712,7 @@ export default function CustomSignUpORG() {
                 disabled={loading}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="city">City <span className="text-destructive">*</span></Label>
                 <Input
@@ -738,8 +738,8 @@ export default function CustomSignUpORG() {
                 />
               </div>
             </div>
-            <div className="space-y-2 flex gap-4 w-full justify-between">
-              <div className="space-y-2 w-full">
+            <div className="flex w-full flex-col gap-3 sm:flex-row sm:gap-4">
+              <div className="w-full space-y-2">
                 <Label htmlFor="postalCode">Postal Code <span className="text-destructive">*</span></Label>
                 <Input
                   id="postalCode"
@@ -751,7 +751,7 @@ export default function CustomSignUpORG() {
                   disabled={loading}
                 />
               </div>
-              <div className="space-y-2 w-full">
+              <div className="w-full space-y-2">
                 <Label htmlFor="country">Country <span className="text-destructive">*</span></Label>
                 <NativeSelect
                   id="country"
@@ -935,7 +935,7 @@ export default function CustomSignUpORG() {
                 </p>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="currency">Currency <span className="text-destructive">*</span></Label>
                 <Input
@@ -1043,7 +1043,7 @@ export default function CustomSignUpORG() {
                     <h4 className="font-medium text-sm text-muted-foreground uppercase">Personal Information</h4>
                     <span className="text-xs text-muted-foreground">Click to edit</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                     <div>
                       <span className="text-muted-foreground">Username:</span> {username}
                     </div>
@@ -1174,29 +1174,31 @@ export default function CustomSignUpORG() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-3 sm:p-4 py-4 sm:py-8">
-      <Card className="w-full max-w-[95vw] sm:max-w-2xl border-border border-2 shadow-xl sm:translate-y-[-30px]">
-        <CardHeader className="space-y-1 text-left border-b border-border p-4 sm:p-6">
-          <CardTitle className="text-2xl font-bold">
+    <AuthFormShell
+      containerClassName="items-start"
+      cardClassName="max-w-[95vw] sm:max-w-2xl sm:translate-y-[-20px]"
+    >
+      <CardHeader className={`${authFormStyles.header} space-y-1 border-b border-border text-left`}>
+        <CardTitle className={authFormStyles.title}>
             Create Organiser Account
-          </CardTitle>
-          <CardDescription className="text-sm text-foreground text-left">
+        </CardTitle>
+        <CardDescription className="text-left text-sm text-foreground">
             {currentPage === 0 && "Choose your preferred sign up method or fill in your personal information"}
             {currentPage === 1 && "Enter your organisation details"}
             {currentPage === 2 && "Provide business and payment information"}
             {currentPage === 3 && "Review your information before creating your account"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6">
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4 p-4 sm:space-y-6 sm:p-5">
           {/* Step description */}
           <div className="text-center">
-            <p className="text-xl text-foreground font-bold text-left">
+            <p className="text-left text-lg font-bold text-foreground sm:text-xl">
               {STEPS[currentPage].description}
             </p>
           </div>
 
           {/* Form content */}
-          <div className="min-h-[340px] sm:min-h-[400px] relative">
+          <div className="relative min-h-[300px] sm:min-h-[400px]">
             <div
               key={currentPage}
               className={cn(
@@ -1210,17 +1212,13 @@ export default function CustomSignUpORG() {
           </div>
 
           {/* Error message */}
-          {error && (
-            <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md p-3">
-              {error}
-            </div>
-          )}
+          {error && <div className={authFormStyles.error}>{error}</div>}
 
           {/* Clerk CAPTCHA */}
           <div id="clerk-captcha"></div>
 
           {/* Navigation buttons with stepper */}
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
             <Button
               type="button"
               variant="outline"
@@ -1257,16 +1255,15 @@ export default function CustomSignUpORG() {
               </Button>
             )}
           </div>
-        </CardContent>
-        <CardFooter className="flex flex-col space-y-2">
-          <div className="text-sm text-muted-foreground text-center">
+      </CardContent>
+      <CardFooter className={authFormStyles.footer}>
+        <div className="text-center text-sm text-muted-foreground">
             Already have an account?{" "}
             <Link href="/sign-in" className="text-primary hover:underline">
               Sign in
             </Link>
-          </div>
-        </CardFooter>
-      </Card>
-    </div>
+        </div>
+      </CardFooter>
+    </AuthFormShell>
   );
 }

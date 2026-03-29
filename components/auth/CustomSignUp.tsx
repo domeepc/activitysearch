@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Card,
   CardContent,
   CardDescription,
   CardFooter,
@@ -18,6 +17,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { OAuthButtons } from "@/components/auth/OAuthButtons";
 import { EmailVerificationDialog } from "@/components/auth/EmailVerificationDialog";
+import { AuthFormShell, authFormStyles } from "@/components/auth/AuthFormShell";
 import { extractErrorMessage } from "@/lib/errors";
 import { Eye, EyeOff } from "lucide-react";
 
@@ -131,17 +131,16 @@ export default function CustomSignUp() {
   }
 
   return (
-    <div className="flex h-screen items-center justify-center p-3 sm:p-4 overflow-hidden">
-      <Card className="w-full max-w-sm sm:max-w-md border-border border-2 shadow-xl">
-        <CardHeader className="space-y-1 p-4 sm:p-6">
-          <CardTitle className="text-2xl font-bold">
+    <AuthFormShell containerClassName="items-center">
+      <CardHeader className={authFormStyles.header}>
+        <CardTitle className={authFormStyles.title}>
             Create an account
-          </CardTitle>
-          <CardDescription>
+        </CardTitle>
+        <CardDescription className={authFormStyles.description}>
             Choose your preferred sign up method
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 p-4 sm:p-6">
+        </CardDescription>
+      </CardHeader>
+      <CardContent className={authFormStyles.content}>
           <OAuthButtons
             onGoogleClick={() => signUpWith("oauth_google")}
             onMicrosoftClick={() => signUpWith("oauth_microsoft")}
@@ -173,7 +172,7 @@ export default function CustomSignUp() {
                 disabled={loading}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name</Label>
                 <Input
@@ -268,30 +267,26 @@ export default function CustomSignUp() {
                 Must be at least 8 characters long
               </p>
             </div>
-            {error && <div className="text-sm text-destructive">{error}</div>}
+            {error && <div className={authFormStyles.error}>{error}</div>}
             <div id="clerk-captcha"></div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Creating account..." : "Create account"}
             </Button>
           </form>
-        </CardContent>
-        <CardFooter className="flex flex-col space-y-2 p-4 pt-0 sm:p-6 sm:pt-0">
-          <div className="text-sm text-muted-foreground text-center">
+      </CardContent>
+      <CardFooter className={authFormStyles.footer}>
+        <div className="text-center text-sm text-muted-foreground">
             Already have an account?{" "}
             <Link href="/sign-in" className="text-primary hover:underline">
               Sign in
             </Link>
-          </div>
-          <div className="text-sm text-center ">
-            <Link
-              href={"/sign-up/organisator-sign-up"}
-              className="text-blue-600 hover:underline"
-            >
-              Become an organisator
-            </Link>
-          </div>
-        </CardFooter>
-      </Card>
-    </div>
+        </div>
+        <div className="text-center text-sm">
+          <Link href={"/sign-up/organisator-sign-up"} className="text-primary hover:underline">
+            Become an organisator
+          </Link>
+        </div>
+      </CardFooter>
+    </AuthFormShell>
   );
 }

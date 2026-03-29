@@ -1,5 +1,4 @@
 import {
-  Card,
   CardContent,
   CardDescription,
   CardFooter,
@@ -8,6 +7,7 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { AuthFormShell, authFormStyles } from "@/components/auth/AuthFormShell";
 import {
   InputOTP,
   InputOTPGroup,
@@ -41,15 +41,16 @@ export function EmailVerificationDialog({
   resendCooldown = 0,
 }: EmailVerificationDialogProps) {
   return (
-    <div className="flex min-h-screen items-center justify-center p-3 sm:p-4">
-      <Card className="w-full max-w-sm sm:max-w-md">
-        <CardHeader className="space-y-1 p-4 sm:p-6">
-          <CardTitle className="text-2xl font-bold">
+    <AuthFormShell containerClassName="items-center">
+      <CardHeader className={authFormStyles.header}>
+        <CardTitle className={authFormStyles.title}>
             Verify your email
-          </CardTitle>
-          <CardDescription>We sent a code to {email}</CardDescription>
-        </CardHeader>
-        <CardContent className="p-4 sm:p-6">
+        </CardTitle>
+        <CardDescription className={authFormStyles.description}>
+          We sent a code to {email}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className={authFormStyles.content}>
           <form onSubmit={onVerify} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="code">Verification Code</Label>
@@ -66,14 +67,14 @@ export function EmailVerificationDialog({
                 </InputOTP>
               </div>
             </div>
-            {error && <div className="text-sm text-destructive">{error}</div>}
+            {error && <div className={authFormStyles.error}>{error}</div>}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Verifying..." : "Verify Email"}
             </Button>
           </form>
-        </CardContent>
-        <CardFooter className="flex flex-col space-y-2 p-4 pt-0 sm:p-6 sm:pt-0">
-          <div className="text-sm text-muted-foreground text-center">
+      </CardContent>
+      <CardFooter className={authFormStyles.footer}>
+        <div className="text-center text-sm text-muted-foreground">
             Didn&apos;t receive a code?{" "}
             <button
               onClick={onResend}
@@ -82,9 +83,8 @@ export function EmailVerificationDialog({
             >
               {resendCooldown > 0 ? `Resend (${resendCooldown}s)` : "Resend"}
             </button>
-          </div>
-        </CardFooter>
-      </Card>
-    </div>
+        </div>
+      </CardFooter>
+    </AuthFormShell>
   );
 }
