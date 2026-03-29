@@ -139,7 +139,10 @@ export function ReservationTable({ reservations }: ReservationTableProps) {
             const isCancelled = !!reservation.cancelledAt;
 
             return (
-              <Card key={reservation._id} className="overflow-hidden">
+              <Card
+                key={reservation._id}
+                className="overflow-hidden border border-border shadow-sm"
+              >
                 <CardContent className="p-4 space-y-3">
                   {/* Activity & Status */}
                   <div className="flex items-start justify-between gap-2">
@@ -233,7 +236,7 @@ export function ReservationTable({ reservations }: ReservationTableProps) {
         </div>
       ) : (
         // Desktop table view
-        <div className="rounded-md border overflow-x-auto">
+        <div className="rounded-md border border-border shadow-sm overflow-x-auto">
           <table className="w-full">
             <thead>
           <tr className="border-b bg-muted/50">
