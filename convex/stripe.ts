@@ -19,6 +19,7 @@ type ReservationPaymentWithUser = Doc<"reservationPayments"> & {
 };
 import { api, internal } from "./_generated/api";
 import Stripe from "stripe";
+import { STRIPE_SUPPORTED_COUNTRIES } from "../lib/countries";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
 if (!stripeSecretKey) {
@@ -29,6 +30,25 @@ const stripe = new Stripe(stripeSecretKey, {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   apiVersion: "2025-12-15.preview" as any,
 });
+
+const supportedCountryCodes = new Set(
+  STRIPE_SUPPORTED_COUNTRIES.map((country) => country.code)
+);
+
+function normalizeCountryCode(rawCountryCode: string): string {
+  const normalized = rawCountryCode.trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(normalized)) {
+    throw new Error(
+      "Invalid country code. Must be a 2-letter ISO country code."
+    );
+  }
+  if (!supportedCountryCodes.has(normalized)) {
+    throw new Error(
+      "Country is not currently supported for Stripe Connect in this application."
+    );
+  }
+  return normalized;
+}
 
 async function requireOrganiserOfOrganisation(
   ctx: ActionCtx,
@@ -1026,33 +1046,22 @@ export const createConnectAccountWithDetails = action({
         };
       }
 
-      // Validate country code (must be 2 letters)
-      if (!country || country.length !== 2) {
-        throw new Error(
-          "Invalid country code. Must be a 2-letter ISO country code."
-        );
-      }
-
-      // Prepare account creation parameters
-      // Country code must be uppercase for Stripe
-      // Always use Croatia (HR) as per requirements
-      const countryCode = "HR";
+      const countryCode = normalizeCountryCode(country);
 
       // Format phone number to E.164 format (required)
       if (!phone || !phone.trim()) {
         throw new Error("Phone number is required");
       }
 
-      // Remove all non-digit characters except +
-      const cleaned = phone.replace(/[^\d+]/g, "");
+      // Remove spaces and separators, preserve leading plus.
+      const cleaned = phone.replace(/[\s\-().]/g, "");
 
       let formattedPhone: string;
       // If it already starts with +, use it as is
       if (cleaned.startsWith("+")) {
         formattedPhone = cleaned;
       } else {
-        // If it doesn't start with +, add Croatia country code (+385)
-        formattedPhone = `+385${cleaned}`;
+        formattedPhone = `+${cleaned.replace(/[^\d]/g, "")}`;
       }
 
       // Basic E.164 validation: should start with + and have 7-15 digits after
@@ -1060,7 +1069,7 @@ export const createConnectAccountWithDetails = action({
       const digitsAfterPlus = formattedPhone.slice(1);
       if (!/^\d{7,15}$/.test(digitsAfterPlus)) {
         throw new Error(
-          "Phone number must be in E.164 format with 7-15 digits after the country code (e.g., +385123456789)."
+          "Phone number must be in E.164 format with 7-15 digits after the country code (e.g., +1234567890)."
         );
       }
 
@@ -1194,7 +1203,9 @@ export const createConnectAccountWithDetails = action({
       // Add external account (bank account) to account creation if token or IBAN is provided
       // This makes it the default external account for that currency
       const externalAccountCurrency = (currency && currency.trim()) || "EUR";
-      const externalAccountCountry = (bankCountry && bankCountry.trim()) || "HR";
+      const externalAccountCountry = normalizeCountryCode(
+        (bankCountry && bankCountry.trim()) || countryCode
+      );
       
       if (externalAccountToken) {
         accountParams.external_account = externalAccountToken;
@@ -1631,14 +1642,7 @@ export const createConnectAccountLink = action({
     // Create account if it doesn't exist
     if (!accountId) {
       // Country is required for account creation
-      const countryCode = country || "HR"; // Default to HR if not provided
-
-      // Validate country code (must be 2 letters)
-      if (!countryCode || countryCode.length !== 2) {
-        throw new Error(
-          "Country code is required and must be a 2-letter ISO country code (e.g., 'US', 'HR', 'GB'). Please provide a country parameter."
-        );
-      }
+      const countryCode = normalizeCountryCode(country || "HR");
 
       try {
         const account = await stripe.accounts.create({
@@ -1802,7 +1806,10 @@ export const updateStripeAccountFromOrganisation = action({
 
         if (owner) {
           // Parse address
-          const parsedAddress = parseAddressString(organisation.address, "HR");
+          const parsedAddress = parseAddressString(
+            organisation.address,
+            account.country || "HR"
+          );
 
           const ownerEmail = organisation.organisationEmail || (account.email && account.email !== null ? account.email : undefined);
           updateParams.individual = {
@@ -1813,7 +1820,10 @@ export const updateStripeAccountFromOrganisation = action({
           };
         } else {
           // If no owner found, still update address
-          const parsedAddress = parseAddressString(organisation.address, "HR");
+          const parsedAddress = parseAddressString(
+            organisation.address,
+            account.country || "HR"
+          );
           if (account.individual) {
             const noOwnerEmail = organisation.organisationEmail || (account.email && account.email !== null ? account.email : undefined);
             updateParams.individual = {
@@ -1824,7 +1834,10 @@ export const updateStripeAccountFromOrganisation = action({
         }
       } else {
         // If no owner found, still update address
-        const parsedAddress = parseAddressString(organisation.address, "HR");
+        const parsedAddress = parseAddressString(
+          organisation.address,
+          account.country || "HR"
+        );
         if (account.individual) {
           const individualEmail = organisation.organisationEmail || (account.email && account.email !== null ? account.email : undefined);
           updateParams.individual = {
@@ -1876,7 +1889,7 @@ export const updateStripeAccountFromOrganisation = action({
               await stripe.accounts.createExternalAccount(accountId, {
                 external_account: {
                   object: "bank_account",
-                  country: "HR",
+                  country: account.country || "HR",
                   currency: "eur",
                   account_number: cleanedIBAN,
                   account_holder_name: accountHolderName,

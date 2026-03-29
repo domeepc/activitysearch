@@ -21,6 +21,7 @@ import { api } from "@/convex/_generated/api";
 import { validateEmail, validateIBAN, validateContact, validateURL } from "@/lib/validation";
 import { extractErrorMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
+import { getCountryName, STRIPE_SUPPORTED_COUNTRIES } from "@/lib/countries";
 import { Eye, EyeOff, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
@@ -39,6 +40,15 @@ const STEPS = [
 
 // Initialize Stripe
 const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
+
+function formatIbanForDisplay(iban: string): string {
+  const cleaned = iban.replace(/\s/g, "").toUpperCase();
+  return cleaned.replace(/(.{4})/g, "$1 ").trim();
+}
+
+function formatPhoneForDisplay(phone: string): string {
+  return phone.replace(/\s+/g, "");
+}
 
 export default function CustomSignUpORG() {
   const { isLoaded, signUp, setActive } = useSignUp();
@@ -69,7 +79,8 @@ export default function CustomSignUpORG() {
   const [organisationName, setOrganisationName] = useState("");
   const [organisationDescription, setOrganisationDescription] = useState("");
   const [contact, setContact] = useState("");
-  const [country] = useState("HR"); // Always Croatia
+  const [country, setCountry] = useState("HR");
+  const [bankCountry, setBankCountry] = useState("HR");
   const [taxId] = useState("");
   // Additional Stripe required fields
   const [dateOfBirth, setDateOfBirth] = useState<Date | undefined>(undefined);
@@ -174,7 +185,9 @@ export default function CustomSignUpORG() {
     if (IBAN !== IBANConfirm) {
       return "IBAN and confirmation IBAN do not match";
     }
-    // Currency and bankCountry are automatically set, no validation needed
+    if (!bankCountry || bankCountry.trim().length === 0) {
+      return "Please select a bank account country";
+    }
     if (!industry || industry.trim() === "") {
       return "Please select your industry";
     }
@@ -285,8 +298,8 @@ export default function CustomSignUpORG() {
         await setActive({ session: completeSignUp.createdSessionId });
 
         // Wait for Clerk webhook to sync user to Convex
-        const maxRetries = 10;
-        const retryDelay = 500;
+        const maxRetries = 20;
+        const retryDelay = 750;
         let retryCount = 0;
         let orgCreated = false;
 
@@ -319,7 +332,7 @@ export default function CustomSignUpORG() {
 
                     // Create bank account token using Stripe.js
                     const tokenResult = await stripe.createToken("bank_account", {
-                      country: "HR", // Croatia
+                      country: bankCountry,
                       currency: "eur",
                       account_number: cleanedIBAN,
                       account_holder_name: `${firstName} ${lastName}`.trim(),
@@ -361,7 +374,7 @@ export default function CustomSignUpORG() {
                   IBAN: bankAccountToken ? undefined : IBAN, // Send IBAN only if no token
                   externalAccountToken: bankAccountToken, // Send token if created
                   currency: "EUR", // Always send EUR to Stripe
-                  bankCountry: "HR", // Always send HR (Croatia) to Stripe
+                  bankCountry,
                 });
               } catch (stripeError) {
                 console.error("Error creating Stripe account:", stripeError);
@@ -718,16 +731,23 @@ export default function CustomSignUpORG() {
                 />
               </div>
               <div className="space-y-2 w-full">
-                <Label htmlFor="country">Country</Label>
-                <Input
+                <Label htmlFor="country">Country <span className="text-destructive">*</span></Label>
+                <NativeSelect
                   id="country"
-                  type="text"
-                  value="Croatia (HR)"
-                  disabled
-                  className="bg-muted"
-                />
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  required
+                  disabled={loading}
+                >
+                  <NativeSelectOption value="">Select country</NativeSelectOption>
+                  {STRIPE_SUPPORTED_COUNTRIES.map((countryOption) => (
+                    <NativeSelectOption key={countryOption.code} value={countryOption.code}>
+                      {countryOption.name} ({countryOption.code})
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
                 <p className="text-xs text-muted-foreground">
-                  Country is set to Croatia
+                  Select the country where your organisation is registered
                 </p>
               </div>
             </div>
@@ -835,6 +855,11 @@ export default function CustomSignUpORG() {
                 </p>
               )}
             </div>
+            <div className="border-t border-border pt-4">
+              <p className="text-xs text-muted-foreground">
+                Banking details
+              </p>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="IBAN">IBAN <span className="text-destructive">*</span></Label>
               <Input
@@ -906,16 +931,22 @@ export default function CustomSignUpORG() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="bankCountry">Bank Account Country <span className="text-destructive">*</span></Label>
-                <Input
+                <NativeSelect
                   id="bankCountry"
-                  type="text"
-                  value="Croatia"
-                  readOnly
-                  disabled
-                  className="bg-muted cursor-not-allowed"
-                />
+                  value={bankCountry}
+                  onChange={(e) => setBankCountry(e.target.value)}
+                  required
+                  disabled={loading}
+                >
+                  <NativeSelectOption value="">Select bank account country</NativeSelectOption>
+                  {STRIPE_SUPPORTED_COUNTRIES.map((countryOption) => (
+                    <NativeSelectOption key={countryOption.code} value={countryOption.code}>
+                      {countryOption.name} ({countryOption.code})
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
                 <p className="text-xs text-muted-foreground">
-                  Bank country is automatically set to Croatia
+                  Select the country where your bank account is located
                 </p>
               </div>
             </div>
@@ -1066,7 +1097,7 @@ export default function CustomSignUpORG() {
                       <span className="text-muted-foreground">Postal Code:</span> {postalCode}
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Country:</span> {country}
+                      <span className="text-muted-foreground">Country:</span> {getCountryName(country)} ({country})
                     </div>
                   </div>
                 </div>
@@ -1098,16 +1129,16 @@ export default function CustomSignUpORG() {
                       <span className="text-muted-foreground">Date of Birth:</span> {dateOfBirth ? format(dateOfBirth, "PPP") : "Not provided"}
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Contact Number:</span> {contact}
+                      <span className="text-muted-foreground">Contact Number:</span> {formatPhoneForDisplay(contact)}
                     </div>
                     <div>
-                      <span className="text-muted-foreground">IBAN:</span> {IBAN}
+                      <span className="text-muted-foreground">IBAN:</span> {formatIbanForDisplay(IBAN)}
                     </div>
                     <div>
                       <span className="text-muted-foreground">Currency:</span> EUR - Euro
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Bank Country:</span> Croatia
+                      <span className="text-muted-foreground">Bank Country:</span> {getCountryName(bankCountry)} ({bankCountry})
                     </div>
                   </div>
                 </div>
