@@ -1,0 +1,233 @@
+---
+description: Best practices for designing and implementing REST APIs
+globs: **/routes/**, **/controllers/**, **/endpoints/**, **/*.controller.ts, **/*.router.ts
+alwaysApply: false
+---
+
+# REST API Design Best Practices
+
+## URL Design
+
+### Resources Are Nouns, Not Verbs
+```
+✅  GET    /users
+✅  GET    /users/42
+✅  POST   /users
+✅  PUT    /users/42
+✅  PATCH  /users/42
+✅  DELETE /users/42
+
+❌  GET    /getUsers
+❌  POST   /createUser
+❌  DELETE /deleteUser/42
+```
+
+### Plural Nouns for Collections
+```
+/users           not  /user
+/orders          not  /order
+/products/5/reviews   not  /product/5/review
+```
+
+### Nested Resources — Up to 2 Levels
+```
+/users/42/orders           ✅  (user's orders)
+/users/42/orders/7         ✅  (specific order)
+/users/42/orders/7/items/3 ❌  too deep — expose /order-items/3 instead
+```
+
+### Use Kebab-Case for Multi-Word Segments
+```
+/payment-methods    ✅
+/paymentMethods     ❌
+/payment_methods    ❌
+```
+
+---
+
+## HTTP Methods
+
+| Method | Usage | Idempotent | Safe |
+|--------|-------|-----------|------|
+| `GET` | Retrieve resource(s) | ✅ | ✅ |
+| `POST` | Create a new resource | ❌ | ❌ |
+| `PUT` | Replace a resource entirely | ✅ | ❌ |
+| `PATCH` | Partially update a resource | ❌ | ❌ |
+| `DELETE` | Remove a resource | ✅ | ❌ |
+
+- `GET` and `DELETE` have **no request body**
+- Use `POST` for actions that don't map cleanly to CRUD: `POST /orders/42/cancel`
+- `PUT` replaces the entire resource — missing fields are cleared; use `PATCH` for partial updates
+
+---
+
+## HTTP Status Codes
+
+Use the most specific and correct status code every time:
+
+### 2xx — Success
+| Code | When |
+|------|------|
+| `200 OK` | Successful GET, PUT, PATCH |
+| `201 Created` | Successful POST that creates a resource |
+| `204 No Content` | Successful DELETE or action with no response body |
+
+### 4xx — Client Errors
+| Code | When |
+|------|------|
+| `400 Bad Request` | Invalid input, validation failure |
+| `401 Unauthorized` | Missing or invalid authentication |
+| `403 Forbidden` | Authenticated but not authorised |
+| `404 Not Found` | Resource does not exist |
+| `409 Conflict` | State conflict (e.g. duplicate email) |
+| `422 Unprocessable Entity` | Syntactically valid but semantically invalid input |
+| `429 Too Many Requests` | Rate limit exceeded |
+
+### 5xx — Server Errors
+| Code | When |
+|------|------|
+| `500 Internal Server Error` | Unexpected server-side failure |
+| `503 Service Unavailable` | Temporarily overloaded or down |
+
+---
+
+## Request & Response Bodies
+
+### Consistent Response Envelope
+
+Use a **consistent structure** across all endpoints:
+
+```json
+// Success — single resource
+{
+  "data": { "id": 42, "email": "user@example.com" }
+}
+
+// Success — collection
+{
+  "data": [ ... ],
+  "meta": { "total": 100, "page": 1, "perPage": 20 }
+}
+
+// Error
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Validation failed",
+    "details": [
+      { "field": "email", "message": "Must be a valid email address" }
+    ]
+  }
+}
+```
+
+### Field Naming
+- Use **`camelCase`** for JSON field names
+- Use **ISO 8601** for all dates and timestamps: `"createdAt": "2024-03-15T10:30:00Z"`
+- Use **strings for monetary values** or a `{ amount, currency }` object — never raw floats
+- Use **`null`** for absent optional fields; omit fields only if they are always absent for that resource type
+
+---
+
+## Versioning
+
+- Version all public APIs from day one: `/api/v1/users`
+- Version in the **URL path** (simplest, most visible); use headers only for internal APIs
+- Never remove or break existing endpoints — deprecate first, then remove after a migration period
+- Announce deprecation via a `Deprecation` response header and documentation
+
+---
+
+## Filtering, Sorting & Pagination
+
+### Filtering
+```
+GET /products?category=electronics&inStock=true
+GET /orders?status=pending&createdAfter=2024-01-01
+```
+
+### Sorting
+```
+GET /users?sort=createdAt&order=desc
+GET /users?sort=-createdAt      # minus prefix for descending (alternative convention)
+```
+
+### Pagination — Cursor-Based (preferred for large datasets)
+```
+GET /users?cursor=eyJpZCI6NDJ9&limit=20
+
+Response:
+{
+  "data": [...],
+  "meta": {
+    "nextCursor": "eyJpZCI6NjJ9",
+    "hasMore": true
+  }
+}
+```
+
+### Pagination — Offset-Based (acceptable for small, stable datasets)
+```
+GET /users?page=2&perPage=20
+
+Response:
+{
+  "data": [...],
+  "meta": { "total": 100, "page": 2, "perPage": 20, "totalPages": 5 }
+}
+```
+
+---
+
+## Query Performance & Safety
+
+- Apply **sensible defaults and maximums** to all collection endpoints (`perPage` default 20, max 100)
+- Use **sparse fieldsets** when returning large resources: `GET /users?fields=id,email,name`
+- Avoid endpoints that return unbounded lists — always paginate
+- Cache `GET` responses where appropriate — set `Cache-Control` and `ETag` headers
+- Use **`If-None-Match`** / `ETag` for conditional requests to avoid unnecessary data transfer
+
+---
+
+## Security
+
+- Authenticate every non-public endpoint — use `Authorization: Bearer <token>`
+- Apply **rate limiting** to all endpoints; stricter limits on auth and write endpoints
+- Validate and sanitise all query parameters, not just request bodies
+- Set `Content-Type: application/json` on all responses; reject requests with unexpected content types
+- Never expose internal IDs that reveal implementation details — use UUIDs or opaque identifiers for public-facing IDs
+
+---
+
+## Documentation
+
+- Document every endpoint with **OpenAPI 3.x** (Swagger)
+- Every endpoint documents: method, path, parameters, request body schema, all response codes and schemas, auth requirements
+- Keep documentation **generated from code** (decorators, schemas) — not hand-maintained
+- Provide a **Postman collection** or interactive Swagger UI for consumers
+
+---
+
+## Idempotency
+
+- Make `PUT` and `DELETE` always idempotent — calling them multiple times has the same effect as calling once
+- For `POST` operations that must be idempotent (payment processing, email sending), support an **`Idempotency-Key`** header:
+  ```
+  POST /payments
+  Idempotency-Key: a6f4e2b1-...
+  ```
+  Store processed keys and return the cached response for duplicates
+
+---
+
+## Checklist — New Endpoint Review
+
+- [ ] Resource named as a noun, URL is plural, kebab-case
+- [ ] Correct HTTP method used
+- [ ] Correct status code returned for success and each error case
+- [ ] Response follows the standard envelope shape
+- [ ] Input validated and returns `400`/`422` with field-level errors on failure
+- [ ] Authentication and authorisation enforced
+- [ ] Rate limiting applied
+- [ ] Paginated if returns a collection
+- [ ] Documented in OpenAPI spec

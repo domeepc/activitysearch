@@ -3,6 +3,7 @@ import {
   query,
   MutationCtx,
   internalMutation,
+  internalQuery,
 } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUserOrThrow, getCurrentUser } from "./users";
@@ -2275,37 +2276,20 @@ export const checkAndFulfillReservations = internalMutation({
         (p) => p.stripePaymentIntentId && !p.capturedAt && !p.refundedAt
       );
 
-      // Capture each payment
-      let allCaptured = true;
       for (const payment of uncapturedPayments) {
         if (payment.stripePaymentIntentId) {
           try {
-            const result = await ctx.runMutation(
-              internal.stripe.capturePayment,
-              {
-                paymentIntentId: payment.stripePaymentIntentId,
-                reservationId: reservation._id,
-              }
-            );
-            if (!result.success) {
-              allCaptured = false;
-              console.error(
-                `Failed to capture payment ${payment.stripePaymentIntentId}`
-              );
-            }
+            await ctx.scheduler.runAfter(0, internal.stripe.capturePaymentIntent, {
+              paymentIntentId: payment.stripePaymentIntentId,
+              reservationId: reservation._id,
+            });
           } catch (error) {
-            console.error("Error capturing payment:", error);
-            allCaptured = false;
+            console.error("Error scheduling payment capture:", error);
           }
         }
       }
 
-      // Only mark as fulfilled if all payments were successfully captured
-      // or if there are no payments to capture (edge case)
-      // Note: capturePayment already updates status and sends card updates via checkAndUpdateFulfilledStatusHelper
-      // But we also update here as a fallback in case all payments were already captured
-      if (allCaptured || uncapturedPayments.length === 0) {
-        // Double-check status - capturePayment may have already updated it
+      if (uncapturedPayments.length === 0) {
         const updatedReservation = await ctx.db.get(reservation._id);
         if (updatedReservation && updatedReservation.paymentStatus !== "fulfilled") {
           await ctx.db.patch(reservation._id, {
@@ -2314,10 +2298,6 @@ export const checkAndFulfillReservations = internalMutation({
           await sendReservationCardUpdate(ctx, reservation._id);
           console.log(`Reservation ${reservation._id} marked as fulfilled`);
         }
-      } else {
-        console.warn(
-          `Reservation ${reservation._id} has some uncaptured payments, status not updated`
-        );
       }
     }
 
@@ -2351,11 +2331,17 @@ export const captureReservationPayments = mutation({
       throw new Error("Reservation not found");
     }
 
-    // Verify user is organiser
-    const allOrganisations = await ctx.db.query("organisations").collect();
-    const organisation = allOrganisations.find((org) =>
-      org.activityIDs.includes(reservation.activityId)
-    );
+    const activity = await ctx.db.get(reservation.activityId);
+    let organisation = activity?.organisationId
+      ? await ctx.db.get(activity.organisationId)
+      : null;
+    if (!organisation) {
+      const allOrganisations = await ctx.db.query("organisations").collect();
+      organisation =
+        allOrganisations.find((org) =>
+          org.activityIDs.includes(reservation.activityId)
+        ) ?? null;
+    }
 
     if (
       !organisation ||
@@ -2364,7 +2350,6 @@ export const captureReservationPayments = mutation({
       throw new Error("Only organisers can capture payments");
     }
 
-    // Get all uncaptured payments
     const payments = await ctx.db
       .query("reservationPayments")
       .withIndex("byReservation", (q) => q.eq("reservationId", reservationId))
@@ -2374,32 +2359,21 @@ export const captureReservationPayments = mutation({
       (p) => p.stripePaymentIntentId && !p.capturedAt && !p.refundedAt
     );
 
-    // Capture each payment using the stripe mutation
-    const captureResults: Array<
-      { success: boolean; amount: number; status: string } | { error: string }
-    > = [];
+    let scheduled = 0;
     for (const payment of uncapturedPayments) {
       if (payment.stripePaymentIntentId) {
-        try {
-          const result: { success: boolean; amount: number; status: string } =
-            await ctx.runMutation(internal.stripe.capturePayment, {
-              paymentIntentId: payment.stripePaymentIntentId,
-              reservationId,
-            });
-          captureResults.push(result);
-        } catch (error) {
-          console.error("Error capturing payment:", error);
-          captureResults.push({
-            error: error instanceof Error ? error.message : "Unknown error",
-          });
-        }
+        await ctx.scheduler.runAfter(0, internal.stripe.capturePaymentIntent, {
+          paymentIntentId: payment.stripePaymentIntentId,
+          reservationId,
+        });
+        scheduled += 1;
       }
     }
 
     return {
       success: true,
-      captured: captureResults.length,
-      results: captureResults,
+      captured: scheduled,
+      results: [],
     };
   },
 });
@@ -2622,29 +2596,38 @@ export const updatePaymentIntentIds = internalMutation({
   },
 });
 
+/** Used by internal Stripe actions (no signed-in user context). */
+export const getReservationActivityIdInternal = internalQuery({
+  args: { reservationId: v.id("reservations") },
+  handler: async (ctx, { reservationId }) => {
+    const reservation = await ctx.db.get(reservationId);
+    if (!reservation) {
+      return null;
+    }
+    return { activityId: reservation.activityId };
+  },
+});
+
 export const getReservationCardData = query({
   args: {
     reservationId: v.id("reservations"),
   },
   handler: async (ctx, { reservationId }) => {
     const currentUser = await getCurrentUser(ctx);
+    if (!currentUser) {
+      return null;
+    }
 
-    // Get reservation
     const reservation = await ctx.db.get(reservationId);
     if (!reservation) {
       return null;
     }
 
-    const isTeamCreator =
-      !!currentUser && reservation.createdBy === currentUser._id;
-
-    // Get activity
     const activity = await ctx.db.get(reservation.activityId);
     if (!activity) {
       return null;
     }
 
-    // Get teams
     const teams = await Promise.all(
       reservation.teamIds.map((teamId) => ctx.db.get(teamId))
     );
@@ -2652,12 +2635,31 @@ export const getReservationCardData = query({
       (t): t is NonNullable<typeof t> => t !== null
     );
 
-    // Collect all unique participant IDs
     const participantIds = new Set<Id<"users">>();
     for (const team of validTeams) {
       for (const teammateId of team.teammates) {
         participantIds.add(teammateId);
       }
+    }
+
+    let organisation = activity.organisationId
+      ? await ctx.db.get(activity.organisationId)
+      : null;
+    if (!organisation) {
+      const allOrganisations = await ctx.db.query("organisations").collect();
+      organisation =
+        allOrganisations.find((org) =>
+          org.activityIDs.includes(reservation.activityId)
+        ) ?? null;
+    }
+    const isOrganiser =
+      currentUser.role === "organiser" &&
+      !!organisation?.organisersIDs.includes(currentUser._id);
+
+    const isTeamCreator = reservation.createdBy === currentUser._id;
+    const isParticipant = participantIds.has(currentUser._id);
+    if (!isTeamCreator && !isParticipant && !isOrganiser) {
+      return null;
     }
 
     // Get participant details
@@ -2707,7 +2709,6 @@ export const getReservationCardData = query({
     };
 
     // Can leave review: fulfilled (payment captured), user is participant, not yet reviewed
-    const isParticipant = !!currentUser && participantIds.has(currentUser._id);
     const hasReviewed = currentUser
       ? (await ctx.db
           .query("reviews")

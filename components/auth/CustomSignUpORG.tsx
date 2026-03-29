@@ -301,7 +301,6 @@ export default function CustomSignUpORG() {
               description: organisationDescription || "",
               address: fullAddress,
               IBAN,
-              ownerExternalId: completeSignUp.createdUserId!,
               country,
               businessType: "company",
               taxId,

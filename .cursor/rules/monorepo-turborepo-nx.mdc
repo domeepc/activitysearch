@@ -1,0 +1,199 @@
+---
+description: Best practices for monorepos using Turborepo or Nx
+globs: **/turbo.json, **/nx.json, **/project.json, **/workspace.json, **/packages/**, **/apps/**
+alwaysApply: false
+---
+
+# Monorepo Best Practices (Turborepo / Nx)
+
+## Repository Structure
+
+```
+monorepo/
+├── apps/                   # Deployable applications
+│   ├── web/                # Next.js / React frontend
+│   ├── api/                # NestJS / Express backend
+│   └── docs/               # Documentation site
+├── packages/               # Shared, reusable packages
+│   ├── ui/                 # Shared component library (shadcn/ui base)
+│   ├── config/             # Shared configs (ESLint, TypeScript, Tailwind)
+│   │   ├── eslint/
+│   │   ├── typescript/
+│   │   └── tailwind/
+│   ├── types/              # Shared TypeScript types
+│   └── utils/              # Shared utility functions
+├── turbo.json              # or nx.json
+├── package.json            # Root — workspaces definition
+└── pnpm-workspace.yaml     # (if using pnpm)
+```
+
+### Naming Conventions
+- Apps: `apps/<name>` — deployable, not imported by other packages
+- Internal packages: `packages/<name>` — named with `@repo/<name>` or `@company/<name>`
+- Never have an `app` import directly from another `app` — go through a shared `package`
+
+---
+
+## Turborepo
+
+### `turbo.json` Pipeline Design
+
+```json
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["src/**", "package.json", "tsconfig.json"],
+      "outputs": [".next/**", "dist/**", "!dist/**/*.map"]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "inputs": ["src/**", "tests/**"]
+    },
+    "lint": {
+      "inputs": ["src/**", ".eslintrc*", "*.config.*"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}
+```
+
+- `"dependsOn": ["^build"]` means: build dependencies **before** building this package
+- Always declare `inputs` — if omitted, Turborepo cannot cache correctly
+- Always declare `outputs` — so they are restored from cache on a cache hit
+- Mark `dev` and watch tasks as `"persistent": true` and `"cache": false`
+- Use `--filter` to run tasks for a specific package: `turbo build --filter=@repo/web`
+
+### Caching
+- **Remote cache** (Vercel Remote Cache or self-hosted) is essential for CI speed — enable it from the start
+- Configure remote cache with `TURBO_TOKEN` and `TURBO_TEAM` environment variables in CI
+- Never commit the `.turbo/` local cache directory
+- Use `turbo run build --dry=json` to preview what would run without executing
+
+---
+
+## Nx
+
+### Key Concepts
+- Use **`nx affected`** to run tasks only on projects affected by recent changes:
+  ```bash
+  nx affected:build --base=main --head=HEAD
+  nx affected:test --base=main
+  ```
+- Define **project tags** in `project.json` to enforce dependency boundaries:
+  ```json
+  { "tags": ["scope:web", "type:app"] }
+  ```
+- Enforce boundaries with `@nx/eslint-plugin` rules in `.eslintrc`:
+  ```json
+  "@nx/enforce-module-boundaries": ["error", {
+    "depConstraints": [
+      { "sourceTag": "type:app", "onlyDependOnLibsWithTags": ["type:lib", "type:util"] },
+      { "sourceTag": "scope:web", "onlyDependOnLibsWithTags": ["scope:web", "scope:shared"] }
+    ]
+  }]
+  ```
+- Use **Nx Cloud** for distributed task execution and remote caching
+
+### `nx.json` Basics
+```json
+{
+  "tasksRunnerOptions": {
+    "default": {
+      "runner": "nx/tasks-runners/default",
+      "options": {
+        "cacheableOperations": ["build", "test", "lint", "typecheck"]
+      }
+    }
+  },
+  "targetDefaults": {
+    "build": { "dependsOn": ["^build"] },
+    "test": { "dependsOn": ["^build"] }
+  }
+}
+```
+
+---
+
+## Shared Packages — Design Rules
+
+- A shared package must have a **clear, single purpose** — no "utils dump" catch-all packages
+- Every package exports through a **barrel index** (`index.ts`) — consumers import from `@repo/ui`, not from deep paths
+- Packages must be **independently versioned** or version-locked at the root — decide one strategy and stick to it
+- Shared packages must have their **own `tsconfig.json`** extending the root config
+- Never have **circular dependencies** between packages — use `madge` or Nx's dependency graph to detect them
+- Shared UI components must be **framework-agnostic** where possible (avoid Next.js-specific APIs in a shared `ui` package)
+
+---
+
+## TypeScript in a Monorepo
+
+- Use a **root `tsconfig.base.json`** with common settings; each package extends it:
+  ```json
+  // packages/ui/tsconfig.json
+  { "extends": "../../tsconfig.base.json", "compilerOptions": { "outDir": "dist" } }
+  ```
+- Use **TypeScript project references** for incremental builds across packages:
+  ```json
+  // apps/web/tsconfig.json
+  { "references": [{ "path": "../../packages/ui" }] }
+  ```
+- Configure `paths` in `tsconfig.base.json` to resolve workspace packages without building:
+  ```json
+  { "paths": { "@repo/ui": ["packages/ui/src/index.ts"] } }
+  ```
+
+---
+
+## ESLint & Prettier
+
+- Maintain **one root ESLint config** that packages extend — never duplicate rules
+- Use a shared `packages/config/eslint/` package:
+  ```js
+  // apps/web/.eslintrc.js
+  module.exports = { extends: ["@repo/config/eslint/next"] };
+  ```
+- Run Prettier from the **root** — one `.prettierrc` for the entire monorepo
+- Lint only **affected** packages in CI with `turbo run lint --filter=[HEAD^1]` or `nx affected:lint`
+
+---
+
+## Dependency Management
+
+- Use **`pnpm` workspaces** (preferred) or `npm`/`yarn` workspaces
+- Hoist shared dependencies to the **root `package.json`** where possible to avoid duplication
+- Use `catalog:` (pnpm) or `workspace:*` to reference internal packages
+- Run `pnpm dedupe` regularly to keep the lockfile clean
+- Do not allow different major versions of the same package in different workspace packages — enforce with `syncpack`
+
+---
+
+## CI in a Monorepo
+
+- Use **affected commands** to avoid running everything on every PR:
+  ```yaml
+  - run: pnpm turbo run build test lint --filter=[HEAD^1]
+  # or Nx:
+  - run: pnpm nx affected:build affected:test affected:lint --base=origin/main
+  ```
+- Enable **remote caching** — the single biggest CI speed improvement in a monorepo
+- Run tests for all packages on merge to `main`; run only affected on PRs
+- Build and push **only the Docker image(s) for affected apps**, not all apps on every commit
+
+---
+
+## Common Pitfalls
+
+- ❌ Importing `../../` across package boundaries — always use the package name (`@repo/ui`)
+- ❌ Circular dependencies — run `turbo run build` will fail; detect early with `madge`
+- ❌ Forgetting `outputs` in `turbo.json` — cache hits won't restore built files
+- ❌ Mixing internal and external package versions — use `workspace:*` for internal packages
+- ❌ One giant `utils` package — split by domain or type
+- ❌ No boundary enforcement — without rules, apps will start depending on each other

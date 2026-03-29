@@ -1,5 +1,6 @@
 import {
   internalMutation,
+  internalQuery,
   mutation,
   query,
   QueryCtx,
@@ -39,6 +40,17 @@ export const getOAuthProviders = query({
         ? ["google", "microsoft", "facebook"]
         : [],
     };
+  },
+});
+
+/** For actions that must not import `api` (avoids circular types with e.g. ably). */
+export const getUserByExternalIdInternal = internalQuery({
+  args: { externalId: v.string() },
+  handler: async (ctx, { externalId }) => {
+    return await ctx.db
+      .query("users")
+      .withIndex("byExternalId", (q) => q.eq("externalId", externalId))
+      .unique();
   },
 });
 

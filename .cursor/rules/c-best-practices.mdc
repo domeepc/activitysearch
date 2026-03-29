@@ -1,0 +1,159 @@
+---
+description: Essential best practices for C programming — safety, memory, style, and portability
+globs: **/*.c, **/*.h
+alwaysApply: false
+---
+
+# C Programming Best Practices
+
+## Project & File Structure
+
+- Split code into **logical modules**: one `.h` + one `.c` per module
+- Header files contain **declarations only** (function prototypes, typedefs, macro constants, structs); definitions go in `.c` files
+- Wrap every header in an **include guard**:
+  ```c
+  #ifndef MODULE_NAME_H
+  #define MODULE_NAME_H
+  // ...
+  #endif /* MODULE_NAME_H */
+  ```
+- Prefer `#pragma once` only when portability across all compilers is not required
+- Keep includes minimal — include only what a translation unit actually uses
+
+---
+
+## Memory Management
+
+- **Every `malloc`/`calloc`/`realloc` must be matched by exactly one `free`**
+- Always check the return value of allocation functions — they can return `NULL`:
+  ```c
+  void *ptr = malloc(size);
+  if (ptr == NULL) { /* handle error */ }
+  ```
+- Set pointers to `NULL` immediately after freeing them to prevent use-after-free bugs
+- Prefer `calloc` over `malloc` when zero-initialisation is needed
+- Use **RAII-style wrappers** or `goto cleanup` patterns to avoid leaks on error paths
+- Never return a pointer to a local (stack) variable
+- Avoid Variable Length Arrays (VLAs) for large or unknown sizes — use `malloc` instead
+
+---
+
+## Buffer & String Safety
+
+- **Never use `gets()`** — it is removed from C11; use `fgets()` instead
+- Prefer `snprintf` over `sprintf`; always pass the buffer size
+- Use `strncpy` / `strncat` carefully — `strncpy` does **not** guarantee null-termination; ensure it manually or use safer alternatives (`strlcpy` where available)
+- Validate all array indices before access; never assume input length
+- Treat all external input (user, file, network) as **untrusted** and bounds-check it
+
+---
+
+## Pointers
+
+- Initialise all pointers at declaration (`NULL` if not yet pointing at anything)
+- Prefer `const T *` for read-only pointer parameters to communicate intent clearly
+- Avoid **pointer arithmetic** beyond well-defined bounds (within the same array)
+- Use `size_t` for sizes and indices, not `int` — it is the correct unsigned type for memory
+- Document ownership: who allocates, who frees
+
+---
+
+## Types & Integer Safety
+
+- Use **fixed-width types** from `<stdint.h>` (`uint8_t`, `int32_t`, etc.) when exact width matters (protocol packets, hardware registers)
+- Use `size_t` / `ssize_t` for sizes and counts
+- Be explicit about **signed vs. unsigned** comparisons — enable `-Wsign-compare` warning
+- Check for integer overflow before arithmetic, especially in size calculations:
+  ```c
+  if (n > SIZE_MAX / sizeof(T)) { /* would overflow */ }
+  ```
+- Avoid implicit integer promotions in expressions mixing types
+
+---
+
+## Functions
+
+- Functions do **one thing**; keep them short (≤ 40–50 lines as a guideline)
+- Use `static` for **file-scope functions** not needed outside the translation unit
+- Return error codes or use out-parameters for error signalling; document conventions in the header
+- Limit function parameters to **≤ 4–5**; pass structs by pointer for more
+- Mark read-only pointer parameters `const`:
+  ```c
+  void process(const Config *cfg, Buffer *out);
+  ```
+
+---
+
+## Error Handling
+
+- **Always check return values** of standard library and system calls (`fopen`, `malloc`, `read`, `write`, `pthread_*`, etc.)
+- Define a consistent error-reporting strategy for the project (return codes, `errno`, or a custom error enum)
+- Use `perror()` or `strerror(errno)` for descriptive OS-level error messages
+- Clean up resources on every exit path — use `goto cleanup` for structured teardown:
+  ```c
+  FILE *f = fopen(...);
+  if (!f) return ERR_IO;
+  char *buf = malloc(...);
+  if (!buf) { fclose(f); return ERR_MEM; }
+  // ... work ...
+  free(buf);
+  fclose(f);
+  return OK;
+  ```
+
+---
+
+## Macros & Preprocessor
+
+- Prefer **`enum` or `const` variables** over `#define` for named constants (typed, scoped, debuggable)
+- Prefer **`inline` functions** over function-like macros to avoid side-effect pitfalls
+- When macros are necessary, **wrap parameters and the whole body in parentheses**:
+  ```c
+  #define MAX(a, b) ((a) > (b) ? (a) : (b))
+  ```
+- Never use macros that evaluate arguments more than once if arguments may have side effects
+- Use `do { ... } while (0)` for multi-statement macros
+
+---
+
+## Undefined & Implementation-Defined Behaviour
+
+- Compile with **`-Wall -Wextra -Wpedantic`** and treat warnings as errors (`-Werror`)
+- Enable sanitisers during development: **AddressSanitizer** (`-fsanitize=address`) and **UBSanitizer** (`-fsanitize=undefined`)
+- Never rely on unspecified evaluation order of function arguments
+- Avoid **signed integer overflow** — it is undefined behaviour in C
+- Do not read from uninitialised variables
+- Do not cast between incompatible pointer types (use `void *` as the generic pointer type)
+
+---
+
+## Naming & Style
+
+- Functions and variables: `snake_case`
+- Macros and constants: `UPPER_SNAKE_CASE`
+- Types / structs: `PascalCase_t` or `snake_case_t` — pick one and be consistent
+- Prefix module-private symbols with the module name to simulate namespacing: `net_connect()`, `net_send()`
+- Use **descriptive names** — avoid single-letter names outside tight loops (`i`, `j` are acceptable loop counters)
+
+## Struct & Typedef
+
+- Use `typedef` to hide struct implementation details when it improves readability, but expose the struct definition in the header if users need to allocate it on the stack
+- Zero-initialise structs at declaration: `MyStruct s = {0};`
+
+---
+
+## Concurrency (POSIX Threads)
+
+- Protect every shared variable with a `pthread_mutex_t`; document which mutex guards which data
+- Always check `pthread_*` return values
+- Avoid lock inversions — establish a consistent lock-acquisition order
+- Prefer condition variables over busy-waiting / `sleep` polling
+
+---
+
+## Portability
+
+- Write standard C (C11 or C17) unless platform extensions are explicitly required
+- Use `#ifdef` guards to isolate platform-specific code
+- Do not assume pointer size, struct padding, or endianness — use `sizeof`, `offsetof`, and serialisation helpers
+- Test on both 32-bit and 64-bit targets when applicable

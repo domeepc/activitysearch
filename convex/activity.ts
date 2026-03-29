@@ -137,6 +137,9 @@ export const createActivity = mutation({
                 await ctx.db.patch(organisation._id, {
                     activityIDs: [...existing, activityId],
                 });
+                await ctx.db.patch(activityId, {
+                    organisationId: organisation._id,
+                });
             }
         } catch (e) {
             // Don't block activity creation if organisation update fails; log for debugging
