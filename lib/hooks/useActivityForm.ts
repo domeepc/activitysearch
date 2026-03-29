@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { usePostHog } from "@posthog/react";
 import type { AddressCoordinates } from "@/lib/types/coordinates";
 import {
   type ActivityFormData,
@@ -54,6 +55,7 @@ export function useActivityForm({
   activityId,
   onSuccess,
 }: UseActivityFormOptions = {}) {
+  const posthog = usePostHog();
   const createActivity = useMutation(api.activity.createActivity);
   const updateActivity = useMutation(api.activity.updateActivity);
   const activity = useQuery(
@@ -302,10 +304,17 @@ export function useActivityForm({
 
       if (activityId) {
         await updateActivity({ activityId, ...base });
+        posthog?.capture("activity_updated", {
+          activity_id: String(activityId),
+          activity_name: formData.activityName,
+        });
       } else {
         await (
           createActivity as unknown as (...args: unknown[]) => Promise<unknown>
         )(base as unknown);
+        posthog?.capture("activity_created", {
+          activity_name: formData.activityName,
+        });
       }
 
       resetForm();
@@ -333,6 +342,7 @@ export function useActivityForm({
     updateActivity,
     resetForm,
     onSuccess,
+    posthog,
   ]);
 
   return {

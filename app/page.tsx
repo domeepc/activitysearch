@@ -3,6 +3,7 @@
 import { Authenticated } from "convex/react";
 import dynamic from "next/dynamic";
 import { useState, useMemo, useEffect } from "react";
+import { usePostHog } from "@posthog/react";
 import "./home.css";
 import { ActivityData } from "@/lib/types/activity";
 import DialogAddActivity from "@/components/activities/DialogAddActivity";
@@ -22,6 +23,7 @@ const OpenStreetMapComponent = dynamic(
 );
 
 export default function Home() {
+  const posthog = usePostHog();
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedActivity, setSelectedActivity] = useState<ActivityData | null>(
     null
@@ -74,9 +76,21 @@ export default function Home() {
 
   // Handle activity selection from search
   const handleActivitySelect = (activity: ActivityData) => {
+    posthog?.capture("activity_search_performed", {
+      activity_id: String(activity.id),
+      activity_name: activity.title,
+    });
     setSelectedActivity(activity);
     // Reset category filter to show the selected activity
     setSelectedCategories([]);
+  };
+
+  const handleCategoryChange = (categories: string[]) => {
+    setSelectedCategories(categories);
+    posthog?.capture("activity_filter_applied", {
+      categories,
+      category_count: categories.length,
+    });
   };
 
   // Handle activity selection on mobile - don't fly until search is clicked
@@ -99,7 +113,7 @@ export default function Home() {
       <DesktopFilterSection
         activities={activities}
         selectedCategories={selectedCategories}
-        onCategoryChange={setSelectedCategories}
+        onCategoryChange={handleCategoryChange}
         onActivitySelect={handleActivitySelect}
         onClearSelection={() => setSelectedActivity(null)}
         onAddActivity={() => setShowAddDialog(true)}
@@ -108,7 +122,7 @@ export default function Home() {
       <MobileFilterDialog
         activities={activities}
         selectedCategories={selectedCategories}
-        onCategoryChange={setSelectedCategories}
+        onCategoryChange={handleCategoryChange}
         onActivitySelect={handleMobileActivitySelect}
         onClearSelection={() => {
           setPendingActivity(null);

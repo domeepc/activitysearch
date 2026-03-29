@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { usePostHog } from "@posthog/react";
 import { Id } from "@/convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
@@ -27,6 +28,7 @@ import { useAction } from "convex/react";
 
 export default function MyOrganisationPage() {
   const router = useRouter();
+  const posthog = usePostHog();
   const { isSignedIn, isLoaded: clerkLoaded } = useUser();
   const [isEditing, setIsEditing] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -167,6 +169,10 @@ export default function MyOrganisationPage() {
         }
       }
 
+      posthog?.capture("organisation_updated", {
+        organisation_id: String(organisation._id),
+        organisation_name: formData.name,
+      });
       setIsEditing(false);
       setErrors({ name: "", email: "", address: "", IBAN: "" });
     } catch (error: unknown) {

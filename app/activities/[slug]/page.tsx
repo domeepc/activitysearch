@@ -5,6 +5,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
+import { usePostHog } from "@posthog/react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ReservationDialog } from "@/components/activities/ReservationDialog";
@@ -48,6 +49,7 @@ export default function ActivityPage({
   const resolvedParams = use(params);
   const router = useRouter();
   const activityId = resolvedParams.slug as Id<"activities">;
+  const posthog = usePostHog();
 
   const activity = useQuery(api.activity.getActivityById, {
     activityId,
@@ -69,6 +71,17 @@ export default function ActivityPage({
   const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const imageCount = (activity?.images ?? []).length;
+  const hasTrackedView = useRef(false);
+
+  useEffect(() => {
+    if (activity && !hasTrackedView.current) {
+      hasTrackedView.current = true;
+      posthog?.capture("activity_viewed", {
+        activity_id: String(activity._id),
+        activity_name: activity.activityName,
+      });
+    }
+  }, [activity, posthog]);
 
   useEffect(() => {
     if (!carouselApi || imageCount < 2) return;
@@ -251,7 +264,13 @@ export default function ActivityPage({
               {/* Reservation Button */}
               {hasTeams && !isOrganiserOfActivity && (
                 <Button
-                  onClick={() => setIsReservationDialogOpen(true)}
+                  onClick={() => {
+                    posthog?.capture("reserve_activity_clicked", {
+                      activity_id: String(activityId),
+                      activity_name: activity.activityName,
+                    });
+                    setIsReservationDialogOpen(true);
+                  }}
                   variant="secondary"
                   className="w-full md:w-auto"
                 >
