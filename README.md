@@ -103,9 +103,13 @@ npx convex dev
 1. Create a new application in [Clerk Dashboard](https://dashboard.clerk.com)
 2. Configure OAuth providers (Google, Microsoft, Facebook) if needed
 3. Copy your API keys to `.env.local`
-4. Set up webhook endpoints:
-   - Webhook URL: `https://your-domain.com/api/webhooks/clerk`
-   - Events: `user.created`, `user.updated`, `user.deleted`
+4. Set up **webhooks in Clerk** (user sync runs on Convex, not Next.js):
+   - **Endpoint URL**: `https://<your-convex-deployment-name>.convex.site/clerk-users-webhook`  
+     (from the Convex dashboard: your deployment’s **HTTP Actions** URL + path `/clerk-users-webhook`)
+   - Subscribe to events: `user.created`, `user.updated`, `user.deleted`
+   - Copy the **Signing secret** into Convex: `npx convex env set CLERK_WEBHOOK_SECRET whsec_...` (use the **production** deployment when you deploy prod)
+
+Do **not** point Clerk at a non-existent Next.js route such as `/api/webhooks/clerk` — this repo handles Clerk webhooks only via Convex [`convex/http.ts`](convex/http.ts).
 
 ### 6. Set up Stripe
 
@@ -208,6 +212,15 @@ If Google sign-in works on `localhost` but fails on production (for example `htt
 4. Redeploy the Next.js app and run `npx convex deploy` (or your CI) after changing environment variables.
 
 If you use a **custom Clerk Frontend API domain** (for example `clerk.yourdomain.com`), complete Clerk’s DNS steps first, then add that origin and any Clerk-provided redirect URIs to the Google OAuth client.
+
+### Google works but the app has no user / infinite loading
+
+If Google account selection succeeds but nothing happens in the app, or the user never appears in your data:
+
+1. **Clerk Dashboard → Webhooks** — Confirm the endpoint is `https://<prod-deployment>.convex.site/clerk-users-webhook` (production Convex URL), not localhost and not a fake Next.js path.
+2. **Convex production env** — `CLERK_WEBHOOK_SECRET` must match the **Signing secret** of that same Clerk webhook endpoint. If it is missing or wrong, verification fails (HTTP 401) and users are never synced from Clerk into Convex.
+3. **Convex Dashboard → Logs** — Look for `Clerk webhook` or `upsertFromClerk` errors after a sign-up attempt.
+4. **Clerk Dashboard → Users** — If the user **exists in Clerk** but not in Convex, the webhook or sync step failed; fix steps 1–3.
 
 ## Security Notes
 
