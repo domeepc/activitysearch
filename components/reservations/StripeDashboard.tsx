@@ -6,9 +6,9 @@ import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   CreditCard,
-  ExternalLink,
   Loader2,
   AlertCircle,
   CheckCircle,
@@ -45,7 +45,6 @@ interface StripePaymentIntent {
   createdAt: number;
   capturedAt?: number;
   refundedAt?: number;
-  stripeDashboardUrl: string;
 }
 
 export function StripeDashboard() {
@@ -58,35 +57,93 @@ export function StripeDashboard() {
     StripePaymentIntent[] | null
   >(null);
   const [error, setError] = useState<string | null>(null);
+  const [balanceData, setBalanceData] = useState<{
+    hasConnectedAccount: boolean;
+    payoutsEnabled: boolean;
+    available: number;
+    pending: number;
+    currency: string;
+  } | null>(null);
+  const [payoutAmount, setPayoutAmount] = useState<string>("");
+  const [payoutError, setPayoutError] = useState<string | null>(null);
+  const [payoutSuccess, setPayoutSuccess] = useState<string | null>(null);
+  const [isRequestingPayout, setIsRequestingPayout] = useState(false);
 
   const getPaymentIntents = useAction(api.stripe.getStripePaymentIntentsForOrganiser);
+  const getStripeBalance = useAction(api.stripe.getOrganiserStripeBalance);
+  const requestPayout = useAction(api.stripe.requestOrganiserPayout);
 
-  // Fetch payment intents on mount and set up auto-refresh
+  const loadDashboardData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [payments, balance] = await Promise.all([
+        getPaymentIntents({}),
+        getStripeBalance({}),
+      ]);
+      setPaymentIntents(payments);
+      setBalanceData(balance);
+      setPayoutAmount((prev) =>
+        prev ? prev : balance.available > 0 ? balance.available.toFixed(2) : ""
+      );
+    } catch (err) {
+      console.error("Error fetching Stripe dashboard data:", err);
+      setError(err instanceof Error ? err.message : "Failed to load payment data");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch payment intents and balance once on mount
   useEffect(() => {
-    const fetchData = () => {
-      setIsLoading(true);
-      setError(null);
-      getPaymentIntents({})
-        .then((data) => {
-          setPaymentIntents(data);
-        })
-        .catch((err) => {
-          console.error("Error fetching payment intents:", err);
-          setError(err instanceof Error ? err.message : "Failed to load payment intents");
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
-    };
+    void loadDashboardData();
+    // Intentionally no interval polling; refresh is action-driven.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getPaymentIntents, getStripeBalance]);
 
-    // Fetch immediately
-    fetchData();
+  const handleRequestPayout = async () => {
+    if (!balanceData?.hasConnectedAccount) {
+      setPayoutError("Connect Stripe account first to request payouts.");
+      return;
+    }
+    if (!balanceData.payoutsEnabled) {
+      setPayoutError("Payouts are not enabled yet on your Stripe account.");
+      return;
+    }
 
-    // Set up auto-refresh every 10 seconds
-    const interval = setInterval(fetchData, 10000);
+    const requestedAmount = Number(payoutAmount);
+    if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
+      setPayoutError("Enter a valid payout amount greater than 0.");
+      return;
+    }
+    if (requestedAmount > balanceData.available) {
+      setPayoutError("Requested amount exceeds your available balance.");
+      return;
+    }
 
-    return () => clearInterval(interval);
-  }, [getPaymentIntents]);
+    setIsRequestingPayout(true);
+    setPayoutError(null);
+    setPayoutSuccess(null);
+    try {
+      const result = await requestPayout({
+        amount: requestedAmount,
+        currency: balanceData.currency,
+      });
+      setPayoutSuccess(
+        `Payout ${result.payoutId} requested for ${formatCurrency(
+          result.amount,
+          result.currency
+        )}.`
+      );
+      await loadDashboardData();
+    } catch (err) {
+      setPayoutError(
+        err instanceof Error ? err.message : "Failed to request payout."
+      );
+    } finally {
+      setIsRequestingPayout(false);
+    }
+  };
 
   // Filter payment intents by status
   const filteredIntents = useMemo(() => {
@@ -209,6 +266,74 @@ export function StripeDashboard() {
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="rounded-md border p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="font-medium">Stripe Balance</p>
+            {!balanceData?.hasConnectedAccount ? (
+              <Badge variant="outline">Not connected</Badge>
+            ) : balanceData.payoutsEnabled ? (
+              <Badge className="bg-green-500 hover:bg-green-600">Payouts enabled</Badge>
+            ) : (
+              <Badge variant="secondary">Payouts pending setup</Badge>
+            )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="rounded-md border p-3">
+              <p className="text-xs text-muted-foreground">Available</p>
+              <p className="text-lg font-semibold text-green-600">
+                {formatCurrency(balanceData?.available ?? 0, balanceData?.currency ?? "EUR")}
+              </p>
+            </div>
+            <div className="rounded-md border p-3">
+              <p className="text-xs text-muted-foreground">Pending</p>
+              <p className="text-lg font-semibold">
+                {formatCurrency(balanceData?.pending ?? 0, balanceData?.currency ?? "EUR")}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              value={payoutAmount}
+              onChange={(e) => setPayoutAmount(e.target.value)}
+              placeholder="Payout amount"
+              disabled={!balanceData?.hasConnectedAccount || !balanceData?.payoutsEnabled}
+            />
+            <Button
+              onClick={handleRequestPayout}
+              disabled={
+                isRequestingPayout ||
+                !balanceData?.hasConnectedAccount ||
+                !balanceData?.payoutsEnabled ||
+                Number(payoutAmount) <= 0
+              }
+            >
+              {isRequestingPayout ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Requesting...
+                </>
+              ) : (
+                "Request payout"
+              )}
+            </Button>
+          </div>
+          {payoutError && (
+            <p className="text-sm text-destructive flex items-center gap-1">
+              <AlertCircle className="h-4 w-4" />
+              {payoutError}
+            </p>
+          )}
+          {payoutSuccess && (
+            <p className="text-sm text-green-600 flex items-center gap-1">
+              <CheckCircle className="h-4 w-4" />
+              {payoutSuccess}
+            </p>
+          )}
+        </div>
+
         {/* Status Filter */}
         <div className="flex flex-wrap gap-2">
           <Button
@@ -331,16 +456,6 @@ export function StripeDashboard() {
                     </div>
                   </div>
 
-                  {/* View in Stripe */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => window.open(intent.stripeDashboardUrl, "_blank")}
-                    className="w-full gap-2"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    View in Stripe
-                  </Button>
                 </CardContent>
               </Card>
             ))}
@@ -376,9 +491,6 @@ export function StripeDashboard() {
                   </th>
                   <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
                     Remaining
-                  </th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                    Actions
                   </th>
                 </tr>
               </thead>
@@ -434,19 +546,6 @@ export function StripeDashboard() {
                         }`}
                     >
                       {formatCurrency(intent.remainingAmount, intent.currency)}
-                    </td>
-                    <td className="p-4 align-middle">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          window.open(intent.stripeDashboardUrl, "_blank")
-                        }
-                        className="gap-1"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                        View in Stripe
-                      </Button>
                     </td>
                   </tr>
                 ))}

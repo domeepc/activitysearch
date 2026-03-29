@@ -78,6 +78,54 @@ async function organisationForActivity(
   );
 }
 
+type OrganiserStripeOrganisation = {
+  hasConnectedAccount: boolean;
+  organisation: {
+    _id: Id<"organisations">;
+    stripeAccountId?: string;
+  };
+  stripeAccountId?: string;
+};
+
+type OrganiserStripeBalanceResponse = {
+  hasConnectedAccount: boolean;
+  payoutsEnabled: boolean;
+  available: number;
+  pending: number;
+  currency: string;
+};
+
+async function getOrganiserStripeOrganisation(
+  ctx: ActionCtx
+): Promise<OrganiserStripeOrganisation> {
+  const currentUser = await ctx.runQuery(api.users.current);
+  if (!currentUser || currentUser.role !== "organiser") {
+    throw new Error("Forbidden: only organisers can access Stripe payouts");
+  }
+
+  const organisation = await ctx.runQuery(api.organisation.getOrganisationByOwnerId, {
+    ownerId: currentUser._id,
+  });
+
+  if (!organisation) {
+    throw new Error("No organiser organisation found");
+  }
+
+  if (!organisation.stripeAccountId) {
+    return {
+      hasConnectedAccount: false,
+      organisation,
+      stripeAccountId: undefined,
+    } as const;
+  }
+
+  return {
+    hasConnectedAccount: true,
+    organisation,
+    stripeAccountId: organisation.stripeAccountId,
+  } as const;
+}
+
 // Map Stripe payment intent status to display status
 function mapStripeStatusToDisplayStatus(
   stripeStatus: string,
@@ -146,15 +194,6 @@ async function attachPaymentMethodToCustomer(
       });
     }
   }
-}
-
-// Generate Stripe dashboard URL for payment intent
-function getStripeDashboardUrl(paymentIntentId: string): string {
-  const isTestMode = process.env.STRIPE_SECRET_KEY?.startsWith("sk_test_");
-  const baseUrl = isTestMode
-    ? "https://dashboard.stripe.com/test/payments"
-    : "https://dashboard.stripe.com/payments";
-  return `${baseUrl}/${paymentIntentId}`;
 }
 
 // Utility function to parse address string into Stripe address format
@@ -2017,6 +2056,119 @@ export const getStripeAccountStatus = action({
   },
 });
 
+export const getOrganiserStripeBalance = action({
+  args: {},
+  handler: async (ctx): Promise<OrganiserStripeBalanceResponse> => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Unauthorized");
+    }
+
+    const orgStripeData = await getOrganiserStripeOrganisation(ctx);
+
+    if (!orgStripeData.hasConnectedAccount || !orgStripeData.stripeAccountId) {
+      return {
+        hasConnectedAccount: false,
+        payoutsEnabled: false,
+        available: 0,
+        pending: 0,
+        currency: "EUR",
+      };
+    }
+
+    const [stripeBalance, stripeAccount]: [Stripe.Balance, Stripe.Account] = await Promise.all([
+      stripe.balance.retrieve({}, { stripeAccount: orgStripeData.stripeAccountId }),
+      stripe.accounts.retrieve(orgStripeData.stripeAccountId),
+    ]);
+
+    const availableBalances = stripeBalance.available ?? [];
+    const pendingBalances = stripeBalance.pending ?? [];
+    const preferredCurrency = "eur";
+    const fallbackCurrency =
+      availableBalances[0]?.currency ?? pendingBalances[0]?.currency ?? preferredCurrency;
+    const selectedCurrency =
+      availableBalances.find((entry) => entry.currency === preferredCurrency)?.currency ??
+      fallbackCurrency;
+
+    const availableMinor =
+      availableBalances
+        .filter((entry) => entry.currency === selectedCurrency)
+        .reduce((sum, entry) => sum + entry.amount, 0) ?? 0;
+    const pendingMinor =
+      pendingBalances
+        .filter((entry) => entry.currency === selectedCurrency)
+        .reduce((sum, entry) => sum + entry.amount, 0) ?? 0;
+
+    return {
+      hasConnectedAccount: true,
+      payoutsEnabled: Boolean(stripeAccount.payouts_enabled),
+      available: availableMinor / 100,
+      pending: pendingMinor / 100,
+      currency: selectedCurrency.toUpperCase(),
+    };
+  },
+});
+
+export const requestOrganiserPayout = action({
+  args: {
+    amount: v.number(),
+    currency: v.optional(v.string()),
+  },
+  handler: async (ctx, { amount, currency }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Unauthorized");
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error("Payout amount must be greater than 0");
+    }
+
+    const orgStripeData = await getOrganiserStripeOrganisation(ctx);
+    if (!orgStripeData.hasConnectedAccount || !orgStripeData.stripeAccountId) {
+      throw new Error("Stripe account is not connected");
+    }
+
+    const stripeAccountId = orgStripeData.stripeAccountId;
+    const [stripeBalance, stripeAccount] = await Promise.all([
+      stripe.balance.retrieve({}, { stripeAccount: stripeAccountId }),
+      stripe.accounts.retrieve(stripeAccountId),
+    ]);
+
+    if (!stripeAccount.payouts_enabled) {
+      throw new Error("Payouts are not enabled for this Stripe account yet");
+    }
+
+    const payoutCurrency = (currency || "EUR").toLowerCase();
+    const availableMinor = (stripeBalance.available ?? [])
+      .filter((entry) => entry.currency === payoutCurrency)
+      .reduce((sum, entry) => sum + entry.amount, 0);
+
+    const requestedMinor = Math.round(amount * 100);
+    if (requestedMinor <= 0) {
+      throw new Error("Payout amount is too small");
+    }
+    if (requestedMinor > availableMinor) {
+      throw new Error("Insufficient available balance for this payout request");
+    }
+
+    const payout = await stripe.payouts.create(
+      {
+        amount: requestedMinor,
+        currency: payoutCurrency,
+      },
+      { stripeAccount: stripeAccountId }
+    );
+
+    return {
+      payoutId: payout.id,
+      amount: payout.amount / 100,
+      currency: payout.currency.toUpperCase(),
+      status: payout.status,
+      arrivalDate: payout.arrival_date ? payout.arrival_date * 1000 : null,
+    };
+  },
+});
+
 // Keep HTTP action version for webhook compatibility (if needed)
 export const createConnectAccountLinkHttp = httpAction(async (ctx, request) => {
   const identity = await ctx.auth.getUserIdentity();
@@ -2278,7 +2430,6 @@ export const getStripePaymentIntentsForOrganiser = action({
             createdAt: paymentIntent.created * 1000,
             capturedAt: pr.capturedAt,
             refundedAt: pr.refundedAt,
-            stripeDashboardUrl: getStripeDashboardUrl(paymentIntent.id),
           };
         } catch (error) {
           console.error(
@@ -2310,7 +2461,6 @@ export const getStripePaymentIntentsForOrganiser = action({
       createdAt: number;
       capturedAt?: number;
       refundedAt?: number;
-      stripeDashboardUrl: string;
     }> = [];
 
     for (const result of paymentIntentsData) {
