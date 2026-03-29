@@ -131,9 +131,9 @@ export default function CustomSignUp() {
   }
 
   return (
-    <div className="flex h-screen items-center justify-center p-4 overflow-hidden">
-      <Card className="w-full max-w-md border-border border-2 shadow-xl">
-        <CardHeader className="space-y-1">
+    <div className="flex h-screen items-center justify-center p-3 sm:p-4 overflow-hidden">
+      <Card className="w-full max-w-sm sm:max-w-md border-border border-2 shadow-xl">
+        <CardHeader className="space-y-1 p-4 sm:p-6">
           <CardTitle className="text-2xl font-bold">
             Create an account
           </CardTitle>
@@ -141,7 +141,7 @@ export default function CustomSignUp() {
             Choose your preferred sign up method
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 p-4 sm:p-6">
           <OAuthButtons
             onGoogleClick={() => signUpWith("oauth_google")}
             onMicrosoftClick={() => signUpWith("oauth_microsoft")}
@@ -275,7 +275,7 @@ export default function CustomSignUp() {
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-2">
+        <CardFooter className="flex flex-col space-y-2 p-4 pt-0 sm:p-6 sm:pt-0">
           <div className="text-sm text-muted-foreground text-center">
             Already have an account?{" "}
             <Link href="/sign-in" className="text-primary hover:underline">

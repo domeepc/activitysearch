@@ -22,7 +22,7 @@ import { validateEmail, validateIBAN, validateContact, validateURL } from "@/lib
 import { extractErrorMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import { getCountryName, STRIPE_SUPPORTED_COUNTRIES } from "@/lib/countries";
-import { Eye, EyeOff, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
+import { Eye, EyeOff, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Check, Loader2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -46,8 +46,25 @@ function formatIbanForDisplay(iban: string): string {
   return cleaned.replace(/(.{4})/g, "$1 ").trim();
 }
 
+function formatIbanInput(value: string): string {
+  const cleaned = value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  return cleaned.replace(/(.{4})/g, "$1 ").trim();
+}
+
+function normalizeIban(value: string): string {
+  return value.replace(/\s/g, "").toUpperCase();
+}
+
+function formatPhoneInput(value: string): string {
+  const startsWithPlus = value.trim().startsWith("+");
+  const digits = value.replace(/\D/g, "").slice(0, 15);
+  if (!digits) return startsWithPlus ? "+" : "";
+  const chunks = digits.match(/.{1,3}/g) ?? [digits];
+  return `${startsWithPlus ? "+" : ""}${chunks.join(" ")}`.trim();
+}
+
 function formatPhoneForDisplay(phone: string): string {
-  return phone.replace(/\s+/g, "");
+  return formatPhoneInput(phone);
 }
 
 export default function CustomSignUpORG() {
@@ -182,7 +199,7 @@ export default function CustomSignUpORG() {
     if (!IBANConfirm || !validateIBAN(IBANConfirm)) {
       return "Please confirm your IBAN";
     }
-    if (IBAN !== IBANConfirm) {
+    if (normalizeIban(IBAN) !== normalizeIban(IBANConfirm)) {
       return "IBAN and confirmation IBAN do not match";
     }
     if (!bankCountry || bankCountry.trim().length === 0) {
@@ -296,6 +313,8 @@ export default function CustomSignUpORG() {
 
       if (completeSignUp.status === "complete") {
         await setActive({ session: completeSignUp.createdSessionId });
+        // Give Clerk/Convex auth state a brief moment to propagate.
+        await new Promise((resolve) => setTimeout(resolve, 300));
 
         // Wait for Clerk webhook to sync user to Convex
         const maxRetries = 20;
@@ -328,7 +347,7 @@ export default function CustomSignUpORG() {
                 if (IBAN && IBAN.trim() && stripe && stripePublishableKey) {
                   try {
                     // Clean IBAN (remove spaces and convert to uppercase)
-                    const cleanedIBAN = IBAN.replace(/\s/g, "").toUpperCase();
+                    const cleanedIBAN = normalizeIban(IBAN);
 
                     // Create bank account token using Stripe.js
                     const tokenResult = await stripe.createToken("bank_account", {
@@ -389,7 +408,9 @@ export default function CustomSignUpORG() {
           } catch (orgError: unknown) {
             const error = orgError as { message?: string };
             if (
-              error.message?.includes("User not found") &&
+              (error.message?.includes("User not found") ||
+                error.message?.includes("You must be signed in") ||
+                error.message?.includes("Unauthorized")) &&
               retryCount < maxRetries - 1
             ) {
               retryCount++;
@@ -837,7 +858,7 @@ export default function CustomSignUpORG() {
                 type="tel"
                 placeholder="+1234567890"
                 value={contact}
-                onChange={(e) => setContact(e.target.value)}
+                onChange={(e) => setContact(formatPhoneInput(e.target.value))}
                 required
                 disabled={loading}
               />
@@ -867,7 +888,7 @@ export default function CustomSignUpORG() {
                 type="text"
                 placeholder="DE89 3704 0044 0532 0130 00"
                 value={IBAN}
-                onChange={(e) => setIBAN(e.target.value)}
+                onChange={(e) => setIBAN(formatIbanInput(e.target.value))}
                 required
                 disabled={loading}
                 className={
@@ -891,11 +912,11 @@ export default function CustomSignUpORG() {
                 type="text"
                 placeholder="DE89 3704 0044 0532 0130 00"
                 value={IBANConfirm}
-                onChange={(e) => setIBANConfirm(e.target.value)}
+                onChange={(e) => setIBANConfirm(formatIbanInput(e.target.value))}
                 required
                 disabled={loading}
                 className={
-                  IBANConfirm && (!validateIBAN(IBANConfirm) || IBAN !== IBANConfirm)
+                  IBANConfirm && (!validateIBAN(IBANConfirm) || normalizeIban(IBAN) !== normalizeIban(IBANConfirm))
                     ? "border-destructive"
                     : ""
                 }
@@ -908,7 +929,7 @@ export default function CustomSignUpORG() {
                   Please enter a valid IBAN format
                 </p>
               )}
-              {IBANConfirm && validateIBAN(IBANConfirm) && IBAN !== IBANConfirm && (
+              {IBANConfirm && validateIBAN(IBANConfirm) && normalizeIban(IBAN) !== normalizeIban(IBANConfirm) && (
                 <p className="text-xs text-destructive">
                   IBAN and confirmation do not match
                 </p>
@@ -1153,9 +1174,9 @@ export default function CustomSignUpORG() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 py-8">
-      <Card className="w-full max-w-2xl border-border border-2 shadow-xl translate-y-[-30px] ">
-        <CardHeader className="space-y-1 text-left border-b border-border">
+    <div className="flex min-h-screen items-center justify-center p-3 sm:p-4 py-4 sm:py-8">
+      <Card className="w-full max-w-[95vw] sm:max-w-2xl border-border border-2 shadow-xl sm:translate-y-[-30px]">
+        <CardHeader className="space-y-1 text-left border-b border-border p-4 sm:p-6">
           <CardTitle className="text-2xl font-bold">
             Create Organiser Account
           </CardTitle>
@@ -1166,7 +1187,7 @@ export default function CustomSignUpORG() {
             {currentPage === 3 && "Review your information before creating your account"}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6">
           {/* Step description */}
           <div className="text-center">
             <p className="text-xl text-foreground font-bold text-left">
@@ -1175,7 +1196,7 @@ export default function CustomSignUpORG() {
           </div>
 
           {/* Form content */}
-          <div className="min-h-[400px] relative">
+          <div className="min-h-[340px] sm:min-h-[400px] relative">
             <div
               key={currentPage}
               className={cn(
@@ -1228,9 +1249,11 @@ export default function CustomSignUpORG() {
                 type="button"
                 onClick={handleCreateAccount}
                 disabled={loading || !canProceedToNext()}
-                className="flex items-center gap-2 shrink-0 cursor-pointer"
+                className="flex items-center justify-center size-10 sm:size-11 shrink-0 cursor-pointer"
+                aria-label={loading ? "Creating account" : "Create account"}
+                title={loading ? "Creating account" : "Create account"}
               >
-                {loading ? "Creating account..." : "Create Account"}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
               </Button>
             )}
           </div>
