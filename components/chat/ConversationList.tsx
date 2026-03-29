@@ -263,9 +263,9 @@ export function ConversationList({
   const reservationCount = filteredReservationConversations.length;
 
   return (
-    <div className="flex flex-col h-full py-4 border-r-0 md:border-r border-t border-gray-300 overflow-hidden bg-white">
+    <div className="flex flex-col h-full px-4 py-4 md:px-8 border-r-0 md:border-r border-border overflow-hidden bg-background">
       {/* Search Bar */}
-      <div className="px-4 mb-4">
+      <div className="mb-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -279,7 +279,7 @@ export function ConversationList({
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto px-4">
+      <div className="flex-1 overflow-y-auto min-h-0">
         {/* Friends Section */}
         <div className="mb-4">
           {(!searchQuery.trim() || filteredFriendsList.length > 0) && (
