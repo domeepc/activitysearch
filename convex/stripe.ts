@@ -131,10 +131,10 @@ function mapStripeStatusToDisplayStatus(
   stripeStatus: string,
   capturedAt?: number,
   refundedAt?: number
-): "on_hold" | "paid" | "canceled" | "pending" {
-  // If refunded, show as canceled
+): "on_hold" | "paid" | "canceled" | "pending" | "refunded" {
+  // If refunded, show dedicated refunded status.
   if (refundedAt) {
-    return "canceled";
+    return "refunded";
   }
 
   // Map Stripe statuses
@@ -2452,7 +2452,7 @@ export const getStripePaymentIntentsForOrganiser = action({
       activityAddress: string;
       date: string;
       time: string;
-      status: "on_hold" | "paid" | "canceled" | "pending";
+      status: "on_hold" | "paid" | "canceled" | "pending" | "refunded";
       stripeStatus: string;
       amount: number;
       collectedAmount: number;

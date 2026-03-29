@@ -88,7 +88,7 @@ export default function ReservationsPage() {
           variant={viewMode === "reservations" ? "default" : "outline"}
           size="sm"
           onClick={() => setViewMode("reservations")}
-          className="gap-2"
+          className="gap-2 border border-border shadow-sm"
         >
           <Inbox className="h-4 w-4" />
           Reservations
@@ -97,7 +97,7 @@ export default function ReservationsPage() {
           variant={viewMode === "payments" ? "default" : "outline"}
           size="sm"
           onClick={() => setViewMode("payments")}
-          className="gap-2"
+          className="gap-2 border border-border shadow-sm"
         >
           <CreditCard className="h-4 w-4" />
           Payments
@@ -113,7 +113,7 @@ export default function ReservationsPage() {
               variant={statusFilter === "all" ? "default" : "outline"}
               size="sm"
               onClick={() => setStatusFilter("all")}
-              className="gap-1 sm:gap-2 text-xs sm:text-sm"
+              className="gap-1 sm:gap-2 text-xs sm:text-sm border border-border shadow-sm"
             >
               <Filter className="h-3 w-3 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">All</span>
@@ -124,7 +124,7 @@ export default function ReservationsPage() {
               variant={statusFilter === "active" ? "default" : "outline"}
               size="sm"
               onClick={() => setStatusFilter("active")}
-              className="text-xs sm:text-sm"
+              className="text-xs sm:text-sm border border-border shadow-sm"
             >
               Active ({reservations.filter((r) => !r.cancelledAt).length})
             </Button>
@@ -132,7 +132,7 @@ export default function ReservationsPage() {
               variant={statusFilter === "cancelled" ? "default" : "outline"}
               size="sm"
               onClick={() => setStatusFilter("cancelled")}
-              className="text-xs sm:text-sm"
+              className="text-xs sm:text-sm border border-border shadow-sm"
             >
               Cancelled ({reservations.filter((r) => !!r.cancelledAt).length})
             </Button>

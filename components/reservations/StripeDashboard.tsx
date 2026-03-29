@@ -23,7 +23,7 @@ import { format } from "date-fns";
 import { Id } from "@/convex/_generated/dataModel";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 
-type PaymentIntentStatus = "on_hold" | "paid" | "canceled" | "pending";
+type PaymentIntentStatus = "on_hold" | "paid" | "canceled" | "pending" | "refunded";
 
 interface StripePaymentIntent {
   paymentIntentId: string;
@@ -191,6 +191,13 @@ export function StripeDashboard() {
             Canceled
           </Badge>
         );
+      case "refunded":
+        return (
+          <Badge variant="outline" className="gap-1 border-amber-400 text-amber-700">
+            <CheckCircle className="h-3 w-3" />
+            Refunded
+          </Badge>
+        );
       case "pending":
         return (
           <Badge variant="outline" className="gap-1">
@@ -204,20 +211,21 @@ export function StripeDashboard() {
   // Calculate statistics
   const stats = useMemo(() => {
     if (!paymentIntents) {
-      return { total: 0, onHold: 0, paid: 0, canceled: 0, pending: 0 };
+      return { total: 0, onHold: 0, paid: 0, canceled: 0, refunded: 0, pending: 0 };
     }
     return {
       total: paymentIntents.length,
       onHold: paymentIntents.filter((pi) => pi.status === "on_hold").length,
       paid: paymentIntents.filter((pi) => pi.status === "paid").length,
       canceled: paymentIntents.filter((pi) => pi.status === "canceled").length,
+      refunded: paymentIntents.filter((pi) => pi.status === "refunded").length,
       pending: paymentIntents.filter((pi) => pi.status === "pending").length,
     };
   }, [paymentIntents]);
 
   if (isLoading) {
     return (
-      <Card>
+      <Card className="border border-border shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
@@ -235,7 +243,7 @@ export function StripeDashboard() {
 
   if (error) {
     return (
-      <Card>
+      <Card className="border border-border shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
@@ -253,7 +261,7 @@ export function StripeDashboard() {
   }
 
   return (
-    <Card>
+    <Card className="border border-border shadow-sm">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <CreditCard className="h-5 w-5" />
@@ -266,7 +274,7 @@ export function StripeDashboard() {
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="rounded-md border p-4 space-y-3">
+        <div className="rounded-md border border-border shadow-sm p-4 space-y-3">
           <div className="flex items-center justify-between">
             <p className="font-medium">Stripe Balance</p>
             {!balanceData?.hasConnectedAccount ? (
@@ -278,13 +286,13 @@ export function StripeDashboard() {
             )}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="rounded-md border p-3">
+            <div className="rounded-md border border-border shadow-sm p-3">
               <p className="text-xs text-muted-foreground">Available</p>
               <p className="text-lg font-semibold text-green-600">
                 {formatCurrency(balanceData?.available ?? 0, balanceData?.currency ?? "EUR")}
               </p>
             </div>
-            <div className="rounded-md border p-3">
+            <div className="rounded-md border border-border shadow-sm p-3">
               <p className="text-xs text-muted-foreground">Pending</p>
               <p className="text-lg font-semibold">
                 {formatCurrency(balanceData?.pending ?? 0, balanceData?.currency ?? "EUR")}
@@ -299,10 +307,12 @@ export function StripeDashboard() {
               value={payoutAmount}
               onChange={(e) => setPayoutAmount(e.target.value)}
               placeholder="Payout amount"
+              className="border border-border shadow-sm"
               disabled={!balanceData?.hasConnectedAccount || !balanceData?.payoutsEnabled}
             />
             <Button
               onClick={handleRequestPayout}
+              className="border border-border shadow-sm"
               disabled={
                 isRequestingPayout ||
                 !balanceData?.hasConnectedAccount ||
@@ -340,6 +350,7 @@ export function StripeDashboard() {
             variant={statusFilter === "all" ? "default" : "outline"}
             size="sm"
             onClick={() => setStatusFilter("all")}
+            className="border border-border shadow-sm"
           >
             All ({stats.total})
           </Button>
@@ -347,6 +358,7 @@ export function StripeDashboard() {
             variant={statusFilter === "on_hold" ? "default" : "outline"}
             size="sm"
             onClick={() => setStatusFilter("on_hold")}
+            className="border border-border shadow-sm"
           >
             On Hold ({stats.onHold})
           </Button>
@@ -354,6 +366,7 @@ export function StripeDashboard() {
             variant={statusFilter === "paid" ? "default" : "outline"}
             size="sm"
             onClick={() => setStatusFilter("paid")}
+            className="border border-border shadow-sm"
           >
             Paid ({stats.paid})
           </Button>
@@ -361,13 +374,23 @@ export function StripeDashboard() {
             variant={statusFilter === "canceled" ? "default" : "outline"}
             size="sm"
             onClick={() => setStatusFilter("canceled")}
+            className="border border-border shadow-sm"
           >
             Canceled ({stats.canceled})
+          </Button>
+          <Button
+            variant={statusFilter === "refunded" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setStatusFilter("refunded")}
+            className="border border-border shadow-sm"
+          >
+            Refunded ({stats.refunded})
           </Button>
           <Button
             variant={statusFilter === "pending" ? "default" : "outline"}
             size="sm"
             onClick={() => setStatusFilter("pending")}
+            className="border border-border shadow-sm"
           >
             Pending ({stats.pending})
           </Button>
@@ -384,7 +407,7 @@ export function StripeDashboard() {
             {filteredIntents.map((intent) => (
               <Card
                 key={`${intent.paymentIntentId}-${intent.reservationId}`}
-                className="overflow-hidden border-border"
+                className="overflow-hidden border border-border shadow-sm"
               >
                 <CardContent className="p-4 space-y-3">
                   {/* Activity & Status */}
@@ -461,7 +484,7 @@ export function StripeDashboard() {
             ))}
           </div>
         ) : (
-          <div className="rounded-md border overflow-x-auto">
+          <div className="rounded-md border border-border shadow-sm overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-muted/50">

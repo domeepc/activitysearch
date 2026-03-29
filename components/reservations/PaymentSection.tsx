@@ -106,7 +106,7 @@ export function PaymentSection() {
 
   if (!paymentDetails) {
     return (
-      <Card>
+      <Card className="border border-border shadow-sm">
         <CardContent className="p-6">
           <p className="text-muted-foreground">Loading payment data...</p>
         </CardContent>
@@ -122,7 +122,7 @@ export function PaymentSection() {
           variant={viewMode === "overview" ? "default" : "outline"}
           size="sm"
           onClick={() => setViewMode("overview")}
-          className="gap-2"
+          className="gap-2 border border-border shadow-sm"
         >
           <Wallet className="h-4 w-4" />
           Payment Overview
@@ -131,7 +131,7 @@ export function PaymentSection() {
           variant={viewMode === "stripe" ? "default" : "outline"}
           size="sm"
           onClick={() => setViewMode("stripe")}
-          className="gap-2"
+          className="gap-2 border border-border shadow-sm"
         >
           <CreditCard className="h-4 w-4" />
           Stripe Dashboard
@@ -144,7 +144,7 @@ export function PaymentSection() {
         <>
           {/* Payment Statistics */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-            <Card>
+            <Card className="border border-border shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Reservations</CardTitle>
                 <Wallet className="h-4 w-4 text-muted-foreground" />
@@ -154,7 +154,7 @@ export function PaymentSection() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border border-border shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Pending Payment</CardTitle>
                 <Clock className="h-4 w-4 text-muted-foreground" />
@@ -164,7 +164,7 @@ export function PaymentSection() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border border-border shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">On Hold</CardTitle>
                 <CreditCard className="h-4 w-4 text-muted-foreground" />
@@ -177,7 +177,7 @@ export function PaymentSection() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border border-border shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Fulfilled</CardTitle>
                 <CheckCircle className="h-4 w-4 text-muted-foreground" />
@@ -192,7 +192,7 @@ export function PaymentSection() {
           </div>
 
           {/* Payment Status Filter */}
-          <Card>
+          <Card className="border border-border shadow-sm">
             <CardHeader>
               <CardTitle>Payment Management</CardTitle>
             </CardHeader>
@@ -203,6 +203,7 @@ export function PaymentSection() {
                     variant={paymentFilter === "all" ? "default" : "outline"}
                     size="sm"
                     onClick={() => setPaymentFilter("all")}
+                    className="border border-border shadow-sm"
                   >
                     All ({paymentStats.total})
                   </Button>
@@ -210,6 +211,7 @@ export function PaymentSection() {
                     variant={paymentFilter === "pending" ? "default" : "outline"}
                     size="sm"
                     onClick={() => setPaymentFilter("pending")}
+                    className="border border-border shadow-sm"
                   >
                     Pending ({paymentStats.pending})
                   </Button>
@@ -217,6 +219,7 @@ export function PaymentSection() {
                     variant={paymentFilter === "on_hold" ? "default" : "outline"}
                     size="sm"
                     onClick={() => setPaymentFilter("on_hold")}
+                    className="border border-border shadow-sm"
                   >
                     On Hold ({paymentStats.onHold})
                   </Button>
@@ -224,6 +227,7 @@ export function PaymentSection() {
                     variant={paymentFilter === "fulfilled" ? "default" : "outline"}
                     size="sm"
                     onClick={() => setPaymentFilter("fulfilled")}
+                    className="border border-border shadow-sm"
                   >
                     Fulfilled ({paymentStats.fulfilled})
                   </Button>
@@ -236,7 +240,10 @@ export function PaymentSection() {
                   ) : isMobile ? (
                     <div className="space-y-4">
                       {filteredPaymentDetails.map((detail) => (
-                        <Card key={detail.reservationId} className="overflow-hidden border-border">
+                        <Card
+                          key={detail.reservationId}
+                          className="overflow-hidden border border-border shadow-sm"
+                        >
                           <CardContent className="p-4 space-y-3">
                             {/* Activity & Status */}
                             <div className="flex items-start justify-between gap-2">
@@ -302,7 +309,7 @@ export function PaymentSection() {
                       ))}
                     </div>
                   ) : (
-                    <div className="rounded-md border overflow-x-auto">
+                    <div className="rounded-md border border-border shadow-sm overflow-x-auto">
                       <table className="w-full">
                         <thead>
                           <tr className="border-b bg-muted/50">
