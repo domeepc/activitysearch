@@ -9,6 +9,14 @@ import { v } from "convex/values";
 import { getCurrentUserOrThrow, getCurrentUser } from "./users";
 import { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
+import { effectiveReservationTotalPrice as effectiveTotal } from "../lib/reservationsPricing";
+
+function effectiveReservationTotalPrice(
+  activityPrice: number,
+  reservation: Doc<"reservations">
+): number {
+  return effectiveTotal(activityPrice, reservation.loyaltyDiscountTotal);
+}
 
 export const getReservationsByActivity = query({
   args: { activityId: v.id("activities") },
@@ -395,6 +403,11 @@ export const createReservation = mutation({
         });
       }
 
+      await ctx.runMutation(internal.gamification.tryCompleteSystemQuest, {
+        userId: currentUser._id,
+        systemKey: "activity_reserved",
+      });
+
       return { success: true, reservationId };
     } catch (error) {
       // Catch any unexpected errors and return them gracefully
@@ -563,6 +576,11 @@ async function assignFirstInQueueToFreedSlot(
   }
 
   await ctx.db.delete(queueEntry._id);
+
+  await ctx.runMutation(internal.gamification.tryCompleteSystemQuest, {
+    userId: queueEntry.createdBy,
+    systemKey: "activity_reserved",
+  });
 
   return { assigned: true, reservationId };
 }
@@ -883,7 +901,9 @@ export const getPaymentDetailsForOrganiser = query({
 
         // Calculate payment totals
         const activePayments = payments.filter((p) => !p.refundedAt);
-        const totalAmount = activity ? activity.price : 0;
+        const totalAmount = activity
+          ? effectiveReservationTotalPrice(activity.price, reservation)
+          : 0;
         const collectedAmount = activePayments.reduce(
           (sum, p) => sum + p.amount,
           0
@@ -1517,6 +1537,11 @@ export const acceptQueueReservation = mutation({
       });
     }
 
+    await ctx.runMutation(internal.gamification.tryCompleteSystemQuest, {
+      userId: currentUser._id,
+      systemKey: "activity_reserved",
+    });
+
     return { success: true, reservationId };
   },
 });
@@ -1881,7 +1906,10 @@ export const calculatePaymentProgress = query({
       }
     }
 
-    const totalAmount = activity.price;
+    const totalAmount = effectiveReservationTotalPrice(
+      activity.price,
+      reservation
+    );
     const totalParticipants = Math.max(1, participantIds.size);
     const perPersonAmount = totalAmount / totalParticipants;
 
@@ -1908,6 +1936,8 @@ export const calculatePaymentProgress = query({
     const remainingPersons = totalParticipants - personsPaidFor;
 
     return {
+      listPrice: activity.price,
+      loyaltyDiscountTotal: reservation.loyaltyDiscountTotal ?? 0,
       totalAmount,
       collectedAmount,
       perPersonAmount,
@@ -1981,7 +2011,10 @@ async function checkAndUpdatePaymentStatus(
   const activity = await ctx.db.get(reservation.activityId);
   if (!activity) return;
 
-  const totalAmount = activity.price;
+  const totalAmount = effectiveReservationTotalPrice(
+    activity.price,
+    reservation
+  );
 
   // Get all active payments
   const payments = await ctx.db
@@ -2015,7 +2048,10 @@ async function checkAndCreateTeamPaymentIntent(
   const activity = await ctx.db.get(reservation.activityId);
   if (!activity) return;
 
-  const totalAmount = activity.price;
+  const totalAmount = effectiveReservationTotalPrice(
+    activity.price,
+    reservation
+  );
 
   // Get all teams for this reservation
   const teams = await Promise.all(
@@ -2664,7 +2700,10 @@ export const getReservationCardData = query({
       }));
 
     // Calculate payment progress from actual team roster (updates when users are added/removed from teams)
-    const totalAmount = activity.price;
+    const totalAmount = effectiveReservationTotalPrice(
+      activity.price,
+      reservation
+    );
     const totalParticipants = Math.max(1, participantIds.size);
     const perPersonAmount = totalAmount / totalParticipants;
 
@@ -2685,6 +2724,8 @@ export const getReservationCardData = query({
     );
 
     const paymentProgress = {
+      listPrice: activity.price,
+      loyaltyDiscountTotal: reservation.loyaltyDiscountTotal ?? 0,
       totalAmount,
       collectedAmount,
       perPersonAmount,

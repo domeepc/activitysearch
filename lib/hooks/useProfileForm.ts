@@ -33,7 +33,6 @@ export function useProfileForm({ user, isEditing }: UseProfileFormProps) {
     email: "",
     description: "",
     contact: "",
-    exp: 0,
     friends: [],
   });
   const [errors, setErrors] = useState<ProfileErrors>({
@@ -65,7 +64,6 @@ export function useProfileForm({ user, isEditing }: UseProfileFormProps) {
           email: user.email || "",
           description: user.description || "",
           contact: user.contact || "",
-          exp: Number(user.totalExp || 0),
           friends: user.friends || [],
         });
       });
@@ -97,7 +95,7 @@ export function useProfileForm({ user, isEditing }: UseProfileFormProps) {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === "exp" ? parseInt(value) || 0 : value,
+      [name]: value,
     }));
 
     if (name === "name" || name === "lastname") {
@@ -125,7 +123,6 @@ export function useProfileForm({ user, isEditing }: UseProfileFormProps) {
         email: user.email || "",
         description: user.description || "",
         contact: user.contact || "",
-        exp: Number(user.totalExp || 0),
         friends: user.friends || [],
       });
     }

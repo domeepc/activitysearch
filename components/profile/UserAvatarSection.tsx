@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
 import { AvatarUpload } from "@/components/ui/avatar-upload";
 import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -22,6 +23,7 @@ export function UserAvatarSection({
   disabled = false,
 }: UserAvatarSectionProps) {
   const router = useRouter();
+  const { getToken } = useAuth();
   const updateProfile = useAction(api.users.updateUserProfile);
 
   const handleAvatarChange = async (file: File) => {
@@ -33,7 +35,9 @@ export function UserAvatarSection({
         );
       }
 
-      const avatarUrl = await uploadImage(file, "avatar");
+      const avatarUrl = await uploadImage(file, "avatar", () =>
+        getToken({ template: "convex" })
+      );
       await updateProfile({ avatar: avatarUrl });
 
       // Refresh the page to show updated avatar

@@ -55,6 +55,7 @@ export default function TeamChatPage({
       ? `${msg.sender.name} ${msg.sender.lastname}`
       : undefined,
     senderAvatar: msg.sender?.avatar,
+    senderProfileUserId: msg.sender?._id,
     status: msg.status ?? undefined,
     encrypted: msg.encrypted || false,
     messageType: msg.messageType || "text",

@@ -4,126 +4,55 @@ import { HeroSection } from "@/components/landing/HeroSection";
 import { CategorySection } from "@/components/landing/CategorySection";
 import { TopRatedSection } from "@/components/landing/TopRatedSection";
 import { HappeningNowSection } from "@/components/landing/HappeningNowSection";
+import { QuestsSection } from "@/components/landing/QuestsSection";
+import { SecuritySection } from "@/components/landing/SecuritySection";
+import { PaymentsSection } from "@/components/landing/PaymentsSection";
 import { CtaSection } from "@/components/landing/CtaSection";
 import { LandingFooter } from "@/components/landing/LandingFooter";
 import {
-  ActivityItem,
-  CategoryItem,
-  HeroCardItem,
-  LiveItem,
-  heroCards as defaultHeroCards,
-  tonePalette,
+  categories,
+  happeningNow,
+  heroCards,
+  topRated,
 } from "@/components/landing/data";
-import { useActivities } from "@/lib/hooks/useActivities";
-import { useMemo } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
 import { FadeInSection } from "@/components/landing/FadeInSection";
 
+const LANDING_SECTIONS = [
+  {
+    id: "hero",
+    delayMs: 0,
+    content: <HeroSection cards={heroCards} />,
+  },
+  {
+    id: "categories",
+    delayMs: 120,
+    content: <CategorySection items={categories} />,
+  },
+  {
+    id: "top-rated",
+    delayMs: 240,
+    content: <TopRatedSection items={topRated} />,
+  },
+  {
+    id: "happening-now",
+    delayMs: 320,
+    content: <HappeningNowSection items={happeningNow} />,
+  },
+  { id: "quests", delayMs: 400, content: <QuestsSection /> },
+  { id: "security", delayMs: 480, content: <SecuritySection /> },
+  { id: "payments", delayMs: 560, content: <PaymentsSection /> },
+  { id: "cta", delayMs: 640, content: <CtaSection /> },
+  { id: "footer", delayMs: 720, content: <LandingFooter /> },
+] as const;
+
 export function LandingPage() {
-  const { activities, isLoading } = useActivities();
-
-  const dynamicContent = useMemo(() => {
-    const safeActivities = activities ?? [];
-
-    const heroCards: HeroCardItem[] = safeActivities.slice(0, 2).map((item, index) => ({
-      title: item.title,
-      subtitle: item.location?.name || "Local spot",
-      badge: index === 0 ? "Featured" : "Popular",
-      tone: tonePalette[index % tonePalette.length],
-      imageUrl: item.images?.[0],
-    }));
-
-    const topRatedItems: ActivityItem[] = [...safeActivities]
-      .sort((a, b) => b.rating - a.rating)
-      .slice(0, 3)
-      .map((item, index) => ({
-        title: item.title,
-        category: item.category,
-        price: `${item.price?.currency ?? "$"}${item.price?.amount ?? 0}`,
-        rating: item.rating.toFixed(1),
-        tone: tonePalette[index % tonePalette.length],
-        imageUrl: item.images?.[0],
-      }));
-
-    const happeningNow: LiveItem[] = safeActivities.slice(0, 3).map((item) => ({
-      label: `${item.title} - ${item.location?.name || "Nearby"}`,
-    }));
-
-    const byCategory = new Map<string, number>();
-    for (const activity of safeActivities) {
-      byCategory.set(activity.category, (byCategory.get(activity.category) ?? 0) + 1);
-    }
-
-    const categoryItems: CategoryItem[] = [...byCategory.entries()]
-      .slice(0, 4)
-      .map(([category, count], index) => ({
-        title: category,
-        subtitle: `${count} active experiences`,
-        tone: tonePalette[index % tonePalette.length],
-      }));
-
-    return { heroCards, topRatedItems, happeningNow, categoryItems };
-  }, [activities]);
-
-  if (isLoading) {
-    return (
-      <main className="bg-white">
-        <section className="mx-auto grid w-full max-w-6xl gap-8 px-4 pb-14 pt-4 md:grid-cols-2 md:px-6 md:pt-8">
-          <div className="space-y-4">
-            <Skeleton className="h-6 w-28 rounded-full" />
-            <Skeleton className="h-14 w-full max-w-xl" />
-            <Skeleton className="h-14 w-full max-w-md" />
-            <Skeleton className="h-10 w-full max-w-lg rounded-xl" />
-          </div>
-          <div className="grid grid-cols-2 gap-3 md:gap-4">
-            <Skeleton className="col-span-2 h-28 rounded-2xl" />
-            <Skeleton className="h-[220px] rounded-2xl" />
-            <Skeleton className="h-[220px] rounded-2xl" />
-          </div>
-        </section>
-
-        <section className="bg-zinc-50 py-14">
-          <div className="mx-auto w-full max-w-6xl space-y-4 px-4 md:px-6">
-            <Skeleton className="h-8 w-56" />
-            <div className="grid gap-3 md:grid-cols-3">
-              <Skeleton className="min-h-[260px] rounded-2xl md:col-span-2" />
-              <div className="grid gap-3">
-                <Skeleton className="min-h-[120px] rounded-2xl" />
-                <Skeleton className="min-h-[120px] rounded-2xl" />
-                <Skeleton className="min-h-[120px] rounded-2xl" />
-              </div>
-            </div>
-          </div>
-        </section>
-      </main>
-    );
-  }
-
-  const heroCards =
-    dynamicContent.heroCards.length > 0
-      ? dynamicContent.heroCards
-      : defaultHeroCards;
-
   return (
     <main className="bg-white">
-      <FadeInSection delayMs={0}>
-        <HeroSection cards={heroCards} />
-      </FadeInSection>
-      <FadeInSection delayMs={120}>
-        <CategorySection items={dynamicContent.categoryItems} />
-      </FadeInSection>
-      <FadeInSection delayMs={240}>
-        <TopRatedSection items={dynamicContent.topRatedItems} />
-      </FadeInSection>
-      <FadeInSection delayMs={320}>
-        <HappeningNowSection items={dynamicContent.happeningNow} />
-      </FadeInSection>
-      <FadeInSection delayMs={420}>
-        <CtaSection />
-      </FadeInSection>
-      <FadeInSection delayMs={520}>
-        <LandingFooter />
-      </FadeInSection>
+      {LANDING_SECTIONS.map(({ id, delayMs, content }) => (
+        <FadeInSection key={id} delayMs={delayMs}>
+          {content}
+        </FadeInSection>
+      ))}
     </main>
   );
 }

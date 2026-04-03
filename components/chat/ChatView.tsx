@@ -24,6 +24,7 @@ interface ChatViewProps {
     isFromCurrentUser: boolean;
     senderName?: string;
     senderAvatar?: string;
+    senderProfileUserId?: Id<"users">;
     status?: "sent" | "delivered" | "read";
     encrypted?: boolean;
     encryptionVersion?: "symmetric" | "asymmetric";
@@ -33,6 +34,7 @@ interface ChatViewProps {
     };
   }>;
   otherUser?: {
+    _id: Id<"users">;
     name: string;
     lastname: string;
     username: string;
@@ -95,6 +97,7 @@ export function ChatView({
       isFromCurrentUser: boolean;
       senderName?: string;
       senderAvatar?: string;
+      senderProfileUserId?: Id<"users">;
       status?: "sent" | "delivered" | "read";
       decryptionError?: boolean;
       encryptionVersion?: "symmetric" | "asymmetric";
@@ -311,6 +314,8 @@ export function ChatView({
     setHeaderData({
       displayName,
       username: type === "individual" ? otherUser?.username : undefined,
+      profileUserId:
+        type === "individual" ? otherUser?._id : undefined,
       teamId: type === "team" ? teamId : undefined,
       teamIcon: type === "team" ? teamIcon : undefined,
       isTeam: type === "team",
@@ -323,6 +328,7 @@ export function ChatView({
     clearHeaderData,
     displayName,
     otherUser?.username,
+    otherUser?._id,
     setHeaderData,
     teamIcon,
     teamId,
@@ -348,6 +354,7 @@ export function ChatView({
                 isFromCurrentUser={message.isFromCurrentUser}
                 senderName={message.senderName}
                 senderAvatar={message.senderAvatar}
+                senderProfileUserId={message.senderProfileUserId}
                 showSenderName={type === "team"}
                 status={message.status}
                 previousTimestamp={

@@ -12,7 +12,6 @@ export interface ProfileFormData {
   email: string;
   description: string;
   contact: string;
-  exp: number;
   friends: Id<"users">[];
 }
 
@@ -34,6 +33,7 @@ export interface ProfileViewProps {
     contact: string;
     avatar: string;
     totalExp: bigint;
+    loyaltyPoints?: bigint;
     friends: Id<"users">[];
   } | null | undefined;
   currentUser: {

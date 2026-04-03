@@ -6,6 +6,8 @@ import { Id } from "@/convex/_generated/dataModel";
 export interface ChatHeaderData {
   displayName: string;
   username?: string;
+  /** When set, @username links to this user profile (direct chats). */
+  profileUserId?: Id<"users">;
   teamId?: Id<"teams">;
   teamIcon?: string;
   isTeam?: boolean;
@@ -34,6 +36,7 @@ export function ChatHeaderStateProvider({
         prev &&
         prev.displayName === data.displayName &&
         prev.username === data.username &&
+        prev.profileUserId === data.profileUserId &&
         prev.teamId === data.teamId &&
         prev.teamIcon === data.teamIcon &&
         prev.isTeam === data.isTeam

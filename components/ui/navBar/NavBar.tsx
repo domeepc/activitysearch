@@ -5,6 +5,7 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -22,25 +23,28 @@ import Image from "next/image";
 
 import "./style.css";
 import { AvatarImage, Avatar } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Authenticated, useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { api } from "@/convex/_generated/api";
 import { useAuth, useClerk } from "@clerk/nextjs";
 import { SIGNED_IN_HOME_HREF } from "@/lib/routes";
-import { DropdownMenuLabel } from "@radix-ui/react-dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { useUnreadReservationCount } from "@/lib/hooks/useReservations";
 import { useUnreadMessageCount } from "@/lib/hooks/useUnreadMessageCount";
 
 export default function Navbar() {
-  const { isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn } = useAuth();
   const { signOut } = useClerk();
-  const user = useQuery(api.users.current);
+  const user = useQuery(
+    api.users.current,
+    isLoaded && isSignedIn ? {} : "skip"
+  );
   const { count: unreadReservationCount } = useUnreadReservationCount();
   const { count: unreadMessageCount } = useUnreadMessageCount();
   const isOrganiser = user?.role === "organiser";
 
   return (
-    <nav>
+    <nav className="app-navbar">
       <Link
         href={isSignedIn ? SIGNED_IN_HOME_HREF : "/"}
         className="logo-link"
@@ -62,6 +66,17 @@ export default function Navbar() {
           priority
         />
       </Link>
+
+      {!isLoaded ? null : !isSignedIn ? (
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" asChild className="rounded-full">
+            <Link href="/sign-in">Sign in</Link>
+          </Button>
+          <Button asChild className="rounded-full">
+            <Link href="/sign-up">Sign up</Link>
+          </Button>
+        </div>
+      ) : null}
 
       <Authenticated>
         <div className="flex items-center justify-center gap-4">
@@ -123,7 +138,14 @@ export default function Navbar() {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="sign_out"
-                onSelect={() => signOut({ redirectUrl: "/" })}
+                onSelect={async (event) => {
+                  event.preventDefault();
+                  // Full document reload clears client state (Convex, layout) and avoids a
+                  // shifted layout after soft navigation to `/`.
+                  await signOut(() => {
+                    window.location.replace("/");
+                  });
+                }}
               >
                 <LogOut className="icon" />
                 Sign out

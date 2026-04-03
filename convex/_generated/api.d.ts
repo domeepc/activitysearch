@@ -10,10 +10,14 @@
 
 import type * as ably from "../ably.js";
 import type * as activity from "../activity.js";
+import type * as gamification from "../gamification.js";
 import type * as http from "../http.js";
+import type * as loyalty from "../loyalty.js";
 import type * as messages from "../messages.js";
 import type * as organisation from "../organisation.js";
 import type * as presence from "../presence.js";
+import type * as questLogic from "../questLogic.js";
+import type * as quests from "../quests.js";
 import type * as reservations from "../reservations.js";
 import type * as reviews from "../reviews.js";
 import type * as scheduled from "../scheduled.js";
@@ -31,10 +35,14 @@ import type {
 declare const fullApi: ApiFromModules<{
   ably: typeof ably;
   activity: typeof activity;
+  gamification: typeof gamification;
   http: typeof http;
+  loyalty: typeof loyalty;
   messages: typeof messages;
   organisation: typeof organisation;
   presence: typeof presence;
+  questLogic: typeof questLogic;
+  quests: typeof quests;
   reservations: typeof reservations;
   reviews: typeof reviews;
   scheduled: typeof scheduled;

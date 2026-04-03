@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { TeamIconSection } from "./TeamIconSection";
 import { Id } from "@/convex/_generated/dataModel";
@@ -9,6 +10,7 @@ import { useIsMobile } from "@/lib/hooks/useIsMobile";
 interface ChatHeaderProps {
   displayName: string;
   username?: string;
+  profileUserId?: Id<"users">;
   teamId?: Id<"teams">;
   teamIcon?: string;
   isTeam?: boolean;
@@ -18,6 +20,7 @@ interface ChatHeaderProps {
 export function ChatHeader({
   displayName,
   username,
+  profileUserId,
   teamId,
   teamIcon,
   isTeam = false,
@@ -54,11 +57,20 @@ export function ChatHeader({
         )}
         <div className="min-w-0">
           <h2 className="text-sm md:text-lg font-semibold truncate">{displayName}</h2>
-          {username && (
-            <p className="text-[11px] md:text-sm text-muted-foreground truncate">
-              @{username}
-            </p>
-          )}
+          {username ? (
+            profileUserId ? (
+              <Link
+                href={`/profile/${profileUserId}`}
+                className="block truncate text-[11px] md:text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              >
+                @{username}
+              </Link>
+            ) : (
+              <p className="truncate text-[11px] md:text-sm text-muted-foreground">
+                @{username}
+              </p>
+            )
+          ) : null}
         </div>
       </div>
     </div>

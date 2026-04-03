@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { ReservationCard } from "@/components/reservations/ReservationCard";
@@ -13,6 +14,8 @@ interface MessageBubbleProps {
   isFromCurrentUser: boolean;
   senderName?: string;
   senderAvatar?: string;
+  /** Team chat: link avatar + name to this user profile. */
+  senderProfileUserId?: Id<"users">;
   showSenderName?: boolean;
   status?: "sent" | "delivered" | "read";
   previousTimestamp?: number;
@@ -70,12 +73,17 @@ function formatTimeAgo(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString();
 }
 
+function senderProfileHref(userId: Id<"users">) {
+  return `/profile/${userId}`;
+}
+
 export function MessageBubble({
   text,
   timestamp,
   isFromCurrentUser,
   senderName,
   senderAvatar,
+  senderProfileUserId,
   showSenderName = false,
   status,
   previousTimestamp,
@@ -84,6 +92,11 @@ export function MessageBubble({
   reservationCardData,
 }: MessageBubbleProps) {
   const timeAgo = formatTimeAgo(timestamp);
+  const showSenderMeta =
+    !isFromCurrentUser && showSenderName && senderProfileUserId;
+  const profileHref = showSenderMeta
+    ? senderProfileHref(senderProfileUserId)
+    : null;
 
   // Show date divider if this message is more than 30 minutes after previous
   const showDateDivider = previousTimestamp
@@ -112,29 +125,57 @@ export function MessageBubble({
             isFromCurrentUser ? "flex-row-reverse" : "flex-row"
           )}
         >
-          {!isFromCurrentUser && showSenderName && (
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={senderAvatar} alt={senderName} />
-              <AvatarFallback>
-                {senderName
-                  ?.split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .toUpperCase() || "?"}
-              </AvatarFallback>
-            </Avatar>
-          )}
+          {!isFromCurrentUser && showSenderName ? (
+            profileHref ? (
+              <Link
+                href={profileHref}
+                className="shrink-0 rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`View ${senderName ?? "profile"}`}
+              >
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={senderAvatar} alt={senderName} />
+                  <AvatarFallback>
+                    {senderName
+                      ?.split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase() || "?"}
+                  </AvatarFallback>
+                </Avatar>
+              </Link>
+            ) : (
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={senderAvatar} alt={senderName} />
+                <AvatarFallback>
+                  {senderName
+                    ?.split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .toUpperCase() || "?"}
+                </AvatarFallback>
+              </Avatar>
+            )
+          ) : null}
           <div
             className={cn(
               "flex flex-col w-full max-w-[85%] sm:max-w-[75%] md:max-w-[70%]",
               isFromCurrentUser ? "items-end" : "items-start"
             )}
           >
-            {!isFromCurrentUser && showSenderName && senderName && (
-              <span className="text-xs text-muted-foreground mb-1 px-2">
-                {senderName}
-              </span>
-            )}
+            {!isFromCurrentUser && showSenderName && senderName ? (
+              profileHref ? (
+                <Link
+                  href={profileHref}
+                  className="mb-1 px-2 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                >
+                  {senderName}
+                </Link>
+              ) : (
+                <span className="mb-1 px-2 text-xs text-muted-foreground">
+                  {senderName}
+                </span>
+              )
+            ) : null}
             <ReservationCard reservationId={reservationCardData.reservationId} />
             <div className="flex items-center gap-1 mt-1 px-2">
               <span className="text-xs text-muted-foreground">{timeAgo}</span>
@@ -177,29 +218,57 @@ export function MessageBubble({
           isFromCurrentUser ? "flex-row-reverse" : "flex-row"
         )}
       >
-        {!isFromCurrentUser && showSenderName && (
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={senderAvatar} alt={senderName} />
-            <AvatarFallback>
-              {senderName
-                ?.split(" ")
-                .map((n) => n[0])
-                .join("")
-                .toUpperCase() || "?"}
-            </AvatarFallback>
-          </Avatar>
-        )}
+        {!isFromCurrentUser && showSenderName ? (
+          profileHref ? (
+            <Link
+              href={profileHref}
+              className="shrink-0 rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={`View ${senderName ?? "profile"}`}
+            >
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={senderAvatar} alt={senderName} />
+                <AvatarFallback>
+                  {senderName
+                    ?.split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .toUpperCase() || "?"}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
+          ) : (
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={senderAvatar} alt={senderName} />
+              <AvatarFallback>
+                {senderName
+                  ?.split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase() || "?"}
+              </AvatarFallback>
+            </Avatar>
+          )
+        ) : null}
         <div
           className={cn(
             "flex flex-col max-w-[70%]",
             isFromCurrentUser ? "items-end" : "items-start"
           )}
         >
-          {!isFromCurrentUser && showSenderName && senderName && (
-            <span className="text-xs text-muted-foreground mb-1 px-2">
-              {senderName}
-            </span>
-          )}
+          {!isFromCurrentUser && showSenderName && senderName ? (
+            profileHref ? (
+              <Link
+                href={profileHref}
+                className="mb-1 px-2 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              >
+                {senderName}
+              </Link>
+            ) : (
+              <span className="mb-1 px-2 text-xs text-muted-foreground">
+                {senderName}
+              </span>
+            )
+          ) : null}
           <div
             className={cn(
               "rounded-lg px-4 py-2",
