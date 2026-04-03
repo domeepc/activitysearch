@@ -1,3 +1,4 @@
+import { useAuth } from "@clerk/nextjs";
 import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -95,11 +96,15 @@ export function useOrganiserReservations() {
 }
 
 export function useUnreadReservationCount() {
-  const count = useQuery(api.reservations.getUnreadReservationCount);
+  const { isLoaded, isSignedIn } = useAuth();
+  const count = useQuery(
+    api.reservations.getUnreadReservationCount,
+    isLoaded && isSignedIn ? {} : "skip"
+  );
 
   return {
     count: count ?? 0,
-    isLoading: count === undefined,
+    isLoading: isSignedIn && count === undefined,
   };
 }
 

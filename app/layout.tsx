@@ -1,37 +1,38 @@
-import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
-import './globals.css';
-import { ClerkProvider } from '@clerk/nextjs';
-import ConvexClientProvider from '@/components/providers/ConvexClientProvider';
-import { PostHogIdentify } from '@/components/providers/PostHogIdentify';
-import { PostHogProvider } from '@/components/providers/PostHogProvider';
-import { PresenceProviderWrapper } from '@/components/providers/PresenceProviderWrapper';
-import Navbar from '@/components/ui/navBar/NavBar';
-import { Toaster } from '@/components/ui/sonner';
-import { Suspense } from 'react';
-import Loading from '@/app/loading';
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+import { ClerkProvider } from "@clerk/nextjs";
+import ConvexClientProvider from "@/components/providers/ConvexClientProvider";
+import { PostHogIdentify } from "@/components/providers/PostHogIdentify";
+import { PostHogProvider } from "@/components/providers/PostHogProvider";
+import { PresenceProviderWrapper } from "@/components/providers/PresenceProviderWrapper";
+import Navbar from "@/components/ui/navBar/NavBar";
+import { Toaster } from "@/components/ui/sonner";
+import { Suspense } from "react";
+import Loading from "@/app/loading";
 
 const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-  display: 'swap',
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+  display: "swap",
   preload: true,
 });
 
 const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-  display: 'swap',
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+  display: "swap",
   preload: true,
 });
 
 export const metadata: Metadata = {
-  title: 'ActivitySearch - Discover and Book Activities',
-  description: 'Find and book activities, connect with organisers, and manage your reservations all in one place.',
+  title: "ActivitySearch - Discover and Book Activities",
+  description:
+    "Find and book activities, connect with organisers, and manage your reservations all in one place.",
   icons: {
-    icon: '/adress-bar-logo.svg',
-    shortcut: '/adress-bar-logo.svg',
-    apple: '/adress-bar-logo.svg',
+    icon: "/adress-bar-logo.svg",
+    shortcut: "/adress-bar-logo.svg",
+    apple: "/adress-bar-logo.svg",
   },
 };
 
@@ -49,16 +50,17 @@ export default function RootLayout({
           <ClerkProvider
             signInUrl="/sign-in"
             signUpUrl="/sign-up"
+            afterSignOutUrl="/"
           >
             <ConvexClientProvider>
               <PostHogProvider>
                 <PostHogIdentify />
                 <PresenceProviderWrapper>
-                <header>
-                  <Navbar />
-                </header>
-                {children}
-              </PresenceProviderWrapper>
+                  <header>
+                    <Navbar />
+                  </header>
+                  {children}
+                </PresenceProviderWrapper>
               </PostHogProvider>
             </ConvexClientProvider>
           </ClerkProvider>
@@ -66,6 +68,5 @@ export default function RootLayout({
         <Toaster />
       </body>
     </html>
-
   );
 }

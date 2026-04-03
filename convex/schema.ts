@@ -13,6 +13,7 @@ export default defineSchema({
     contact: v.string(),
     avatar: v.string(),
     totalExp: v.int64(),
+    loyaltyPoints: v.optional(v.int64()),
     friends: v.array(v.id("users")),
     blocked: v.optional(v.array(v.id("users"))),
     role: v.optional(v.string()),
@@ -55,11 +56,47 @@ export default defineSchema({
     activityId: v.id("activities"),
   }).index("byUserAndActivity", ["userId", "activityId"]),
   quests: defineTable({
+    questType: v.optional(
+      v.union(v.literal("manual"), v.literal("system"))
+    ),
     questName: v.string(),
     expAmount: v.int64(),
     description: v.string(),
-    activityId: v.id("activities"),
-  }),
+    iconSvg: v.optional(v.string()),
+    /** Public HTTPS URL (e.g. Convex file storage) shown on activity page */
+    iconImageUrl: v.optional(v.string()),
+    activityId: v.optional(v.id("activities")),
+    systemKey: v.optional(
+      v.union(
+        v.literal("account_created"),
+        v.literal("avatar_set"),
+        v.literal("team_created"),
+        v.literal("friend_added"),
+        v.literal("activity_reserved")
+      )
+    ),
+    sortOrder: v.optional(v.number()),
+    isActive: v.optional(v.boolean()),
+  })
+    .index("byActivity", ["activityId"])
+    .index("bySystemKey", ["systemKey"]),
+  questCompletions: defineTable({
+    userId: v.id("users"),
+    questId: v.id("quests"),
+    completedAt: v.number(),
+    source: v.union(v.literal("manual"), v.literal("system")),
+    markedByOrganiserId: v.optional(v.id("users")),
+  })
+    .index("by_user_quest", ["userId", "questId"])
+    .index("by_user", ["userId"])
+    .index("by_quest", ["questId"]),
+  loyaltyTransactions: defineTable({
+    userId: v.id("users"),
+    amount: v.int64(),
+    reason: v.string(),
+    reservationId: v.optional(v.id("reservations")),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"]),
   reservations: defineTable({
     date: v.string(),
     time: v.string(),
@@ -80,6 +117,8 @@ export default defineSchema({
       )
     ),
     paymentDeadline: v.optional(v.number()),
+    loyaltyDiscountTotal: v.optional(v.float64()),
+    loyaltyPointsSpent: v.optional(v.int64()),
   })
     .index("byActivity", ["activityId"])
     .index("byDateTime", ["activityId", "date", "time"]),

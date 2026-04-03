@@ -7,6 +7,7 @@ import {
 import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { getCurrentUser, getCurrentUserOrThrow } from "./users";
+import { internal } from "./_generated/api";
 
 // Helper function to generate secure random hash for team slug
 function generateSecureHash(): string {
@@ -130,6 +131,11 @@ export const createTeam = mutation({
       createdBy: currentUser._id,
       slug,
       icon: undefined,
+    });
+
+    await ctx.runMutation(internal.gamification.tryCompleteSystemQuest, {
+      userId: currentUser._id,
+      systemKey: "team_created",
     });
 
     return teamId;

@@ -3,7 +3,11 @@ import {v} from "convex/values";
 
 export const generateUploadUrl = mutation({
   args: {
-    kind: v.union(v.literal("avatar"), v.literal("activity")),
+    kind: v.union(
+      v.literal("avatar"),
+      v.literal("activity"),
+      v.literal("quest")
+    ),
   },
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -17,7 +21,11 @@ export const generateUploadUrl = mutation({
 export const resolveUploadedImageUrl = mutation({
   args: {
     storageId: v.id("_storage"),
-    kind: v.union(v.literal("avatar"), v.literal("activity")),
+    kind: v.union(
+      v.literal("avatar"),
+      v.literal("activity"),
+      v.literal("quest")
+    ),
   },
   handler: async (ctx, {storageId}) => {
     const identity = await ctx.auth.getUserIdentity();

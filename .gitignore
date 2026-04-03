@@ -10,6 +10,12 @@
 !.yarn/releases
 !.yarn/versions
 
+#ai
+.cursor/*
+.claude/*
+.cursor
+.claude
+
 # testing
 /coverage
 

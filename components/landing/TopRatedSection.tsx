@@ -27,7 +27,7 @@ export function TopRatedSection({ items }: TopRatedSectionProps) {
           {displayItems.map((activity) => (
             <Card
               key={activity.title}
-              className="overflow-hidden border-zinc-200 pt-0 pb-0 w-3/4 gap-0 shadow-sm"
+              className="overflow-hidden gap-0 border-zinc-200 pt-0 pb-0 shadow-sm"
             >
               <div
                 className={`relative h-28 ${activity.imageUrl ? "bg-zinc-100" : `bg-linear-to-br ${activity.tone}`
@@ -37,6 +37,7 @@ export function TopRatedSection({ items }: TopRatedSectionProps) {
                   <Image
                     src={activity.imageUrl}
                     alt={activity.title}
+                    loading="eager"
                     fill
                     sizes="(max-width: 768px) 100vw, 33vw"
                     className="h-full w-full object-cover object-center"

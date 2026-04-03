@@ -1,10 +1,14 @@
 "use client";
 
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { progressionFromTotalExp } from "@/lib/gamification/levels";
 import { Card, CardContent } from "@/components/ui/card";
 import { UserAvatarSection } from "./UserAvatarSection";
 import { ProfileHeader } from "./ProfileHeader";
 import { ProfileInfo } from "./ProfileInfo";
-import { ProfileStats } from "./ProfileStats";
+import { ProfileStats, type ProfileProgressionDisplay } from "./ProfileStats";
+import { MyQuestsSection } from "./MyQuestsSection";
 import { FriendList } from "./FriendList";
 import { BlockedUsersList } from "./BlockedUsersList";
 import { EmailVerificationSection } from "./EmailVerificationSection";
@@ -29,6 +33,7 @@ interface ProfileViewProps {
         contact: string;
         avatar: string;
         totalExp: bigint;
+        loyaltyPoints?: bigint;
         friends: Id<"users">[];
       }
     | null
@@ -96,11 +101,41 @@ export function ProfileView({
 
   const verificationStatus = getEmailVerificationStatus();
 
+  const progressionQuery = useQuery(
+    api.users.getProgression,
+    currentUser && user && currentUser._id === user._id ? {} : "skip"
+  );
+
   if (isLoading || !user) {
     return null;
   }
 
   const isOwnProfile = currentUser?._id === user._id;
+
+  const progressionDisplay: ProfileProgressionDisplay | null | undefined =
+    isOwnProfile
+      ? progressionQuery === undefined
+        ? undefined
+        : progressionQuery === null
+          ? null
+          : {
+              level: progressionQuery.level,
+              progressFraction: progressionQuery.progressFraction,
+              expIntoLevel: Number(progressionQuery.expIntoLevel),
+              expForCurrentLevel: Number(progressionQuery.expForCurrentLevel),
+              totalExp: Number(progressionQuery.totalExp),
+              loyaltyPoints: Number(progressionQuery.loyaltyPoints),
+            }
+      : (() => {
+          const p = progressionFromTotalExp(user.totalExp);
+          return {
+            level: p.level,
+            progressFraction: p.progressFraction,
+            expIntoLevel: Number(p.expIntoLevel),
+            expForCurrentLevel: Number(p.expForCurrentLevel),
+            totalExp: Number(user.totalExp),
+          };
+        })();
   const isFriend = currentUser?.friends.includes(user._id);
   const isBlocked = currentUser?.blocked?.includes(user._id) || false;
   const settingsUrl = isOwnProfile
@@ -176,8 +211,12 @@ export function ProfileView({
           </div>
         )}
 
-        {/* Experience Points */}
-        <ProfileStats exp={Number(user.totalExp || 0)} isLoading={isLoading} />
+        <ProfileStats
+          progression={progressionDisplay}
+          isLoading={isOwnProfile ? progressionQuery === undefined : false}
+        />
+
+        {isOwnProfile && <MyQuestsSection />}
 
         {/* Friends */}
         <FriendList

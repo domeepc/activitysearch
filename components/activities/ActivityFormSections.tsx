@@ -577,29 +577,27 @@ export function ImagesSection({
   ActivityFormSectionsProps,
   "formData" | "onImageSelect" | "onRemoveImage" | "error"
 >) {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const openFilePicker = () => fileInputRef.current?.click();
+
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-semibold text-foreground">Images</h3>
       <div className="space-y-2">
         <input
-          id="images-upload"
+          ref={fileInputRef}
           type="file"
           accept="image/*"
           multiple
           onChange={onImageSelect}
-          className="hidden"
+          className="sr-only"
+          tabIndex={-1}
         />
         <div className="flex flex-col gap-3">
           <Button
             type="button"
             variant="outline"
-            onClick={() =>
-              (
-                document.getElementById(
-                  "images-upload"
-                ) as HTMLInputElement | null
-              )?.click()
-            }
+            onClick={openFilePicker}
             className="w-full sm:w-auto"
           >
             <Upload className="size-4 mr-2" /> Upload Images
@@ -613,36 +611,53 @@ export function ImagesSection({
               <p className="text-sm text-destructive">{error}</p>
             </div>
           )}
-          {formData.images.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          {formData.images.length === 0 ? (
+            <button
+              type="button"
+              onClick={openFilePicker}
+              className={cn(
+                "flex min-h-[220px] w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 px-4 py-8 text-center text-muted-foreground transition-colors hover:border-muted-foreground/40 hover:bg-muted/50"
+              )}
+            >
+              <ImageIcon className="size-10 opacity-50" aria-hidden />
+              <span className="text-sm font-medium text-foreground">
+                Image previews appear here
+              </span>
+              <span className="text-xs">
+                Tap above or click this area to upload
+              </span>
+            </button>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {formData.images.map((src, idx) => (
                 <Card
-                  key={idx}
-                  className="relative overflow-hidden group w-fit h-fit pt-0 pb-0"
+                  key={`${src}-${idx}`}
+                  className="group relative w-full overflow-hidden border pt-0 pb-0"
                 >
                   <CardContent className="p-0">
-                    <div className="relative aspect-square">
+                    <div className="relative aspect-[4/3] w-full min-h-[200px]">
                       <Image
                         src={src}
-                        alt={`Upload ${idx + 1}`}
+                        alt={`Activity image ${idx + 1}`}
                         fill
+                        sizes="(max-width: 640px) 100vw, 50vw"
                         className="object-cover"
                         onError={(e) => {
                           e.currentTarget.style.display = "none";
                         }}
                       />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                      <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/20" />
                       <button
                         type="button"
                         onClick={() => onRemoveImage(idx)}
-                        className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1.5 hover:bg-destructive/90 transition-colors opacity-0 group-hover:opacity-100 shadow-lg"
+                        className="absolute top-2 right-2 rounded-full bg-destructive p-1.5 text-destructive-foreground opacity-0 shadow-lg transition-opacity hover:bg-destructive/90 group-hover:opacity-100"
                         aria-label={`Remove image ${idx + 1}`}
                       >
                         <X className="size-4" />
                       </button>
-                      <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/60 to-transparent p-2">
-                        <div className="flex items-center gap-1.5 text-white text-xs">
-                          <ImageIcon className="size-3" />
+                      <div className="absolute right-0 bottom-0 left-0 bg-linear-to-t from-black/60 to-transparent p-3">
+                        <div className="flex items-center gap-1.5 text-xs text-white">
+                          <ImageIcon className="size-3.5" />
                           <span>Image {idx + 1}</span>
                         </div>
                       </div>

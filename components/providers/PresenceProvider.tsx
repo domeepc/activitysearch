@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
 import {
   createContext,
   useContext,
@@ -11,7 +12,7 @@ import {
 } from "react";
 import { useQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { getAblyClient } from "@/lib/presence/ablyClient";
+import { disconnectAbly, getAblyClient } from "@/lib/presence/ablyClient";
 import { Realtime } from "ably";
 
 interface PresenceContextType {
@@ -35,7 +36,11 @@ interface PresenceProviderProps {
 }
 
 export function PresenceProvider({ children }: PresenceProviderProps) {
-  const currentUser = useQuery(api.users.current);
+  const { isLoaded, isSignedIn } = useAuth();
+  const currentUser = useQuery(
+    api.users.current,
+    isLoaded && isSignedIn ? {} : "skip"
+  );
   const getAblyTokenRequest = useAction(api.ably.getAblyTokenRequest);
   const [client, setClient] = useState<Realtime | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -131,6 +136,7 @@ export function PresenceProvider({ children }: PresenceProviderProps) {
     return () => {
       mounted = false;
       cleanupClient?.();
+      disconnectAbly();
     };
   }, [userId, getAblyTokenRequest]);
 

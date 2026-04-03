@@ -1,19 +1,33 @@
-import {ConvexHttpClient} from "convex/browser";
-import {api} from "@/convex/_generated/api";
-import type {Id} from "@/convex/_generated/dataModel";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 
 const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-const convexClient = convexUrl ? new ConvexHttpClient(convexUrl) : null;
+
+/**
+ * Returns a Clerk JWT accepted by Convex (`convex/auth.config.ts` applicationID `convex`).
+ * Use: `() => getToken({ template: "convex" })` from `useAuth()`.
+ */
+export type ConvexAuthTokenFetcher = () => Promise<string | null | undefined>;
 
 export async function uploadImage(
   file: File,
-  kind: "avatar" | "activity"
+  kind: "avatar" | "activity" | "quest",
+  getConvexJwt: ConvexAuthTokenFetcher
 ): Promise<string> {
-  if (!convexClient) {
+  if (!convexUrl) {
     throw new Error("Missing NEXT_PUBLIC_CONVEX_URL");
   }
 
-  const uploadUrl = await convexClient.mutation(api.uploads.generateUploadUrl, {
+  const token = await getConvexJwt();
+  if (!token) {
+    throw new Error("You must be logged in to upload images");
+  }
+
+  const client = new ConvexHttpClient(convexUrl);
+  client.setAuth(token);
+
+  const uploadUrl = await client.mutation(api.uploads.generateUploadUrl, {
     kind,
   });
 
@@ -37,13 +51,10 @@ export async function uploadImage(
     throw new Error("Upload failed: missing storageId");
   }
 
-  const result = await convexClient.mutation(
-    api.uploads.resolveUploadedImageUrl,
-    {
-      storageId: storageId as Id<"_storage">,
-      kind,
-    }
-  );
+  const result = await client.mutation(api.uploads.resolveUploadedImageUrl, {
+    storageId: storageId as Id<"_storage">,
+    kind,
+  });
 
   if (!result.url) {
     throw new Error("Upload failed: missing file URL");

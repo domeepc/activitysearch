@@ -55,6 +55,7 @@ export function HeroSection({ cards }: HeroSectionProps) {
               <Image
                 src={card.imageUrl}
                 alt={card.title}
+                loading="eager"
                 fill
                 sizes="(max-width: 768px) 50vw, 25vw"
                 className="object-cover"

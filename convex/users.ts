@@ -10,6 +10,7 @@ import { UserJSON, createClerkClient } from "@clerk/backend";
 import { v, Validator } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
+import { progressionFromTotalExp } from "../lib/gamification/levels";
 
 // Helper function to generate URL-safe slug from username
 function generateSlug(username: string): string {
@@ -76,6 +77,24 @@ export const current = query({
   },
 });
 
+export const getProgression = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) return null;
+    const prog = progressionFromTotalExp(user.totalExp);
+    const loyalty = user.loyaltyPoints ?? BigInt(0);
+    return {
+      totalExp: user.totalExp.toString(),
+      loyaltyPoints: loyalty.toString(),
+      level: prog.level,
+      expIntoLevel: prog.expIntoLevel.toString(),
+      expForCurrentLevel: prog.expForCurrentLevel.toString(),
+      progressFraction: prog.progressFraction,
+    };
+  },
+});
+
 export const getOAuthProviders = query({
   args: {},
   handler: async (ctx) => {
@@ -109,7 +128,11 @@ export const upsertFromClerk = internalMutation({
 
     const user = await userByExternalId(ctx, data.id);
     if (user === null) {
-      await ctx.db.insert("users", userAttributes);
+      const newUserId = await ctx.db.insert("users", userAttributes);
+      await ctx.runMutation(internal.gamification.tryCompleteSystemQuest, {
+        userId: newUserId,
+        systemKey: "account_created",
+      });
     } else {
       // Preserve local database values for certain fields
       // Only update avatar from Clerk if local avatar is not custom.
@@ -124,6 +147,16 @@ export const upsertFromClerk = internalMutation({
         email: userAttributes.email,
         ...(shouldUpdateAvatar && { avatar: userAttributes.avatar }),
       });
+
+      if (
+        shouldUpdateAvatar &&
+        userAttributes.avatar.trim() !== ""
+      ) {
+        await ctx.runMutation(internal.gamification.tryCompleteSystemQuest, {
+          userId: user._id,
+          systemKey: "avatar_set",
+        });
+      }
     }
   },
 });
@@ -185,6 +218,7 @@ export const deleteFromClerk = internalMutation({
       }
 
       for (const quest of allQuests) {
+        if (quest.activityId === undefined) continue;
         const activityId = quest.activityId.toString();
         if (!questsByActivity.has(activityId)) {
           questsByActivity.set(activityId, []);
@@ -237,6 +271,17 @@ export const deleteFromClerk = internalMutation({
 
             // Add activity to delete list
             itemsToDelete.push({ type: "activity", id: activityId });
+          }
+
+          const questIdsToRemove = itemsToDelete
+            .filter((i) => i.type === "quest")
+            .map((i) => i.id as Id<"quests">);
+          for (const qid of questIdsToRemove) {
+            const completions = await ctx.db
+              .query("questCompletions")
+              .withIndex("by_quest", (q) => q.eq("questId", qid))
+              .collect();
+            await Promise.all(completions.map((c) => ctx.db.delete(c._id)));
           }
 
           // Delete reservationPayments first (they reference reservations)
@@ -294,6 +339,20 @@ export const deleteFromClerk = internalMutation({
         internal.teams.removeUserFromTeamsAndDeleteEmptyOnes,
         { userId: user._id }
       );
+
+      const userQuestCompletions = await ctx.db
+        .query("questCompletions")
+        .withIndex("by_user", (q) => q.eq("userId", user._id))
+        .collect();
+      await Promise.all(
+        userQuestCompletions.map((c) => ctx.db.delete(c._id))
+      );
+
+      const userLoyalty = await ctx.db
+        .query("loyaltyTransactions")
+        .withIndex("by_user", (q) => q.eq("userId", user._id))
+        .collect();
+      await Promise.all(userLoyalty.map((t) => ctx.db.delete(t._id)));
 
       await ctx.db.delete(user._id);
     } else {
@@ -481,7 +540,6 @@ export const updateUserProfile = action({
     email: v.optional(v.string()),
     description: v.optional(v.string()),
     contact: v.optional(v.string()),
-    exp: v.optional(v.number()),
     avatar: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -604,11 +662,11 @@ export const updateUserProfileMutation = mutation({
     username: v.optional(v.string()),
     description: v.optional(v.string()),
     contact: v.optional(v.string()),
-    exp: v.optional(v.number()),
     avatar: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const user = await getCurrentUserOrThrow(ctx);
+    const prevAvatar = user.avatar;
 
     const updates: {
       name?: string;
@@ -618,7 +676,6 @@ export const updateUserProfileMutation = mutation({
       slug?: string;
       description?: string;
       contact?: string;
-      totalExp?: bigint;
       avatar?: string;
     } = {};
 
@@ -631,10 +688,21 @@ export const updateUserProfileMutation = mutation({
     }
     if (args.description !== undefined) updates.description = args.description;
     if (args.contact !== undefined) updates.contact = args.contact;
-    if (args.exp !== undefined) updates.totalExp = BigInt(args.exp);
     if (args.avatar !== undefined) updates.avatar = args.avatar;
 
     await ctx.db.patch(user._id, updates);
+
+    if (
+      args.avatar !== undefined &&
+      args.avatar.trim() !== "" &&
+      args.avatar !== prevAvatar
+    ) {
+      await ctx.runMutation(internal.gamification.tryCompleteSystemQuest, {
+        userId: user._id,
+        systemKey: "avatar_set",
+      });
+    }
+
     return await ctx.db.get(user._id);
   },
 });
@@ -683,6 +751,11 @@ export const addFriend = mutation({
         friends: [...friend.friends, user._id],
       });
     }
+
+    await ctx.runMutation(internal.gamification.tryCompleteSystemQuest, {
+      userId: user._id,
+      systemKey: "friend_added",
+    });
 
     return await ctx.db.get(user._id);
   },

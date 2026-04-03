@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
+import { ConvexError } from "convex/values";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -18,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar, Clock, Wallet, X, AlertCircle, Star } from "lucide-react";
 import { toast } from "sonner";
@@ -37,10 +39,14 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
+  const [loyaltyPointsInput, setLoyaltyPointsInput] = useState("");
+  const [loyaltyRedeeming, setLoyaltyRedeeming] = useState(false);
   const { cancelReservation, isPending } = useCancelReservation();
   const reservationData = useQuery(api.reservations.getReservationCardData, {
     reservationId,
   });
+  const loyaltyBalance = useQuery(api.loyalty.getMyLoyaltyBalance, {});
+  const redeemLoyalty = useMutation(api.loyalty.redeemLoyaltyPointsForReservation);
 
   if (reservationData === undefined) {
     return (
@@ -118,6 +124,15 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
   };
 
   const statusBadge = getStatusBadge();
+  const pp = paymentProgress as typeof paymentProgress & {
+    listPrice?: number;
+    loyaltyDiscountTotal?: number;
+  };
+  const listPrice =
+    typeof pp.listPrice === "number" ? pp.listPrice : paymentProgress.totalAmount;
+  const loyaltyDiscountTotal =
+    typeof pp.loyaltyDiscountTotal === "number" ? pp.loyaltyDiscountTotal : 0;
+
   const progressPercentage =
     paymentProgress.totalAmount > 0
       ? (paymentProgress.collectedAmount / paymentProgress.totalAmount) * 100
@@ -225,8 +240,85 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
             <div className="text-xs text-muted-foreground wrap-break-word">
               {getDeadlineText()}
             </div>
+            {loyaltyDiscountTotal > 0 && (
+              <p className="text-xs font-medium text-green-700 dark:text-green-400">
+                Loyalty discount applied: −{formatCurrency(loyaltyDiscountTotal)}{" "}
+                (list {formatCurrency(listPrice)})
+              </p>
+            )}
           </div>
         </div>
+
+        {status === "pending" &&
+          paymentProgress.collectedAmount === 0 &&
+          loyaltyDiscountTotal === 0 &&
+          loyaltyBalance !== undefined &&
+          loyaltyBalance !== null && (
+            <div className="rounded-lg border border-dashed border-border p-3 space-y-2">
+              <p className="text-xs font-medium">Use loyalty points</p>
+              <p className="text-[11px] text-muted-foreground">
+                Balance: {loyaltyBalance.balance} pts · 10 pts ≈ €1 off · max{" "}
+                {formatCurrency(listPrice * 0.2)} off (20% of activity price).
+                Apply before anyone pays on this reservation.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+                <div className="flex-1 space-y-1">
+                  <Label htmlFor={`loyalty-${reservationId}`} className="text-xs">
+                    Points to spend
+                  </Label>
+                  <Input
+                    id={`loyalty-${reservationId}`}
+                    type="number"
+                    min={10}
+                    step={1}
+                    value={loyaltyPointsInput}
+                    onChange={(e) => setLoyaltyPointsInput(e.target.value)}
+                    placeholder="e.g. 100"
+                    className="h-9"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="w-full sm:w-auto"
+                  disabled={
+                    loyaltyRedeeming ||
+                    !loyaltyPointsInput ||
+                    Number(loyaltyPointsInput) < 10
+                  }
+                  onClick={async () => {
+                    const n = Math.floor(Number(loyaltyPointsInput));
+                    if (n < 10) return;
+                    setLoyaltyRedeeming(true);
+                    try {
+                      const r = await redeemLoyalty({
+                        reservationId,
+                        pointsToSpend: n,
+                      });
+                      setLoyaltyPointsInput("");
+                      toast.success(
+                        `Saved ${formatCurrency(r.discount)} with ${r.pointsUsed} points`
+                      );
+                    } catch (e) {
+                      const msg =
+                        e instanceof ConvexError
+                          ? typeof e.data === "string"
+                            ? e.data
+                            : JSON.stringify(e.data)
+                          : e instanceof Error
+                            ? e.message
+                            : "Could not redeem points";
+                      toast.error(msg);
+                    } finally {
+                      setLoyaltyRedeeming(false);
+                    }
+                  }}
+                >
+                  {loyaltyRedeeming ? "Applying…" : "Apply discount"}
+                </Button>
+              </div>
+            </div>
+          )}
 
         {/* Payment Button */}
         {paymentProgress.remainingAmount > 0 && status !== "cancelled" && (

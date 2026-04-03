@@ -1,14 +1,48 @@
 import { ArrowRight } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
-import { categories } from "@/components/landing/data";
+import { categories, type CategoryItem } from "@/components/landing/data";
 import { Button } from "@/components/ui/button";
 
 interface CategorySectionProps {
-  items?: typeof categories;
+  items?: CategoryItem[];
+}
+
+function CategoryTile({ category, paddingClass }: { category: CategoryItem; paddingClass: string }) {
+  const hasImage = Boolean(category.imageUrl);
+
+  return (
+    <article className="group relative min-h-[120px] overflow-hidden rounded-2xl border border-zinc-200 text-white shadow-sm">
+      {hasImage ? (
+        <>
+          <Image
+            src={category.imageUrl!}
+            alt={category.title}
+            fill
+            loading="eager"
+            sizes="(max-width: 768px) 100vw, 33vw"
+            className="object-cover transition duration-300 group-hover:scale-[1.02]"
+          />
+          <div className="absolute inset-0 bg-linear-to-t from-black/75 via-black/40 to-black/25" />
+        </>
+      ) : (
+        <div
+          className={`absolute inset-0 bg-linear-to-br ${category.tone}`}
+          aria-hidden
+        />
+      )}
+      <div className={`relative z-10 flex h-full flex-col justify-end ${paddingClass}`}>
+        <h4 className="text-base font-semibold">{category.title}</h4>
+        <p className="mt-1 text-xs text-white/80">{category.subtitle}</p>
+      </div>
+    </article>
+  );
 }
 
 export function CategorySection({ items }: CategorySectionProps) {
   const displayCategories = items && items.length >= 4 ? items : categories;
+  const featured = displayCategories[0];
+  const rest = displayCategories.slice(1);
 
   return (
     <section className="bg-zinc-50 py-14">
@@ -31,22 +65,40 @@ export function CategorySection({ items }: CategorySectionProps) {
         </div>
 
         <div className="grid gap-3 md:grid-cols-3">
-          <article className="group relative min-h-[260px] overflow-hidden rounded-2xl border border-zinc-200 bg-gradient-to-br from-zinc-900 to-zinc-700 p-6 text-white shadow-sm md:col-span-2">
-            <p className="text-xs uppercase tracking-[0.2em] text-white/70">
-              Featured
-            </p>
-            <h3 className="mt-2 text-3xl font-semibold">{displayCategories[0].title}</h3>
-            <p className="mt-1 text-sm text-white/75">{displayCategories[0].subtitle}</p>
+          <article className="group relative min-h-[260px] overflow-hidden rounded-2xl border border-zinc-200 shadow-sm md:col-span-2">
+            {featured.imageUrl ? (
+              <>
+                <Image
+                  src={featured.imageUrl}
+                  alt=""
+                  fill
+                  loading="eager"
+                  sizes="(max-width: 768px) 100vw, 66vw"
+                  className="object-cover transition duration-300 group-hover:scale-[1.02]"
+                />
+                <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/45 to-black/30" />
+              </>
+            ) : (
+              <div
+                className={`absolute inset-0 bg-linear-to-br ${featured.tone}`}
+                aria-hidden
+              />
+            )}
+            <div className="relative z-10 flex h-full min-h-[260px] flex-col justify-end p-6 text-white">
+              <p className="text-xs uppercase tracking-[0.2em] text-white/70">
+                Featured
+              </p>
+              <h3 className="mt-2 text-3xl font-semibold">{featured.title}</h3>
+              <p className="mt-1 text-sm text-white/75">{featured.subtitle}</p>
+            </div>
           </article>
           <div className="grid gap-3">
-            {displayCategories.slice(1).map((category) => (
-              <article
+            {rest.map((category) => (
+              <CategoryTile
                 key={category.title}
-                className={`min-h-[120px] rounded-2xl border border-zinc-200 bg-gradient-to-br ${category.tone} p-4 text-white shadow-sm`}
-              >
-                <h4 className="text-base font-semibold">{category.title}</h4>
-                <p className="text-xs text-white/80">{category.subtitle}</p>
-              </article>
+                category={category}
+                paddingClass="p-4"
+              />
             ))}
           </div>
         </div>

@@ -160,6 +160,7 @@ function ChatLayoutClientContent({
             <ChatHeader
               displayName={headerData.displayName}
               username={headerData.username}
+              profileUserId={headerData.profileUserId}
               teamId={headerData.teamId}
               teamIcon={headerData.teamIcon}
               isTeam={headerData.isTeam}

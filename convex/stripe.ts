@@ -20,6 +20,7 @@ type ReservationPaymentWithUser = Doc<"reservationPayments"> & {
 import { api, internal } from "./_generated/api";
 import Stripe from "stripe";
 import { STRIPE_SUPPORTED_COUNTRIES } from "../lib/countries";
+import { effectiveReservationTotalPrice } from "../lib/reservationsPricing";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
 if (!stripeSecretKey) {
@@ -2618,7 +2619,10 @@ export const getStripePaymentIntentsForOrganiser = action({
             .reduce((sum, p) => sum + p.amount, 0);
 
           const totalAmount = activity
-            ? activity.price * Number(reservation.userCount)
+            ? effectiveReservationTotalPrice(
+                activity.price,
+                reservation.loyaltyDiscountTotal
+              )
             : 0;
           const allReservationPayments = relevantPayments.filter(
             (p) => p.reservationId === pr.reservationId && !p.refundedAt

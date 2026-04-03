@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -60,6 +61,7 @@ export function useActivityForm({
   activityId,
   onSuccess,
 }: UseActivityFormOptions = {}) {
+  const { getToken } = useAuth();
   const posthog = usePostHog();
   const createActivity = useMutation(api.activity.createActivity);
   const updateActivity = useMutation(api.activity.updateActivity);
@@ -159,7 +161,8 @@ export function useActivityForm({
 
   const handleImageSelect = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = e.target.files;
+      const input = e.currentTarget;
+      const files = input.files;
       if (!files) return;
 
       const arr = Array.from(files);
@@ -188,7 +191,11 @@ export function useActivityForm({
       if (validFiles.length > 0) {
         try {
           const urls = await Promise.all(
-            validFiles.map((file) => uploadImage(file, "activity"))
+            validFiles.map((file) =>
+              uploadImage(file, "activity", () =>
+                getToken({ template: "convex" })
+              )
+            )
           );
           setFormData((prev) => ({
             ...prev,
@@ -206,9 +213,9 @@ export function useActivityForm({
         }
       }
 
-      e.currentTarget.value = "";
+      input.value = "";
     },
-    []
+    [getToken]
   );
 
   const removeImage = useCallback((idx: number) => {
