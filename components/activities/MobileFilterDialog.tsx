@@ -34,7 +34,7 @@ export default function MobileFilterDialog({
   onSearch,
 }: MobileFilterDialogProps) {
   return (
-    <div className="mobile_filter_tab_button md:hidden">
+    <div className="fixed bottom-6 left-6 z-50 md:hidden">
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogTrigger asChild>
           <Button

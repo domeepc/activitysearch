@@ -133,7 +133,8 @@
     @apply bg-background text-foreground h-screen p-0 m-0 font-sans bg-gray-200;
   }
 
-  header {
+  /* Only the app shell header — not in-page <header> landmarks (e.g. legal docs). */
+  header.app-site-header {
     @apply sticky top-0 z-50 w-full border-b border-border bg-background;
   }
 
