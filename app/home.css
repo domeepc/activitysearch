@@ -84,15 +84,6 @@ section {
   top: 0;
 }
 
-.mobile_filter_tab_button {
-  position: absolute;
-  z-index: 10;
-  left: 0;
-  bottom: 0;
-  margin: 2rem;
-  cursor: pointer;
-}
-
 @media (max-width: 768px) {
   .filter_tab {
     padding: 2rem 0;

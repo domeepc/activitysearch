@@ -56,7 +56,7 @@ export default function RootLayout({
               <PostHogProvider>
                 <PostHogIdentify />
                 <PresenceProviderWrapper>
-                  <header>
+                  <header className="app-site-header">
                     <Navbar />
                   </header>
                   {children}
