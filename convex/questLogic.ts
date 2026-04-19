@@ -19,7 +19,11 @@ export function sanitizeQuestIconSvg(svg: string): string {
     throw new Error("Icon must be an SVG element starting with <svg");
   }
   let s = trimmed.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
-  s = s.replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
+  let prev: string;
+  do {
+    prev = s;
+    s = s.replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
+  } while (s !== prev);
   s = s.replace(/\shref\s*=\s*["']?\s*javascript:/gi, ' href="blocked:"');
   if (s.length > 32_000) {
     throw new Error("SVG is too large (max 32KB)");
