@@ -22,7 +22,7 @@ export function sanitizeQuestIconSvg(svg: string): string {
   let previous: string;
   do {
     previous = s;
-    s = s.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
+    s = s.replace(/<script\b[^<]*(?:(?!<\/script\b)<[^<]*)*<\/script\b[^>]*>/gi, "");
   } while (s !== previous);
   s = s.replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
   s = s.replace(/\shref\s*=\s*["']?\s*javascript:/gi, ' href="blocked:"');
