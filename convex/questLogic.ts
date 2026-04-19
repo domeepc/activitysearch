@@ -24,7 +24,10 @@ export function sanitizeQuestIconSvg(svg: string): string {
     previous = s;
     s = s.replace(/<script\b[^<]*(?:(?!<\/script\b)<[^<]*)*<\/script\b[^>]*>/gi, "");
   } while (s !== previous);
-  s = s.replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
+  do {
+    previous = s;
+    s = s.replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
+  } while (s !== previous);
   s = s.replace(/\shref\s*=\s*["']?\s*javascript:/gi, ' href="blocked:"');
   if (s.length > 32_000) {
     throw new Error("SVG is too large (max 32KB)");
