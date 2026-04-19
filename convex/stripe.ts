@@ -1650,17 +1650,9 @@ export const createConnectAccountWithDetailsHttp = httpAction(
     } catch (error) {
       console.error("Error creating Stripe Connect account:", error);
 
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : typeof error === "object" && error !== null && "message" in error
-          ? String(error.message)
-          : "Unknown error";
-
       return new Response(
         JSON.stringify({
-          error: errorMessage,
-          details: String(error),
+          error: "Internal server error",
         }),
         {
           status: 500,
