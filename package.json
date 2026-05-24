@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@clerk/backend": "^3.4.2",
-    "@clerk/nextjs": "^7.2.1",
+    "@clerk/nextjs": "^7.4.1",
     "@posthog/react": "^1.8.2",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -36,7 +36,7 @@
     "input-otp": "^1.4.2",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.7.0",
-    "next": "^16.2.3",
+    "next": "^16.2.6",
     "next-themes": "^0.4.6",
     "posthog-js": "^1.364.1",
     "react": "19.2.4",
