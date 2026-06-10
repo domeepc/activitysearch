@@ -1,19 +1,51 @@
+"use client";
+
+import { useRef, useCallback } from "react";
 import { Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export function HeroSection() {
+  const glowRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLElement>) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      if (glowRef.current) {
+        glowRef.current.style.left = `${x}px`;
+        glowRef.current.style.top = `${y}px`;
+      }
+    },
+    []
+  );
+
   return (
     <section
-      className="flex min-h-screen w-full flex-col items-center justify-center px-4 pt-16"
+      className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden px-4 pt-16"
       style={{
         backgroundImage:
           "radial-gradient(circle, #d4d4d8 1px, transparent 1px)",
         backgroundSize: "24px 24px",
       }}
+      onMouseMove={handleMouseMove}
     >
-      <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
+      {/* cursor glow */}
+      <div
+        ref={glowRef}
+        aria-hidden="true"
+        className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 h-[560px] w-[560px] rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle, rgba(59,130,246,0.13) 0%, rgba(59,130,246,0.04) 45%, transparent 70%)",
+          left: "50%",
+          top: "50%",
+        }}
+      />
+
+      <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center text-center">
         <Badge className="mb-6 rounded-full bg-blue-600 px-3 py-1 text-xs tracking-wide text-white">
           EASY TO EXPERIENCE
         </Badge>
