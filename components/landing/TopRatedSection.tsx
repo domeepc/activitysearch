@@ -12,7 +12,7 @@ export function TopRatedSection({ items }: TopRatedSectionProps) {
   const displayItems = items && items.length > 0 ? items : topRated;
 
   return (
-    <section className="py-14">
+    <section className="bg-zinc-50 py-14">
       <div className="mx-auto w-full max-w-6xl space-y-6 px-4 md:px-6">
         <div>
           <h2 className="text-3xl font-semibold tracking-tight text-zinc-900">
@@ -30,8 +30,11 @@ export function TopRatedSection({ items }: TopRatedSectionProps) {
               className="overflow-hidden gap-0 border-zinc-200 pt-0 pb-0 shadow-sm"
             >
               <div
-                className={`relative h-28 ${activity.imageUrl ? "bg-zinc-100" : `bg-linear-to-br ${activity.tone}`
-                  }`}
+                className={`relative h-40 ${
+                  activity.imageUrl
+                    ? "bg-zinc-100"
+                    : `bg-linear-to-br ${activity.tone}`
+                }`}
               >
                 {activity.imageUrl ? (
                   <Image
@@ -43,14 +46,14 @@ export function TopRatedSection({ items }: TopRatedSectionProps) {
                     className="h-full w-full object-cover object-center"
                   />
                 ) : null}
+                <Badge className="absolute right-3 top-3 z-10 border-0 bg-white/90 text-xs font-semibold text-zinc-800 shadow-sm">
+                  {activity.price}
+                </Badge>
               </div>
               <CardContent className="space-y-3 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <h3 className="line-clamp-1 font-semibold text-zinc-900">
-                    {activity.title}
-                  </h3>
-                  <Badge variant="secondary">{activity.price}</Badge>
-                </div>
+                <h3 className="line-clamp-1 font-semibold text-zinc-900">
+                  {activity.title}
+                </h3>
                 <p className="text-sm text-zinc-600">{activity.category}</p>
                 <div className="flex items-center justify-between text-xs text-zinc-500">
                   <span className="inline-flex items-center gap-1">
