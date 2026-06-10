@@ -18,15 +18,7 @@ import { ActivityDetailMetaGrid } from "@/components/activities/activity-detail/
 import { ActivityDetailExtras } from "@/components/activities/activity-detail/ActivityDetailExtras";
 import { ActivityDetailReviews } from "@/components/activities/activity-detail/ActivityDetailReviews";
 import { useMyTeamsAsCreator } from "@/lib/hooks/useReservations";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Star, Calendar, Pencil } from "lucide-react";
 import { SIGNED_IN_HOME_HREF } from "@/lib/routes";
 import { getTagColorScheme } from "@/lib/tagColors";
@@ -108,133 +100,131 @@ export default function ActivityPage({
   const equipment = activity.equipment ?? [];
 
   return (
-    <div className="container mx-auto max-w-6xl p-4 md:p-6">
-      <Card className="border-2 border-border pt-0! shadow-xl">
-        <ActivityDetailGallery
-          images={images}
-          title={title}
-          setCarouselApi={setCarouselApi}
-        />
+    <div className="container mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
+      <ActivityDetailGallery
+        images={images}
+        title={title}
+        setCarouselApi={setCarouselApi}
+      />
 
-        <CardHeader>
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="flex-1">
-              <CardTitle className="mb-2 text-2xl md:text-3xl">
-                {title}
-              </CardTitle>
-              <CardDescription className="text-base">
-                {description}
-              </CardDescription>
-            </div>
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-2">
-                <Star className="h-5 w-5 fill-yellow-500 text-yellow-500" />
-                <span className="text-lg font-semibold">
-                  {rating.toFixed(1)}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
-                </span>
-              </div>
-              {hasTeams && !isOrganiserOfActivity ? (
-                <Button
-                  onClick={() => {
-                    posthog?.capture("reserve_activity_clicked", {
-                      activity_id: String(activityId),
-                      activity_name: activity.activityName,
-                    });
-                    setIsReservationDialogOpen(true);
-                  }}
-                  variant="secondary"
-                  className="w-full md:w-auto"
-                >
-                  <Calendar className="mr-2 h-4 w-4" />
-                  Reserve Activity
-                </Button>
-              ) : null}
-              {isOrganiserOfActivity ? (
-                <Button
-                  onClick={() => setEditDialogOpen(true)}
-                  variant="outline"
-                  className="w-full border-border md:w-auto"
-                >
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Edit Activity
-                </Button>
-              ) : null}
-            </div>
+      {/* Title + actions */}
+      <div className="mt-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 md:text-4xl">
+            {title}
+          </h1>
+          <p className="mt-2 max-w-2xl text-base leading-relaxed text-zinc-500">
+            {description}
+          </p>
+        </div>
+        <div className="flex flex-col gap-3 md:shrink-0 md:items-end">
+          <div className="flex items-center gap-1.5">
+            <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
+            <span className="text-lg font-bold text-zinc-900">
+              {rating.toFixed(1)}
+            </span>
+            <span className="text-sm text-zinc-400">
+              ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
+            </span>
           </div>
-        </CardHeader>
-
-        <CardContent className="space-y-6">
-          {tags.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag, index) => {
-                const colorScheme = getTagColorScheme(tag, databaseTags);
-                return (
-                  <Badge
-                    key={index}
-                    variant="secondary"
-                    style={{
-                      backgroundColor: colorScheme.bgHex,
-                      color: colorScheme.textHex,
-                      borderColor: colorScheme.bgHex,
-                    }}
-                  >
-                    {tag}
-                  </Badge>
-                );
-              })}
-            </div>
+          {hasTeams && !isOrganiserOfActivity ? (
+            <Button
+              size="lg"
+              onClick={() => {
+                posthog?.capture("reserve_activity_clicked", {
+                  activity_id: String(activityId),
+                  activity_name: activity.activityName,
+                });
+                setIsReservationDialogOpen(true);
+              }}
+              className="w-full rounded-full md:w-auto"
+            >
+              <Calendar className="mr-2 h-4 w-4" />
+              Reserve Activity
+            </Button>
           ) : null}
-
-          <Separator />
-
-          <ActivityDetailMetaGrid
-            address={address}
-            durationLabel={durationLabel}
-            difficulty={difficulty}
-            priceAmount={activity.price ?? 0}
-          />
-
-          <ActivityDetailExtras
-            maxParticipants={activity.maxParticipants}
-            minAge={activity.minAge}
-            equipment={equipment}
-          />
-
-          <ActivityQuestsPublicSection
-            activityId={activityId}
-            isOrganiser={isOrganiserOfActivity}
-          />
-
-          <Separator />
-          <ActivityDetailReviews reviews={recentReviews} />
-
           {isOrganiserOfActivity ? (
-            <>
-              <Separator />
-              <OrganiserQuestsSection activityId={activityId} />
-            </>
+            <Button
+              onClick={() => setEditDialogOpen(true)}
+              variant="outline"
+              size="lg"
+              className="w-full rounded-full border-zinc-200 md:w-auto"
+            >
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit Activity
+            </Button>
           ) : null}
-        </CardContent>
+        </div>
+      </div>
 
-        {hasTeams && !isOrganiserOfActivity ? (
-          <ReservationDialog
-            activityId={activityId}
-            open={isReservationDialogOpen}
-            onOpenChange={setIsReservationDialogOpen}
-          />
-        ) : null}
+      {/* Tags */}
+      {tags.length > 0 ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {tags.map((tag, index) => {
+            const colorScheme = getTagColorScheme(tag, databaseTags);
+            return (
+              <Badge
+                key={index}
+                variant="secondary"
+                style={{
+                  backgroundColor: colorScheme.bgHex,
+                  color: colorScheme.textHex,
+                  borderColor: colorScheme.bgHex,
+                }}
+              >
+                {tag}
+              </Badge>
+            );
+          })}
+        </div>
+      ) : null}
 
-        {isOrganiserOfActivity ? (
-          <DialogAddActivity
-            showDialog={editDialogOpen}
-            setShowDialog={setEditDialogOpen}
-            activityId={activityId}
-          />
-        ) : null}
-      </Card>
+      <div className="my-7 h-px bg-zinc-100" />
+
+      <ActivityDetailMetaGrid
+        address={address}
+        durationLabel={durationLabel}
+        difficulty={difficulty}
+        priceAmount={activity.price ?? 0}
+      />
+
+      <ActivityDetailExtras
+        maxParticipants={activity.maxParticipants}
+        minAge={activity.minAge}
+        equipment={equipment}
+      />
+
+      <ActivityQuestsPublicSection
+        activityId={activityId}
+        isOrganiser={isOrganiserOfActivity}
+      />
+
+      <div className="my-7 h-px bg-zinc-100" />
+
+      <ActivityDetailReviews reviews={recentReviews} />
+
+      {isOrganiserOfActivity ? (
+        <>
+          <div className="my-7 h-px bg-zinc-100" />
+          <OrganiserQuestsSection activityId={activityId} />
+        </>
+      ) : null}
+
+      {hasTeams && !isOrganiserOfActivity ? (
+        <ReservationDialog
+          activityId={activityId}
+          open={isReservationDialogOpen}
+          onOpenChange={setIsReservationDialogOpen}
+        />
+      ) : null}
+
+      {isOrganiserOfActivity ? (
+        <DialogAddActivity
+          showDialog={editDialogOpen}
+          setShowDialog={setEditDialogOpen}
+          activityId={activityId}
+        />
+      ) : null}
     </div>
   );
 }
