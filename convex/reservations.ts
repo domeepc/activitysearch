@@ -2780,3 +2780,47 @@ export const getReservationCardData = query({
     };
   },
 });
+
+export const getReservationPaymentsForOrganiser = query({
+  args: { reservationId: v.id("reservations") },
+  handler: async (ctx, { reservationId }) => {
+    const currentUser = await getCurrentUserOrThrow(ctx);
+    if (currentUser.role !== "organiser") throw new Error("Forbidden");
+
+    const reservation = await ctx.db.get(reservationId);
+    if (!reservation) throw new Error("Reservation not found");
+
+    const allOrganisations = await ctx.db.query("organisations").collect();
+    const activityOrg = allOrganisations.find((org) =>
+      org.activityIDs.includes(reservation.activityId)
+    );
+    if (!activityOrg?.organisersIDs.includes(currentUser._id)) {
+      throw new Error("Forbidden");
+    }
+
+    const payments = await ctx.db
+      .query("reservationPayments")
+      .withIndex("byReservation", (q) => q.eq("reservationId", reservationId))
+      .collect();
+
+    return await Promise.all(
+      payments.map(async (p) => {
+        const user = await ctx.db.get(p.userId);
+        return {
+          ...p,
+          personsPaidFor: Number(p.personsPaidFor),
+          user: user
+            ? { _id: user._id, name: user.name, lastname: user.lastname, avatar: user.avatar }
+            : null,
+        };
+      })
+    );
+  },
+});
+
+export const markPaymentRefundedById = internalMutation({
+  args: { paymentId: v.id("reservationPayments"), refundedAt: v.number() },
+  handler: async (ctx, { paymentId, refundedAt }) => {
+    await ctx.db.patch(paymentId, { refundedAt });
+  },
+});

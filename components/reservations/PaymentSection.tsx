@@ -2,14 +2,16 @@
 
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Wallet, CreditCard, CheckCircle, Clock, Users, Calendar, MapPin } from "lucide-react";
+import { Wallet, CreditCard, CheckCircle, Clock, Users, Calendar, MapPin, RefreshCw } from "lucide-react";
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { StripeDashboard } from "./StripeDashboard";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
+import { RefundPaymentsDialog } from "@/components/payments/RefundPaymentsDialog";
 
 export function PaymentSection() {
   const isMobile = useIsMobile();
@@ -18,6 +20,10 @@ export function PaymentSection() {
     "all" | "pending" | "on_hold" | "fulfilled"
   >("all");
   const [viewMode, setViewMode] = useState<"overview" | "stripe">("overview");
+  const [refundDialog, setRefundDialog] = useState<{
+    reservationId: Id<"reservations">;
+    activityName: string;
+  } | null>(null);
 
   // Calculate payment statistics
   const paymentStats = useMemo(() => {
@@ -115,6 +121,7 @@ export function PaymentSection() {
   }
 
   return (
+    <>
     <div className="space-y-6">
       {/* View Mode Toggle */}
       <div className="flex flex-wrap gap-2">
@@ -304,6 +311,22 @@ export function PaymentSection() {
                                 </span>
                               </div>
                             </div>
+
+                            {/* Refund */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full gap-2 border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300"
+                              onClick={() =>
+                                setRefundDialog({
+                                  reservationId: detail.reservationId,
+                                  activityName: detail.activityName,
+                                })
+                              }
+                            >
+                              <RefreshCw className="h-3.5 w-3.5" />
+                              Manage Refunds
+                            </Button>
                           </CardContent>
                         </Card>
                       ))}
@@ -333,6 +356,9 @@ export function PaymentSection() {
                             </th>
                             <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
                               Status
+                            </th>
+                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                              Actions
                             </th>
                           </tr>
                         </thead>
@@ -402,6 +428,22 @@ export function PaymentSection() {
                               <td className="p-4 align-middle">
                                 {getStatusBadge(detail.paymentStatus)}
                               </td>
+                              <td className="p-4 align-middle">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-1.5 border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300"
+                                  onClick={() =>
+                                    setRefundDialog({
+                                      reservationId: detail.reservationId,
+                                      activityName: detail.activityName,
+                                    })
+                                  }
+                                >
+                                  <RefreshCw className="h-3.5 w-3.5" />
+                                  Refund
+                                </Button>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -415,5 +457,15 @@ export function PaymentSection() {
         </>
       )}
     </div>
+
+    {refundDialog && (
+      <RefundPaymentsDialog
+        open={!!refundDialog}
+        onOpenChange={(open) => { if (!open) setRefundDialog(null); }}
+        reservationId={refundDialog.reservationId}
+        activityName={refundDialog.activityName}
+      />
+    )}
+    </>
   );
 }

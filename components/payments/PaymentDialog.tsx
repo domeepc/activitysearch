@@ -23,6 +23,7 @@ import {
 import { Id } from "@/convex/_generated/dataModel";
 import { useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { toast } from "sonner";
 
 // Initialize Stripe with error handling
 const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
@@ -140,6 +141,9 @@ function PaymentForm({
           stripePaymentMethodId: paymentMethodId,
         });
 
+        toast.success("Payment saved", {
+          description: `€${totalAmount.toFixed(2)} authorised. Funds held until the activity date.`,
+        });
         onSuccess();
         onClose();
       } else {
