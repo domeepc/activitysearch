@@ -2,7 +2,6 @@ import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { categories, type CategoryItem } from "@/components/landing/data";
-import { Button } from "@/components/ui/button";
 
 interface CategorySectionProps {
   items?: CategoryItem[];
@@ -45,27 +44,30 @@ export function CategorySection({ items }: CategorySectionProps) {
   const rest = displayCategories.slice(1);
 
   return (
-    <section className="bg-zinc-50 py-14">
+    <section className="bg-white py-14">
       <div className="mx-auto w-full max-w-6xl space-y-6 px-4 md:px-6">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-semibold tracking-tight text-zinc-900">
-              Explore by Category
-            </h2>
-            <p className="mt-1 text-sm text-zinc-600">
-              Browse experiences by vibe and energy level.
-            </p>
+            <div className="border-l-4 border-blue-600 pl-4">
+              <h2 className="text-3xl font-semibold tracking-tight text-zinc-900">
+                Explore by Category
+              </h2>
+              <p className="mt-1 text-sm text-zinc-600">
+                Browse experiences by vibe and energy level.
+              </p>
+            </div>
           </div>
-          <Button asChild variant="ghost" className="rounded-full">
-            <Link href="/home">
-              Explore all
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
+          <Link
+            href="/home"
+            className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-900 transition-colors"
+          >
+            Explore all
+            <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
 
         <div className="grid gap-3 md:grid-cols-3">
-          <article className="group relative min-h-[260px] overflow-hidden rounded-2xl border border-zinc-200 shadow-sm md:col-span-2">
+          <article className="group relative min-h-[320px] overflow-hidden rounded-2xl border border-zinc-200 shadow-sm md:col-span-2">
             {featured.imageUrl ? (
               <>
                 <Image
@@ -84,7 +86,7 @@ export function CategorySection({ items }: CategorySectionProps) {
                 aria-hidden
               />
             )}
-            <div className="relative z-10 flex h-full min-h-[260px] flex-col justify-end p-6 text-white">
+            <div className="relative z-10 flex h-full min-h-[320px] flex-col justify-end p-6 text-white">
               <p className="text-xs uppercase tracking-[0.2em] text-white/70">
                 Featured
               </p>
