@@ -35,7 +35,7 @@ export function ChatHeader({
 
   return (
     <div
-      className={`${sticky ? "sticky top-(--app-navbar-height) z-40" : ""} border-b border-border px-4 py-1.5 md:px-8 md:py-4 shrink-0 bg-background`}
+      className={`${sticky ? "sticky top-(--app-navbar-height) z-40" : ""} border-b border-zinc-100 px-4 py-2 md:px-5 md:py-2.5 shrink-0 bg-white`}
     >
       <div className="flex items-center gap-2 md:gap-3">
         {/* Back button - only visible on mobile */}
@@ -56,17 +56,17 @@ export function ChatHeader({
           />
         )}
         <div className="min-w-0">
-          <h2 className="text-sm md:text-lg font-semibold truncate">{displayName}</h2>
+          <h2 className="text-sm font-semibold truncate text-zinc-900">{displayName}</h2>
           {username ? (
             profileUserId ? (
               <Link
                 href={`/profile/${profileUserId}`}
-                className="block truncate text-[11px] md:text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                className="block truncate text-xs text-zinc-400 underline-offset-2 hover:text-zinc-700 hover:underline"
               >
                 @{username}
               </Link>
             ) : (
-              <p className="truncate text-[11px] md:text-sm text-muted-foreground">
+              <p className="truncate text-xs text-zinc-400">
                 @{username}
               </p>
             )

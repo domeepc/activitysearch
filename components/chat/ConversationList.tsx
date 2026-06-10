@@ -351,7 +351,7 @@ export function ConversationList({
                       }
                     }}
                     className={cn(
-                      "w-full px-3 py-2 cursor-pointer mb-1 hover:bg-blue-50 transition-colors text-left flex items-center gap-3 rounded-xl border border-transparent",
+                      "w-full px-3 py-2.5 cursor-pointer mb-2 hover:bg-blue-50 transition-colors text-left flex items-center gap-3 rounded-xl border border-transparent",
                       isSelected ? "bg-blue-50 border-blue-200" : "bg-zinc-50"
                     )}
                   >
@@ -505,7 +505,7 @@ export function ConversationList({
                       onSelectTeam(team.slug);
                     }}
                     className={cn(
-                      "w-full px-3 py-2 mb-1 hover:bg-blue-50 transition-colors flex items-center gap-3 rounded-xl border border-transparent cursor-pointer",
+                      "w-full px-3 py-2.5 mb-2 hover:bg-blue-50 transition-colors flex items-center gap-3 rounded-xl border border-transparent cursor-pointer",
                       isSelected ? "bg-blue-50 border-blue-200" : "bg-zinc-50"
                     )}
                   >
@@ -711,7 +711,7 @@ export function ConversationList({
                     }
                   }}
                   className={cn(
-                    "w-full px-3 py-2 hover:bg-violet-50 transition-colors text-left flex items-center gap-3 rounded-xl border border-transparent cursor-pointer mb-1",
+                    "w-full px-3 py-2.5 hover:bg-violet-50 transition-colors text-left flex items-center gap-3 rounded-xl border border-transparent cursor-pointer mb-2",
                     isSelected ? "bg-violet-50 border-violet-200" : "bg-zinc-50"
                   )}
                 >
@@ -742,7 +742,7 @@ export function ConversationList({
                         {conv.lastMessageSenderName
                           ? `${conv.lastMessageSenderName}: `
                           : ""}
-                        {conv.lastMessage || "No messages yet"}
+                        {conv.lastMessage || "📋 Reservation"}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
