@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json([], { status: 200 });
   }
 
-  const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&countrycodes=hr&q=${encodeURIComponent(q)}`;
+  const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=7&q=${encodeURIComponent(q)}`;
 
   const res = await fetch(url, {
     headers: {

@@ -87,13 +87,7 @@ export function AddressAutocomplete({
       }
 
       const data = await res.json();
-      const filtered = Array.isArray(data)
-        ? data.filter(
-          (d) =>
-            d.address &&
-            (d.address.road || d.address.pedestrian || d.address.footway)
-        )
-        : [];
+      const filtered = Array.isArray(data) ? data : [];
 
       // Deduplicate suggestions based on formatted address
       const seenAddresses = new Set<string>();
