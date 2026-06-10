@@ -109,7 +109,7 @@ export function MessageBubble({
       <>
         {showDateDivider && (
           <div className="flex items-center justify-center my-4 cursor-default select-none">
-            <div className="text-xs text-muted-foreground bg-muted px-3 py-1 rounded-full">
+            <div className="text-xs text-zinc-400 bg-zinc-100 px-3 py-1 rounded-full">
               {new Date(timestamp).toLocaleDateString([], {
                 weekday: "long",
                 year: "numeric",
@@ -182,7 +182,7 @@ export function MessageBubble({
               {isFromCurrentUser && status && (
                 <span className="text-muted-foreground">
                   {status === "read" ? (
-                    <CheckCheck className="h-3 w-3 text-primary" />
+                    <CheckCheck className="h-3 w-3 text-blue-400" />
                   ) : status === "delivered" ? (
                     <CheckCheck className="h-3 w-3" />
                   ) : (
@@ -202,7 +202,7 @@ export function MessageBubble({
     <>
       {showDateDivider && (
         <div className="flex items-center justify-center my-4 cursor-default select-none">
-          <div className="text-xs text-muted-foreground bg-muted px-3 py-1 rounded-full">
+          <div className="text-xs text-zinc-400 bg-zinc-100 px-3 py-1 rounded-full">
             {new Date(timestamp).toLocaleDateString([], {
               weekday: "long",
               year: "numeric",
@@ -271,17 +271,17 @@ export function MessageBubble({
           ) : null}
           <div
             className={cn(
-              "rounded-lg px-4 py-2",
+              "rounded-2xl px-4 py-2.5",
               isFromCurrentUser
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted",
+                ? "bg-blue-500 text-white"
+                : "bg-zinc-100 text-zinc-900",
               decryptionError && "opacity-75"
             )}
           >
             <p
               className={cn(
                 "text-xs md:text-sm whitespace-pre-wrap wrap-break-word",
-                decryptionError && "italic text-muted-foreground"
+                decryptionError && "italic text-zinc-400"
               )}
             >
               {text}
