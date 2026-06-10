@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,20 +25,23 @@ export function HeroSection() {
           Discover sports and local activities, compare options, and book your
           next experience in a few taps.
         </p>
-        <div className="mt-8 w-full max-w-xl rounded-2xl border border-zinc-200 bg-white p-3 shadow-md">
+        <form
+          action="/home"
+          method="GET"
+          className="mt-8 w-full max-w-xl rounded-2xl border border-zinc-200 bg-white p-3 shadow-md"
+        >
           <div className="flex flex-col gap-3 sm:flex-row">
             <Input
+              name="q"
               placeholder="What are you looking for?"
               className="h-11 rounded-xl border-zinc-200"
             />
-            <Button asChild className="h-11 rounded-xl px-6">
-              <Link href="/home">
-                <Search className="mr-2 h-4 w-4" />
-                Search
-              </Link>
+            <Button type="submit" className="h-11 rounded-xl px-6">
+              <Search className="mr-2 h-4 w-4" />
+              Search
             </Button>
           </div>
-        </div>
+        </form>
         <p className="mt-6 text-sm text-zinc-400">
           ★ 4.9 · 2,000+ activities · Trusted by local communities
         </p>

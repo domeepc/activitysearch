@@ -42,7 +42,7 @@ export function QuestsSection({ items }: QuestsSectionProps) {
         {/* decorative divider */}
         <div className="flex items-center gap-4">
           <div className="h-px flex-1 bg-zinc-200" />
-          <Trophy className="h-5 w-5 text-zinc-300" />
+          <Trophy className="h-5 w-5 text-zinc-300" aria-hidden="true" />
           <div className="h-px flex-1 bg-zinc-200" />
         </div>
 

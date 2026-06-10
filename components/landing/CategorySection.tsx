@@ -86,7 +86,7 @@ export function CategorySection({ items }: CategorySectionProps) {
                 aria-hidden
               />
             )}
-            <div className="relative z-10 flex h-full min-h-[320px] flex-col justify-end p-6 text-white">
+            <div className="relative z-10 flex h-full flex-col justify-end p-6 text-white">
               <p className="text-xs uppercase tracking-[0.2em] text-white/70">
                 Featured
               </p>

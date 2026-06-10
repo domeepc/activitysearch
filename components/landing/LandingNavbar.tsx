@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export function LandingNavbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -15,9 +16,10 @@ export function LandingNavbar() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
+      className={cn(
+        "fixed top-0 left-0 right-0 z-50 transition-all duration-200",
         scrolled ? "bg-white border-b border-zinc-200 shadow-sm" : "bg-transparent"
-      }`}
+      )}
     >
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 md:px-6">
         <Link href="/" className="text-lg font-semibold text-zinc-900">
