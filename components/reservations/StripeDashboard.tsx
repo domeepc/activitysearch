@@ -327,7 +327,7 @@ export function StripeDashboard() {
           <CreditCard className="h-4 w-4 text-zinc-600" />
         </div>
         <div>
-          <h2 className="text-base font-semibold text-zinc-900">Payments</h2>
+          <h2 className="text-base font-semibold text-zinc-900">Stripe Dashboard</h2>
           <p className="text-xs text-zinc-400">Each row is one teammate&apos;s card hold. Net after fees may differ from listed price.</p>
         </div>
       </div>
@@ -337,13 +337,6 @@ export function StripeDashboard() {
         <div className="rounded-2xl bg-zinc-50 p-5 space-y-4">
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs font-semibold uppercase tracking-[0.15em] text-zinc-400">Stripe Balance</p>
-            {!balanceData?.hasConnectedAccount ? (
-              <Badge variant="outline" className="text-zinc-500">Not connected</Badge>
-            ) : balanceData.payoutsEnabled ? (
-              <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0">Payouts enabled</Badge>
-            ) : (
-              <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-0">Pending setup</Badge>
-            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">

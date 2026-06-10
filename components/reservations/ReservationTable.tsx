@@ -233,10 +233,10 @@ export function ReservationTable({ reservations }: ReservationTableProps) {
         </div>
       ) : (
         // Desktop table view
-        <div className="rounded-2xl border border-zinc-100 overflow-hidden overflow-x-auto">
+        <div className="rounded-2xl border border-zinc-200 overflow-hidden overflow-x-auto bg-white">
           <table className="w-full">
             <thead>
-          <tr className="border-b border-zinc-100 bg-zinc-50">
+          <tr className="border-b border-zinc-200 bg-white">
             {["Activity", "Date & Time", "User", "Teams", "Participants", "Status", "Actions"].map((h) => (
               <th key={h} className="h-11 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-zinc-400">
                 {h}
@@ -252,7 +252,7 @@ export function ReservationTable({ reservations }: ReservationTableProps) {
             return (
               <tr
                 key={reservation._id}
-                className="border-b border-zinc-50 transition-colors hover:bg-zinc-50"
+                className="border-b border-zinc-100 transition-colors hover:bg-zinc-50"
               >
                 <td className="p-4 align-middle">
                   <div>
