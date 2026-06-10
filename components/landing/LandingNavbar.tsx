@@ -22,21 +22,21 @@ export function LandingNavbar() {
         scrolled ? "bg-white border-b border-zinc-200 shadow-sm" : "bg-transparent"
       )}
     >
-      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 md:px-6">
+      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 py-3 md:px-6">
         <Link href="/" className="flex items-center">
           <Image
             src="/full-logo.svg"
             alt="ActivitySearch"
-            width={160}
-            height={40}
+            width={120}
+            height={30}
             className="hidden md:block"
             priority
           />
           <Image
             src="/mobile-logo.svg"
             alt="ActivitySearch"
-            width={40}
-            height={40}
+            width={32}
+            height={32}
             className="block md:hidden"
             priority
           />
