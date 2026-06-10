@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -22,12 +23,30 @@ export function LandingNavbar() {
       )}
     >
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 md:px-6">
-        <Link href="/" className="text-lg font-semibold text-zinc-900">
-          ActivitySearch
+        <Link href="/" className="flex items-center">
+          <Image
+            src="/full-logo.svg"
+            alt="ActivitySearch"
+            width={160}
+            height={40}
+            className="hidden md:block"
+            priority
+          />
+          <Image
+            src="/mobile-logo.svg"
+            alt="ActivitySearch"
+            width={40}
+            height={40}
+            className="block md:hidden"
+            priority
+          />
         </Link>
-        <div className="flex items-center gap-3">
-          <Button asChild size="sm" className="rounded-full">
+        <div className="flex items-center gap-2">
+          <Button asChild variant="ghost" size="sm" className="rounded-full">
             <Link href="/sign-in">Sign in</Link>
+          </Button>
+          <Button asChild size="sm" className="rounded-full">
+            <Link href="/sign-up">Sign up</Link>
           </Button>
         </div>
       </div>
