@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 export function HeroSection() {
   return (
     <section
-      className="flex min-h-[85vh] w-full flex-col items-center justify-center px-4 pt-16"
+      className="flex min-h-screen w-full flex-col items-center justify-center px-4 pt-16"
       style={{
         backgroundImage:
           "radial-gradient(circle, #d4d4d8 1px, transparent 1px)",
