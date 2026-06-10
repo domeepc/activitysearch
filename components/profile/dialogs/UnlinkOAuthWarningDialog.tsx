@@ -32,7 +32,7 @@ export function UnlinkOAuthWarningDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)}>OK</Button>
+          <Button onClick={() => onOpenChange(false)} className="rounded-full">OK</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
