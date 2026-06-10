@@ -2400,6 +2400,74 @@ export const requestOrganiserPayout = action({
   },
 });
 
+export const refundSelectedPayments = action({
+  args: {
+    reservationId: v.id("reservations"),
+    paymentIds: v.array(v.id("reservationPayments")),
+  },
+  handler: async (
+    ctx,
+    { reservationId, paymentIds }
+  ): Promise<{ refunded: number; skipped: number; errors: string[] }> => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const currentUser = await ctx.runQuery(api.users.current);
+    if (!currentUser || currentUser.role !== "organiser") {
+      throw new Error("Forbidden: only organisers can issue refunds");
+    }
+
+    const resMeta = await ctx.runQuery(
+      internal.reservations.getReservationActivityIdInternal,
+      { reservationId }
+    );
+    if (!resMeta) throw new Error("Reservation not found");
+    const organisation = await organisationForActivity(ctx, resMeta.activityId);
+    if (!organisation?.organisersIDs.includes(currentUser._id)) {
+      throw new Error("Forbidden");
+    }
+
+    let refunded = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+
+    for (const paymentId of paymentIds) {
+      try {
+        const payments = await ctx.runQuery(
+          internal.reservations.getReservationPaymentsInternal,
+          { reservationId }
+        ) as Array<{
+          _id: Id<"reservationPayments">;
+          stripePaymentIntentId?: string;
+          refundedAt?: number;
+          amount: number;
+        }>;
+
+        const payment = payments.find((p) => p._id === paymentId);
+        if (!payment) { skipped++; continue; }
+        if (payment.refundedAt) { skipped++; continue; }
+
+        if (payment.stripePaymentIntentId) {
+          await ctx.runAction(internal.stripe.refundPayment, {
+            paymentIntentId: payment.stripePaymentIntentId,
+            reservationId,
+          });
+        } else {
+          await ctx.runMutation(internal.reservations.markPaymentRefundedById, {
+            paymentId,
+            refundedAt: Date.now(),
+          });
+        }
+        refunded++;
+      } catch (err) {
+        errors.push(err instanceof Error ? err.message : String(err));
+      }
+    }
+
+    return { refunded, skipped, errors };
+  },
+});
+
 // Keep HTTP action version for webhook compatibility (if needed)
 export const createConnectAccountLinkHttp = httpAction(async (ctx, request) => {
   const identity = await ctx.auth.getUserIdentity();

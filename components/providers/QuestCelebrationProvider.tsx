@@ -5,6 +5,7 @@ import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { QuestCompletionCelebrationDialog } from "@/components/quests/QuestCompletionCelebrationDialog";
+import { toast } from "sonner";
 
 type QuestEntry = {
   quest: Doc<"quests">;
@@ -134,6 +135,9 @@ export function QuestCelebrationProvider({
     prevCompletedRef.current = completed;
 
     for (const q of newlyCompleted) {
+      toast.success(`Quest complete: ${q.questName}`, {
+        description: `+${Number(q.expAmount)} XP earned`,
+      });
       queueMicrotask(() => {
         enqueue(q);
       });
