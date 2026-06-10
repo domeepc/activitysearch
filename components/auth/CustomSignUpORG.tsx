@@ -1176,8 +1176,8 @@ export default function CustomSignUpORG() {
 
   return (
     <AuthFormShell
-      containerClassName="items-start"
-      cardClassName="max-w-[95vw] sm:max-w-2xl sm:translate-y-[-20px]"
+      containerClassName="items-center"
+      cardClassName="max-w-[95vw] sm:max-w-2xl"
     >
       <CardHeader className={`${authFormStyles.header} space-y-1 border-b border-border text-left`}>
         <CardTitle className={authFormStyles.title}>
