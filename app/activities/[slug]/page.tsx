@@ -195,6 +195,8 @@ export default function ActivityPage({
         equipment={equipment}
       />
 
+      <div className="my-7 h-px bg-zinc-100" />
+
       <ActivityQuestsPublicSection
         activityId={activityId}
         isOrganiser={isOrganiserOfActivity}
