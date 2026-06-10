@@ -4,8 +4,8 @@ import { useOrganiserReservations, useUnreadReservationCount, useMarkReservation
 import { ReservationTable } from "@/components/reservations/ReservationTable";
 import { PaymentSection } from "@/components/reservations/PaymentSection";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Inbox, Filter, CreditCard } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useOrganiser } from "@/lib/hooks/useOrganiser";
 import { Spinner } from "@/components/ui/spinner";
@@ -83,59 +83,51 @@ export default function ReservationsPage() {
       </div>
 
       {/* View Mode Toggle */}
-      <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">
-        <Button
-          variant={viewMode === "reservations" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setViewMode("reservations")}
-          className="gap-2 border border-border shadow-sm"
-        >
-          <Inbox className="h-4 w-4" />
-          Reservations
-        </Button>
-        <Button
-          variant={viewMode === "payments" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setViewMode("payments")}
-          className="gap-2 border border-border shadow-sm"
-        >
-          <CreditCard className="h-4 w-4" />
-          Payments
-        </Button>
+      <div className="mb-4 flex items-center gap-1 rounded-xl bg-zinc-100 p-1 w-fit sm:mb-6">
+        {([
+          { key: "reservations", label: "Reservations", icon: Inbox },
+          { key: "payments", label: "Payments", icon: CreditCard },
+        ] as const).map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => setViewMode(key)}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+              viewMode === key
+                ? "bg-white text-zinc-900 shadow-sm"
+                : "text-zinc-500 hover:text-zinc-900"
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* Reservations View */}
       {viewMode === "reservations" && (
         <>
           {/* Filters */}
-          <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">
-            <Button
-              variant={statusFilter === "all" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setStatusFilter("all")}
-              className="gap-1 sm:gap-2 text-xs sm:text-sm border border-border shadow-sm"
-            >
-              <Filter className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">All</span>
-              <span className="sm:hidden">All</span>
-              <span className="ml-1">({reservations.length})</span>
-            </Button>
-            <Button
-              variant={statusFilter === "active" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setStatusFilter("active")}
-              className="text-xs sm:text-sm border border-border shadow-sm"
-            >
-              Active ({reservations.filter((r) => !r.cancelledAt).length})
-            </Button>
-            <Button
-              variant={statusFilter === "cancelled" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setStatusFilter("cancelled")}
-              className="text-xs sm:text-sm border border-border shadow-sm"
-            >
-              Cancelled ({reservations.filter((r) => !!r.cancelledAt).length})
-            </Button>
+          <div className="mb-4 flex flex-wrap gap-1.5 sm:mb-6">
+            {([
+              { key: "all" as const, label: "All", count: reservations.length },
+              { key: "active" as const, label: "Active", count: reservations.filter((r) => !r.cancelledAt).length },
+              { key: "cancelled" as const, label: "Cancelled", count: reservations.filter((r) => !!r.cancelledAt).length },
+            ]).map(({ key, label, count }) => (
+              <button
+                key={key}
+                onClick={() => setStatusFilter(key)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                  statusFilter === key
+                    ? "bg-zinc-900 text-white"
+                    : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-900"
+                )}
+              >
+                {key === "all" && <Filter className="h-3 w-3" />}
+                {label} ({count})
+              </button>
+            ))}
           </div>
 
           {/* Table */}

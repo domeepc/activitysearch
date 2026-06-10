@@ -13,7 +13,7 @@ export function QuestsSection({ items }: QuestsSectionProps) {
   const displayQuests = items && items.length > 0 ? items : landingQuests;
 
   return (
-    <section className="border-y border-zinc-200 bg-white py-14">
+    <section className="bg-white py-14">
       <div className="mx-auto w-full max-w-6xl space-y-6 px-4 md:px-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -37,6 +37,13 @@ export function QuestsSection({ items }: QuestsSectionProps) {
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
+        </div>
+
+        {/* decorative divider */}
+        <div className="flex items-center gap-4">
+          <div className="h-px flex-1 bg-zinc-200" />
+          <Trophy className="h-5 w-5 text-zinc-300" aria-hidden="true" />
+          <div className="h-px flex-1 bg-zinc-200" />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -15,18 +15,6 @@ export interface ActivityItem {
   imageUrl?: string;
 }
 
-export interface LiveItem {
-  label: string;
-}
-
-export interface HeroCardItem {
-  title: string;
-  subtitle: string;
-  badge: string;
-  tone: string;
-  imageUrl?: string;
-}
-
 export interface CtaContent {
   eyebrow?: string;
   title?: string;
@@ -43,23 +31,6 @@ export interface QuestItem {
   badge?: string;
   tone: string;
 }
-
-export const heroCards: HeroCardItem[] = [
-  {
-    title: "Basketball",
-    subtitle: "Urban Arena",
-    badge: "Featured",
-    tone: "from-rose-500 to-orange-400",
-    imageUrl: "/images/basketball.jpg",
-  },
-  {
-    title: "Team Sports",
-    subtitle: "4.9 rating",
-    badge: "Top Picks",
-    tone: "from-cyan-500 to-blue-500",
-    imageUrl: "/images/team_sports.jpg",
-  },
-];
 
 export const categories: CategoryItem[] = [
   {
@@ -113,12 +84,6 @@ export const topRated: ActivityItem[] = [
     tone: "from-zinc-700 to-stone-500",
     imageUrl: "/images/precision_shoot.jpg",
   },
-];
-
-export const happeningNow: LiveItem[] = [
-  { label: "Yoga by The River - 12 spots left" },
-  { label: "Sunset Paddle Session - starts in 45 min" },
-  { label: "Neon Climbing Event - starts in 30 min" },
 ];
 
 export const landingQuests: QuestItem[] = [

@@ -19,7 +19,6 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
-import { Card, CardContent } from "@/components/ui/card";
 
 interface Reservation {
   _id: Id<"reservations">;
@@ -133,17 +132,16 @@ export function ReservationTable({ reservations }: ReservationTableProps) {
     <>
       {isMobile ? (
         // Mobile card view
-        <div className="space-y-4">
+        <div className="space-y-3">
           {reservations.map((reservation) => {
             const isProcessing = processingId === reservation._id;
             const isCancelled = !!reservation.cancelledAt;
 
             return (
-              <Card
+              <div
                 key={reservation._id}
-                className="overflow-hidden border border-border shadow-sm"
+                className="rounded-2xl bg-zinc-50 p-4 space-y-3"
               >
-                <CardContent className="p-4 space-y-3">
                   {/* Activity & Status */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
@@ -206,11 +204,11 @@ export function ReservationTable({ reservations }: ReservationTableProps) {
 
                   {/* Cancellation Reason */}
                   {reservation.cancellationReason && (
-                    <div className="p-2 bg-muted rounded-md">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">
+                    <div className="rounded-xl bg-zinc-100 p-3">
+                      <p className="text-xs font-medium text-zinc-500 mb-1">
                         Cancellation Reason:
                       </p>
-                      <p className="text-xs text-foreground">
+                      <p className="text-xs text-zinc-700">
                         {reservation.cancellationReason}
                       </p>
                     </div>
@@ -229,38 +227,21 @@ export function ReservationTable({ reservations }: ReservationTableProps) {
                       Cancel Reservation
                     </Button>
                   )}
-                </CardContent>
-              </Card>
+              </div>
             );
           })}
         </div>
       ) : (
         // Desktop table view
-        <div className="rounded-md border border-border shadow-sm overflow-x-auto">
+        <div className="rounded-2xl border border-zinc-200 overflow-hidden overflow-x-auto bg-white">
           <table className="w-full">
             <thead>
-          <tr className="border-b bg-muted/50">
-            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-              Activity
-            </th>
-            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-              Date & Time
-            </th>
-            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-              User
-            </th>
-            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-              Teams
-            </th>
-            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-              Participants
-            </th>
-            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-              Status
-            </th>
-            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-              Actions
-            </th>
+          <tr className="border-b border-zinc-200 bg-white">
+            {["Activity", "Date & Time", "User", "Teams", "Participants", "Status", "Actions"].map((h) => (
+              <th key={h} className="h-11 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                {h}
+              </th>
+            ))}
             </tr>
           </thead>
           <tbody>
@@ -271,7 +252,7 @@ export function ReservationTable({ reservations }: ReservationTableProps) {
             return (
               <tr
                 key={reservation._id}
-                className="border-b transition-colors hover:bg-muted/50"
+                className="border-b border-zinc-100 transition-colors hover:bg-zinc-50"
               >
                 <td className="p-4 align-middle">
                   <div>

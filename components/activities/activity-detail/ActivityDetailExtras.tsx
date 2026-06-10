@@ -1,5 +1,4 @@
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Calendar, Package, Users } from "lucide-react";
 
 interface ActivityDetailExtrasProps {
@@ -23,7 +22,7 @@ export function ActivityDetailExtras({
 
   return (
     <>
-      <Separator />
+      <div className="my-7 h-px bg-zinc-100" />
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Additional Information</h3>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

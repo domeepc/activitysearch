@@ -5,7 +5,6 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { QuestVisual } from "@/components/quests/QuestVisual";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -32,7 +31,6 @@ export function ActivityQuestsPublicSection({
 
   return (
     <>
-      <Separator />
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Quests</h3>
         <p className="text-sm text-muted-foreground">
@@ -49,7 +47,7 @@ export function ActivityQuestsPublicSection({
           {quests.map((q) => (
             <li
               key={q._id}
-              className="flex gap-3 rounded-lg border-2 border-border p-4"
+              className="flex gap-3 rounded-xl bg-zinc-50 p-4"
             >
               <QuestVisual
                 iconImageUrl={q.iconImageUrl}
