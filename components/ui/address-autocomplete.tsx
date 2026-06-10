@@ -41,10 +41,27 @@ export function AddressAutocomplete({
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [isLoading, setIsLoading] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<number | null>(null);
+
+  // Update dropdown position when open — fixed positioning escapes overflow:hidden parents
+  useEffect(() => {
+    if (!isOpen || !inputRef.current) return;
+    const update = () => {
+      const rect = inputRef.current!.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX, width: rect.width });
+    };
+    update();
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+    };
+  }, [isOpen]);
 
   const fetchSuggestions = useCallback(async (q: string) => {
     if (!q || !q.trim()) {
@@ -252,8 +269,11 @@ export function AddressAutocomplete({
         <p className="text-sm text-destructive mt-1.5">{error}</p>
       )}
 
-      {isOpen && (suggestions.length > 0 || isLoading) && (
-        <div className="absolute z-50 w-full mt-1 bg-popover text-popover-foreground rounded-md border-border border-2 shadow-md">
+      {isOpen && (suggestions.length > 0 || isLoading) && dropdownPos && (
+        <div
+          className="fixed z-[9999] rounded-xl border border-zinc-200 bg-white shadow-md"
+          style={{ top: dropdownPos.top + 4, left: dropdownPos.left, width: dropdownPos.width }}
+        >
           {isLoading ? (
             <div className="flex items-center justify-center py-6">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -270,9 +290,9 @@ export function AddressAutocomplete({
                     onMouseEnter={() => setHighlightedIndex(index)}
                     className={cn(
                       "w-full text-left px-3 py-2.5 flex items-start gap-3",
-                      "hover:bg-accent transition-colors cursor-pointer",
-                      "border-b border-border last:border-0",
-                      highlightedIndex === index && "bg-accent"
+                      "hover:bg-zinc-50 transition-colors cursor-pointer",
+                      "border-b border-zinc-100 last:border-0",
+                      highlightedIndex === index && "bg-zinc-50"
                     )}
                   >
                     <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
