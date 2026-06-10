@@ -77,10 +77,8 @@ export function AddressAutocomplete({
       setIsLoading(true);
 
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&countrycodes=hr&q=${encodeURIComponent(
-          q
-        )}`,
-        { signal: ac.signal, headers: { "User-Agent": "activitysearch/1.0" } }
+        `/api/geocode?q=${encodeURIComponent(q)}`,
+        { signal: ac.signal }
       );
 
       if (!res.ok) {
