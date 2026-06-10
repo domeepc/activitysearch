@@ -186,7 +186,7 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
   };
 
   return (
-    <Card className="w-full md:w-full sm:w-3/4 lg:w-2/3 xl:w-1/3 overflow-hidden border-border border-2 shadow-xl">
+    <Card className="w-full md:w-full sm:w-3/4 lg:w-2/3 xl:w-1/3 overflow-hidden border border-zinc-200 shadow-sm">
       <CardHeader className="pb-3 px-4 sm:px-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
           <h3 className="text-base sm:text-lg font-semibold leading-tight">
@@ -215,7 +215,7 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
         </div>
 
         {/* Payment Progress Section */}
-        <div className="rounded-lg border border-border bg-muted/50 p-3 sm:p-4 space-y-2.5 sm:space-y-3">
+        <div className="rounded-2xl bg-zinc-50 p-3 sm:p-4 space-y-2.5 sm:space-y-3">
           <div className="flex items-center gap-2">
             <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
             <span className="text-xs text-muted-foreground">
@@ -254,7 +254,7 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
           loyaltyDiscountTotal === 0 &&
           loyaltyBalance !== undefined &&
           loyaltyBalance !== null && (
-            <div className="rounded-lg border border-dashed border-border p-3 space-y-2">
+            <div className="rounded-2xl bg-zinc-50 border border-zinc-100 p-3 space-y-2">
               <p className="text-xs font-medium">Use loyalty points</p>
               <p className="text-[11px] text-muted-foreground">
                 Balance: {loyaltyBalance.balance} pts · 10 pts ≈ €1 off · max{" "}

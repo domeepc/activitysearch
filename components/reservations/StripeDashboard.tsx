@@ -3,7 +3,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +21,7 @@ import {
 import { format } from "date-fns";
 import { Id } from "@/convex/_generated/dataModel";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
+import { cn } from "@/lib/utils";
 
 type PaymentIntentStatus = "on_hold" | "paid" | "canceled" | "pending" | "refunded";
 type BalanceHistoryRange = "7d" | "30d" | "90d" | "all";
@@ -71,6 +71,15 @@ const HISTORY_RANGES: Array<{ key: BalanceHistoryRange; label: string }> = [
   { key: "all", label: "All" },
 ];
 
+const STATUS_FILTERS: Array<{ key: "all" | PaymentIntentStatus; label: string }> = [
+  { key: "all", label: "All" },
+  { key: "on_hold", label: "On Hold" },
+  { key: "paid", label: "Paid" },
+  { key: "canceled", label: "Canceled" },
+  { key: "refunded", label: "Refunded" },
+  { key: "pending", label: "Pending" },
+];
+
 function buildLinePath(
   values: number[],
   width: number,
@@ -81,7 +90,6 @@ function buildLinePath(
   if (values.length === 0) return "";
   const xStep = values.length > 1 ? width / (values.length - 1) : width;
   const valueRange = Math.max(maxValue - minValue, 1);
-
   return values
     .map((value, idx) => {
       const x = idx * xStep;
@@ -110,68 +118,54 @@ function MiniTrendChart({
   const width = 720;
   const height = 220;
 
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 2 }).format(amount);
+
   if (points.length === 0) {
     return (
-      <div className="rounded-md border border-border shadow-sm p-4">
-        <p className="font-medium mb-2">{title}</p>
-        <p className="text-sm text-muted-foreground">No balance history for this range.</p>
+      <div className="rounded-2xl bg-white border border-zinc-100 p-5">
+        <p className="text-sm font-semibold text-zinc-900 mb-1">{title}</p>
+        <p className="text-sm text-zinc-400">No data for this range.</p>
       </div>
     );
   }
 
-  const allValues = series.flatMap((entry) => points.map(entry.getValue));
+  const allValues = series.flatMap((s) => points.map(s.getValue));
   const minValue = Math.min(...allValues);
   const maxValue = Math.max(...allValues);
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 2,
-    }).format(amount);
-
   return (
-    <div className="rounded-md border border-border shadow-sm p-4 space-y-3">
+    <div className="rounded-2xl bg-white border border-zinc-100 p-5 space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="font-medium">{title}</p>
-        <p className="text-xs text-muted-foreground">
-          {points[0]?.date} - {points[points.length - 1]?.date}
+        <p className="text-sm font-semibold text-zinc-900">{title}</p>
+        <p className="text-xs text-zinc-400">
+          {points[0]?.date} – {points[points.length - 1]?.date}
         </p>
       </div>
       <div className="w-full overflow-x-auto">
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          className="w-full min-w-[520px] h-44"
-          role="img"
-          aria-label={title}
-        >
-          <line x1="0" y1={height} x2={width} y2={height} className="stroke-border" />
-          {series.map((entry) => {
-            const values = points.map(entry.getValue);
-            const path = buildLinePath(values, width, height, minValue, maxValue);
-            return (
-              <path
-                key={entry.label}
-                d={path}
-                fill="none"
-                strokeWidth="2.5"
-                className={entry.lineClass}
-              />
-            );
-          })}
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[520px] h-44" role="img" aria-label={title}>
+          <line x1="0" y1={height} x2={width} y2={height} stroke="#f4f4f5" strokeWidth="1" />
+          {series.map((s) => (
+            <path
+              key={s.label}
+              d={buildLinePath(points.map(s.getValue), width, height, minValue, maxValue)}
+              fill="none"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={s.lineClass}
+            />
+          ))}
         </svg>
       </div>
-      <div className="flex flex-wrap gap-3 text-xs">
-        {series.map((entry) => {
-          const latest = entry.getValue(points[points.length - 1]);
-          return (
-            <div key={entry.label} className="inline-flex items-center gap-2">
-              <span className={`h-2.5 w-2.5 rounded-full ${entry.dotClass}`} />
-              <span className="text-muted-foreground">{entry.label}</span>
-              <span className="font-medium">{formatCurrency(latest)}</span>
-            </div>
-          );
-        })}
+      <div className="flex flex-wrap gap-4 text-xs">
+        {series.map((s) => (
+          <div key={s.label} className="inline-flex items-center gap-2">
+            <span className={`h-2 w-2 rounded-full ${s.dotClass}`} />
+            <span className="text-zinc-500">{s.label}</span>
+            <span className="font-semibold text-zinc-900">{formatCurrency(s.getValue(points[points.length - 1]))}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -179,13 +173,9 @@ function MiniTrendChart({
 
 export function StripeDashboard() {
   const isMobile = useIsMobile();
-  const [statusFilter, setStatusFilter] = useState<
-    "all" | PaymentIntentStatus
-  >("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | PaymentIntentStatus>("all");
   const [isLoading, setIsLoading] = useState(true);
-  const [paymentIntents, setPaymentIntents] = useState<
-    StripePaymentIntent[] | null
-  >(null);
+  const [paymentIntents, setPaymentIntents] = useState<StripePaymentIntent[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [balanceData, setBalanceData] = useState<{
     hasConnectedAccount: boolean;
@@ -212,15 +202,10 @@ export function StripeDashboard() {
     setIsLoading(true);
     setError(null);
     try {
-      const [payments, balance] = await Promise.all([
-        getPaymentIntents({}),
-        getStripeBalance({}),
-      ]);
+      const [payments, balance] = await Promise.all([getPaymentIntents({}), getStripeBalance({})]);
       setPaymentIntents(payments);
       setBalanceData(balance);
-      setPayoutAmount((prev) =>
-        prev ? prev : balance.available > 0 ? balance.available.toFixed(2) : ""
-      );
+      setPayoutAmount((prev) => prev ? prev : balance.available > 0 ? balance.available.toFixed(2) : "");
     } catch (err) {
       console.error("Error fetching Stripe dashboard data:", err);
       setError(err instanceof Error ? err.message : "Failed to load payment data");
@@ -233,142 +218,65 @@ export function StripeDashboard() {
     setIsHistoryLoading(true);
     setHistoryError(null);
     try {
-      const history = await getStripeBalanceHistory({ range });
-      setHistoryData(history);
+      setHistoryData(await getStripeBalanceHistory({ range }));
     } catch (err) {
-      setHistoryError(
-        err instanceof Error ? err.message : "Failed to load balance history."
-      );
+      setHistoryError(err instanceof Error ? err.message : "Failed to load balance history.");
     } finally {
       setIsHistoryLoading(false);
     }
   };
 
-  // Fetch payment intents and balance on mount.
-  useEffect(() => {
-    void loadDashboardData();
-  }, [getPaymentIntents, getStripeBalance]);
-
-  // Fetch graph history only when range changes.
-  useEffect(() => {
-    void loadHistoryData(historyRange);
-  }, [getStripeBalanceHistory, historyRange]);
+  useEffect(() => { void loadDashboardData(); }, [getPaymentIntents, getStripeBalance]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void loadHistoryData(historyRange); }, [getStripeBalanceHistory, historyRange]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRequestPayout = async () => {
-    if (!balanceData?.hasConnectedAccount) {
-      setPayoutError("Connect Stripe account first to request payouts.");
-      return;
-    }
-    if (!balanceData.payoutsEnabled) {
-      setPayoutError("Payouts are not enabled yet on your Stripe account.");
-      return;
-    }
-
+    if (!balanceData?.hasConnectedAccount) { setPayoutError("Connect Stripe account first."); return; }
+    if (!balanceData.payoutsEnabled) { setPayoutError("Payouts not enabled yet."); return; }
     const requestedAmount = Number(payoutAmount);
-    if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
-      setPayoutError("Enter a valid payout amount greater than 0.");
-      return;
-    }
-    if (requestedAmount > balanceData.available) {
-      setPayoutError("Requested amount exceeds your available balance.");
-      return;
-    }
+    if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) { setPayoutError("Enter a valid amount."); return; }
+    if (requestedAmount > balanceData.available) { setPayoutError("Exceeds available balance."); return; }
 
     setIsRequestingPayout(true);
     setPayoutError(null);
     setPayoutSuccess(null);
     try {
-      const result = await requestPayout({
-        amount: requestedAmount,
-        currency: balanceData.currency,
-      });
-      setPayoutSuccess(
-        `Payout ${result.payoutId} requested for ${formatCurrency(
-          result.amount,
-          result.currency
-        )}.`
-      );
+      const result = await requestPayout({ amount: requestedAmount, currency: balanceData.currency });
+      setPayoutSuccess(`Payout ${result.payoutId} requested for ${formatCurrency(result.amount, result.currency)}.`);
       await Promise.all([loadDashboardData(), loadHistoryData(historyRange)]);
     } catch (err) {
-      setPayoutError(
-        err instanceof Error ? err.message : "Failed to request payout."
-      );
+      setPayoutError(err instanceof Error ? err.message : "Failed to request payout.");
     } finally {
       setIsRequestingPayout(false);
     }
   };
 
-  // Filter payment intents by status
   const filteredIntents = useMemo(() => {
     if (!paymentIntents) return [];
-    if (statusFilter === "all") return paymentIntents;
-    return paymentIntents.filter((pi) => pi.status === statusFilter);
+    return statusFilter === "all" ? paymentIntents : paymentIntents.filter((pi) => pi.status === statusFilter);
   }, [paymentIntents, statusFilter]);
 
-  const formatCurrency = (amount: number, currency: string = "EUR") => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency,
-      minimumFractionDigits: 2,
-    }).format(amount);
-  };
+  const formatCurrency = (amount: number, currency = "EUR") =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 2 }).format(amount);
 
   const formatDate = (dateStr: string) => {
-    try {
-      return format(new Date(dateStr + "T00:00:00"), "MMM dd, yyyy");
-    } catch {
-      return dateStr;
-    }
+    try { return format(new Date(dateStr + "T00:00:00"), "MMM dd, yyyy"); } catch { return dateStr; }
   };
 
   const getStatusBadge = (status: PaymentIntentStatus) => {
     switch (status) {
-      case "on_hold":
-        return (
-          <Badge variant="secondary" className="gap-1">
-            <Clock className="h-3 w-3" />
-            On Hold
-          </Badge>
-        );
-      case "paid":
-        return (
-          <Badge variant="default" className="bg-green-500 hover:bg-green-600 gap-1">
-            <CheckCircle className="h-3 w-3" />
-            Paid
-          </Badge>
-        );
-      case "canceled":
-        return (
-          <Badge variant="destructive" className="gap-1">
-            <XCircle className="h-3 w-3" />
-            Canceled
-          </Badge>
-        );
-      case "refunded":
-        return (
-          <Badge variant="outline" className="gap-1 border-amber-400 text-amber-700">
-            <CheckCircle className="h-3 w-3" />
-            Refunded
-          </Badge>
-        );
-      case "pending":
-        return (
-          <Badge variant="outline" className="gap-1">
-            <AlertCircle className="h-3 w-3" />
-            Pending
-          </Badge>
-        );
+      case "on_hold": return <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" />On Hold</Badge>;
+      case "paid": return <Badge className="bg-emerald-500 hover:bg-emerald-600 gap-1"><CheckCircle className="h-3 w-3" />Paid</Badge>;
+      case "canceled": return <Badge variant="destructive" className="gap-1"><XCircle className="h-3 w-3" />Canceled</Badge>;
+      case "refunded": return <Badge variant="outline" className="gap-1 border-amber-300 text-amber-700"><CheckCircle className="h-3 w-3" />Refunded</Badge>;
+      case "pending": return <Badge variant="outline" className="gap-1"><AlertCircle className="h-3 w-3" />Pending</Badge>;
     }
   };
 
-  // Calculate statistics
   const stats = useMemo(() => {
-    if (!paymentIntents) {
-      return { total: 0, onHold: 0, paid: 0, canceled: 0, refunded: 0, pending: 0 };
-    }
+    if (!paymentIntents) return { total: 0, on_hold: 0, paid: 0, canceled: 0, refunded: 0, pending: 0 };
     return {
       total: paymentIntents.length,
-      onHold: paymentIntents.filter((pi) => pi.status === "on_hold").length,
+      on_hold: paymentIntents.filter((pi) => pi.status === "on_hold").length,
       paid: paymentIntents.filter((pi) => pi.status === "paid").length,
       canceled: paymentIntents.filter((pi) => pi.status === "canceled").length,
       refunded: paymentIntents.filter((pi) => pi.status === "refunded").length,
@@ -376,86 +284,83 @@ export function StripeDashboard() {
     };
   }, [paymentIntents]);
 
-  const handleHistoryRangeChange = (range: BalanceHistoryRange) => {
-    setHistoryRange(range);
-  };
+  const getStatCount = (key: "all" | PaymentIntentStatus) => key === "all" ? stats.total : stats[key];
 
   if (isLoading) {
     return (
-      <Card className="border border-border shadow-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            Stripe Payment Intents
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center gap-2 mb-6">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-50 border border-zinc-100">
+            <CreditCard className="h-4 w-4 text-zinc-500" />
           </div>
-        </CardContent>
-      </Card>
+          <h2 className="text-base font-semibold text-zinc-900">Payments</h2>
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
+        </div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Card className="border border-border shadow-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            Stripe Payment Intents
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 p-4 bg-destructive/10 border border-destructive/20 rounded-md">
-            <AlertCircle className="h-4 w-4 text-destructive" />
-            <p className="text-sm text-destructive">{error}</p>
+      <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center gap-2 mb-6">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-50 border border-zinc-100">
+            <CreditCard className="h-4 w-4 text-zinc-500" />
           </div>
-        </CardContent>
-      </Card>
+          <h2 className="text-base font-semibold text-zinc-900">Payments</h2>
+        </div>
+        <div className="flex items-center gap-3 rounded-xl bg-red-50 p-4">
+          <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
+          <p className="text-sm text-red-700">{error}</p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card className="border border-border shadow-sm">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <CreditCard className="h-5 w-5" />
-          Stripe Payment Intents
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Each row is one teammate&apos;s card hold. Multiple rows per team are
-          normal. Customer totals are all-in; your net after Stripe and platform
-          fees may be lower than the listed activity price.
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="rounded-md border border-border shadow-sm p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="font-medium">Stripe Balance</p>
+    <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
+      {/* Header */}
+      <div className="flex items-center gap-3 border-b border-zinc-100 px-6 py-4">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-50 border border-zinc-100">
+          <CreditCard className="h-4 w-4 text-zinc-600" />
+        </div>
+        <div>
+          <h2 className="text-base font-semibold text-zinc-900">Payments</h2>
+          <p className="text-xs text-zinc-400">Each row is one teammate&apos;s card hold. Net after fees may differ from listed price.</p>
+        </div>
+      </div>
+
+      <div className="p-6 space-y-5">
+        {/* Balance — light panel */}
+        <div className="rounded-2xl bg-zinc-50 p-5 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-zinc-400">Stripe Balance</p>
             {!balanceData?.hasConnectedAccount ? (
-              <Badge variant="outline">Not connected</Badge>
+              <Badge variant="outline" className="text-zinc-500">Not connected</Badge>
             ) : balanceData.payoutsEnabled ? (
-              <Badge className="bg-green-500 hover:bg-green-600">Payouts enabled</Badge>
+              <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0">Payouts enabled</Badge>
             ) : (
-              <Badge variant="secondary">Payouts pending setup</Badge>
+              <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-0">Pending setup</Badge>
             )}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="rounded-md border border-border shadow-sm p-3">
-              <p className="text-xs text-muted-foreground">Available</p>
-              <p className="text-lg font-semibold text-green-600">
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-white border border-zinc-100 p-4">
+              <p className="text-xs text-zinc-400 mb-1">Available</p>
+              <p className="text-2xl font-bold text-emerald-600">
                 {formatCurrency(balanceData?.available ?? 0, balanceData?.currency ?? "EUR")}
               </p>
             </div>
-            <div className="rounded-md border border-border shadow-sm p-3">
-              <p className="text-xs text-muted-foreground">Pending</p>
-              <p className="text-lg font-semibold">
+            <div className="rounded-xl bg-white border border-zinc-100 p-4">
+              <p className="text-xs text-zinc-400 mb-1">Pending</p>
+              <p className="text-2xl font-bold text-amber-600">
                 {formatCurrency(balanceData?.pending ?? 0, balanceData?.currency ?? "EUR")}
               </p>
             </div>
           </div>
+
           <div className="flex flex-col sm:flex-row gap-2">
             <Input
               type="number"
@@ -464,348 +369,180 @@ export function StripeDashboard() {
               value={payoutAmount}
               onChange={(e) => setPayoutAmount(e.target.value)}
               placeholder="Payout amount"
-              className="border border-border shadow-sm"
+              className="bg-white"
               disabled={!balanceData?.hasConnectedAccount || !balanceData?.payoutsEnabled}
             />
             <Button
               onClick={handleRequestPayout}
-              className="border border-border shadow-sm"
-              disabled={
-                isRequestingPayout ||
-                !balanceData?.hasConnectedAccount ||
-                !balanceData?.payoutsEnabled ||
-                Number(payoutAmount) <= 0
-              }
+              className="shrink-0"
+              disabled={isRequestingPayout || !balanceData?.hasConnectedAccount || !balanceData?.payoutsEnabled || Number(payoutAmount) <= 0}
             >
-              {isRequestingPayout ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Requesting...
-                </>
-              ) : (
-                "Request payout"
-              )}
+              {isRequestingPayout ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Requesting...</> : "Request payout"}
             </Button>
           </div>
           {payoutError && (
-            <p className="text-sm text-destructive flex items-center gap-1">
-              <AlertCircle className="h-4 w-4" />
-              {payoutError}
+            <p className="text-sm text-red-600 flex items-center gap-1.5">
+              <AlertCircle className="h-4 w-4 shrink-0" />{payoutError}
             </p>
           )}
           {payoutSuccess && (
-            <p className="text-sm text-green-600 flex items-center gap-1">
-              <CheckCircle className="h-4 w-4" />
-              {payoutSuccess}
+            <p className="text-sm text-emerald-600 flex items-center gap-1.5">
+              <CheckCircle className="h-4 w-4 shrink-0" />{payoutSuccess}
             </p>
           )}
         </div>
 
-        <div className="rounded-md border border-border shadow-sm p-4 space-y-4">
+        {/* Balance History */}
+        <div className="rounded-2xl bg-zinc-50 p-4 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="font-medium">Balance History</p>
-            <div className="flex flex-wrap gap-2">
+            <p className="text-sm font-semibold text-zinc-900">Balance History</p>
+            <div className="flex items-center gap-1 rounded-lg bg-white border border-zinc-100 p-1">
               {HISTORY_RANGES.map((range) => (
-                <Button
+                <button
                   key={range.key}
-                  variant={historyRange === range.key ? "default" : "outline"}
-                  size="sm"
-                  className="border border-border shadow-sm"
-                  onClick={() => void handleHistoryRangeChange(range.key)}
+                  onClick={() => setHistoryRange(range.key)}
+                  className={cn(
+                    "rounded-md px-3 py-1 text-xs font-medium transition-colors",
+                    historyRange === range.key ? "bg-zinc-900 text-white" : "text-zinc-500 hover:text-zinc-900"
+                  )}
                 >
                   {range.label}
-                </Button>
+                </button>
               ))}
             </div>
           </div>
 
           {historyError ? (
-            <p className="text-sm text-destructive flex items-center gap-1">
-              <AlertCircle className="h-4 w-4" />
-              {historyError}
-            </p>
+            <p className="text-sm text-red-500 flex items-center gap-1.5"><AlertCircle className="h-4 w-4" />{historyError}</p>
           ) : isHistoryLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
+            <div className="flex items-center justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-zinc-400" /></div>
           ) : historyData?.hasConnectedAccount ? (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <MiniTrendChart
-                title="Available vs Pending Balance"
+                title="Available vs Pending"
                 currency={historyData.currency}
                 points={historyData.points}
                 series={[
-                  {
-                    label: "Available",
-                    lineClass: "stroke-green-500",
-                    dotClass: "bg-green-500",
-                    getValue: (point) => point.available,
-                  },
-                  {
-                    label: "Pending",
-                    lineClass: "stroke-amber-500",
-                    dotClass: "bg-amber-500",
-                    getValue: (point) => point.pending,
-                  },
+                  { label: "Available", lineClass: "stroke-emerald-500", dotClass: "bg-emerald-500", getValue: (p) => p.available },
+                  { label: "Pending", lineClass: "stroke-amber-500", dotClass: "bg-amber-500", getValue: (p) => p.pending },
                 ]}
               />
               <MiniTrendChart
-                title="Inflow, Payouts, Net"
+                title="Inflow · Payouts · Net"
                 currency={historyData.currency}
                 points={historyData.points}
                 series={[
-                  {
-                    label: "Inflow",
-                    lineClass: "stroke-blue-500",
-                    dotClass: "bg-blue-500",
-                    getValue: (point) => point.grossInflow,
-                  },
-                  {
-                    label: "Payouts",
-                    lineClass: "stroke-rose-500",
-                    dotClass: "bg-rose-500",
-                    getValue: (point) => point.payoutOutflow,
-                  },
-                  {
-                    label: "Net",
-                    lineClass: "stroke-violet-500",
-                    dotClass: "bg-violet-500",
-                    getValue: (point) => point.net,
-                  },
+                  { label: "Inflow", lineClass: "stroke-blue-500", dotClass: "bg-blue-500", getValue: (p) => p.grossInflow },
+                  { label: "Payouts", lineClass: "stroke-rose-500", dotClass: "bg-rose-500", getValue: (p) => p.payoutOutflow },
+                  { label: "Net", lineClass: "stroke-violet-500", dotClass: "bg-violet-500", getValue: (p) => p.net },
                 ]}
               />
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              Connect Stripe to view balance history graphs.
-            </p>
+            <p className="text-sm text-zinc-400">Connect Stripe to view balance history.</p>
           )}
         </div>
 
-        {/* Status Filter */}
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={statusFilter === "all" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setStatusFilter("all")}
-            className="border border-border shadow-sm"
-          >
-            All ({stats.total})
-          </Button>
-          <Button
-            variant={statusFilter === "on_hold" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setStatusFilter("on_hold")}
-            className="border border-border shadow-sm"
-          >
-            On Hold ({stats.onHold})
-          </Button>
-          <Button
-            variant={statusFilter === "paid" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setStatusFilter("paid")}
-            className="border border-border shadow-sm"
-          >
-            Paid ({stats.paid})
-          </Button>
-          <Button
-            variant={statusFilter === "canceled" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setStatusFilter("canceled")}
-            className="border border-border shadow-sm"
-          >
-            Canceled ({stats.canceled})
-          </Button>
-          <Button
-            variant={statusFilter === "refunded" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setStatusFilter("refunded")}
-            className="border border-border shadow-sm"
-          >
-            Refunded ({stats.refunded})
-          </Button>
-          <Button
-            variant={statusFilter === "pending" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setStatusFilter("pending")}
-            className="border border-border shadow-sm"
-          >
-            Pending ({stats.pending})
-          </Button>
+        {/* Status filter pills */}
+        <div className="flex flex-wrap gap-1.5">
+          {STATUS_FILTERS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setStatusFilter(key)}
+              className={cn(
+                "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                statusFilter === key ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-900"
+              )}
+            >
+              {label} ({getStatCount(key)})
+            </button>
+          ))}
         </div>
 
-        {/* Payment Intents: mobile cards or desktop table */}
+        {/* Payment intents */}
         {filteredIntents.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <CreditCard className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>No payment intents found{statusFilter !== "all" ? ` with status "${statusFilter}"` : ""}.</p>
+          <div className="flex flex-col items-center justify-center py-12 text-zinc-400">
+            <CreditCard className="h-10 w-10 mb-3 opacity-30" />
+            <p className="text-sm">No payments{statusFilter !== "all" ? ` with status "${statusFilter}"` : ""}.</p>
           </div>
         ) : isMobile ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {filteredIntents.map((intent) => (
-              <Card
-                key={`${intent.paymentIntentId}-${intent.reservationId}`}
-                className="overflow-hidden border border-border shadow-sm"
-              >
-                <CardContent className="p-4 space-y-3">
-                  {/* Activity & Status */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-base truncate">
-                        {intent.activityName}
-                      </h3>
-                      {intent.activityAddress && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                          <MapPin className="h-3 w-3 shrink-0" />
-                          <span className="truncate">{intent.activityAddress}</span>
-                        </div>
-                      )}
-                    </div>
-                    {getStatusBadge(intent.status)}
+              <div key={`${intent.paymentIntentId}-${intent.reservationId}`} className="rounded-2xl bg-zinc-50 p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm text-zinc-900 truncate">{intent.activityName}</h3>
+                    {intent.activityAddress && (
+                      <div className="flex items-center gap-1 text-xs text-zinc-400 mt-0.5">
+                        <MapPin className="h-3 w-3 shrink-0" /><span className="truncate">{intent.activityAddress}</span>
+                      </div>
+                    )}
                   </div>
-
-                  {/* Team & payer */}
-                  <div className="flex items-center gap-2 text-sm">
-                    <Users className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="font-medium truncate">
-                      {intent.teamName}
+                  {getStatusBadge(intent.status)}
+                </div>
+                <div className="flex items-center gap-2 text-sm text-zinc-700">
+                  <Users className="h-4 w-4 text-zinc-400 shrink-0" />
+                  <span className="font-medium truncate">{intent.teamName}</span>
+                </div>
+                <div className="text-xs text-zinc-400 pl-6">
+                  Payer: {intent.payerName}{intent.personsPaidFor > 1 ? ` · covers ${intent.personsPaidFor} people` : ""}
+                </div>
+                <div className="flex items-center gap-2 text-sm text-zinc-700">
+                  <Calendar className="h-4 w-4 text-zinc-400 shrink-0" />
+                  <span className="font-medium">{formatDate(intent.date)}</span>
+                  <span className="text-zinc-400">at</span>
+                  <span>{intent.time}</span>
+                </div>
+                <div className="rounded-xl bg-white border border-zinc-100 p-3 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-zinc-400 flex items-center gap-1"><Wallet className="h-3.5 w-3.5" />Collected</span>
+                    <span className="font-semibold text-emerald-600">{formatCurrency(intent.collectedAmount, intent.currency)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-zinc-400">This card (auth)</span>
+                    <span className="text-zinc-700">{formatCurrency(intent.amount, intent.currency)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-zinc-400">Remaining</span>
+                    <span className={intent.remainingAmount > 0 ? "font-semibold text-orange-600" : "text-zinc-400"}>
+                      {formatCurrency(intent.remainingAmount, intent.currency)}
                     </span>
                   </div>
-                  <div className="text-xs text-muted-foreground pl-6">
-                    Payer: {intent.payerName}
-                    {intent.personsPaidFor > 1
-                      ? ` · covers ${intent.personsPaidFor} people`
-                      : ""}
-                  </div>
-
-                  {/* Date & Time */}
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="font-medium">{formatDate(intent.date)}</span>
-                    <span className="text-muted-foreground">at</span>
-                    <span>{intent.time}</span>
-                  </div>
-
-                  {/* Amounts */}
-                  <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground flex items-center gap-1">
-                        <Wallet className="h-3.5 w-3.5" />
-                        Collected
-                      </span>
-                      <span className="font-semibold text-green-600">
-                        {formatCurrency(intent.collectedAmount, intent.currency)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        This card (auth)
-                      </span>
-                      <span>{formatCurrency(intent.amount, intent.currency)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Remaining</span>
-                      <span
-                        className={
-                          intent.remainingAmount > 0
-                            ? "font-semibold text-orange-600"
-                            : "text-muted-foreground"
-                        }
-                      >
-                        {formatCurrency(intent.remainingAmount, intent.currency)}
-                      </span>
-                    </div>
-                  </div>
-
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ))}
           </div>
         ) : (
-          <div className="rounded-md border border-border shadow-sm overflow-x-auto">
+          <div className="rounded-2xl border border-zinc-100 overflow-hidden">
             <table className="w-full">
               <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                    Payment Intent ID
-                  </th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                    Team
-                  </th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                    Payer
-                  </th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                    Activity
-                  </th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                    Date & Time
-                  </th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                    Status
-                  </th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                    Collected (Saldo)
-                  </th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                    This card
-                  </th>
-                  <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                    Remaining
-                  </th>
+                <tr className="border-b border-zinc-100 bg-zinc-50">
+                  {["Payment ID", "Team", "Payer", "Activity", "Date & Time", "Status", "Collected", "This card", "Remaining"].map((h) => (
+                    <th key={h} className="h-11 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-zinc-400">{h}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {filteredIntents.map((intent) => (
-                  <tr
-                    key={`${intent.paymentIntentId}-${intent.reservationId}`}
-                    className="border-b transition-colors hover:bg-muted/50"
-                  >
-                    <td className="p-4 align-middle font-mono text-xs">
-                      {intent.paymentIntentId.substring(0, 20)}...
+                  <tr key={`${intent.paymentIntentId}-${intent.reservationId}`} className="border-b border-zinc-50 transition-colors hover:bg-zinc-50">
+                    <td className="p-4 align-middle font-mono text-xs text-zinc-400">{intent.paymentIntentId.substring(0, 20)}…</td>
+                    <td className="p-4 align-middle font-medium text-zinc-900">{intent.teamName}</td>
+                    <td className="p-4 align-middle">
+                      <div className="font-medium text-zinc-900">{intent.payerName}</div>
+                      {intent.personsPaidFor > 1 && <div className="text-xs text-zinc-400">{intent.personsPaidFor} people</div>}
                     </td>
                     <td className="p-4 align-middle">
-                      <div className="font-medium">{intent.teamName}</div>
+                      <div className="font-medium text-zinc-900">{intent.activityName}</div>
+                      {intent.activityAddress && <div className="text-xs text-zinc-400">{intent.activityAddress}</div>}
                     </td>
                     <td className="p-4 align-middle">
-                      <div className="font-medium">{intent.payerName}</div>
-                      {intent.personsPaidFor > 1 && (
-                        <div className="text-xs text-muted-foreground">
-                          {intent.personsPaidFor} people
-                        </div>
-                      )}
-                    </td>
-                    <td className="p-4 align-middle">
-                      <div>
-                        <div className="font-medium">{intent.activityName}</div>
-                        {intent.activityAddress && (
-                          <div className="text-sm text-muted-foreground">
-                            {intent.activityAddress}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="p-4 align-middle">
-                      <div>
-                        <div className="font-medium">{formatDate(intent.date)}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {intent.time}
-                        </div>
-                      </div>
+                      <div className="font-medium text-zinc-900">{formatDate(intent.date)}</div>
+                      <div className="text-xs text-zinc-400">{intent.time}</div>
                     </td>
                     <td className="p-4 align-middle">{getStatusBadge(intent.status)}</td>
-                    <td className="p-4 align-middle font-semibold text-green-600">
-                      {formatCurrency(intent.collectedAmount, intent.currency)}
-                    </td>
-                    <td className="p-4 align-middle">
-                      {formatCurrency(intent.amount, intent.currency)}
-                    </td>
-                    <td
-                      className={`p-4 align-middle ${intent.remainingAmount > 0
-                          ? "font-semibold text-orange-600"
-                          : "text-muted-foreground"
-                        }`}
-                    >
+                    <td className="p-4 align-middle font-semibold text-emerald-600">{formatCurrency(intent.collectedAmount, intent.currency)}</td>
+                    <td className="p-4 align-middle text-zinc-700">{formatCurrency(intent.amount, intent.currency)}</td>
+                    <td className={cn("p-4 align-middle", intent.remainingAmount > 0 ? "font-semibold text-orange-600" : "text-zinc-400")}>
                       {formatCurrency(intent.remainingAmount, intent.currency)}
                     </td>
                   </tr>
@@ -814,7 +551,7 @@ export function StripeDashboard() {
             </table>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
