@@ -101,6 +101,7 @@ export default function ActivityPage({
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
+      <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm md:p-6">
       <ActivityDetailGallery
         images={images}
         title={title}
@@ -209,6 +210,8 @@ export default function ActivityPage({
           <OrganiserQuestsSection activityId={activityId} />
         </>
       ) : null}
+
+      </div>{/* end card */}
 
       {hasTeams && !isOrganiserOfActivity ? (
         <ReservationDialog
