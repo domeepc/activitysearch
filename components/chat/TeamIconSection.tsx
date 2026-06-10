@@ -50,7 +50,7 @@ export function TeamIconSection({
       userName={teamName}
       onAvatarChange={handleIconChange}
       disabled={disabled}
-      size={isMobile ? "sm" : "md"}
+      size="sm"
     />
   );
 }
