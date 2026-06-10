@@ -4,7 +4,6 @@ import { useEffect, use } from "react";
 import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProfileView } from "@/components/profile/ProfileView";
 import { RemoveFriendDialog } from "@/components/profile/dialogs/RemoveFriendDialog";
@@ -119,17 +118,15 @@ export default function ProfilePage({
   if (user === undefined || currentUser === undefined) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <Card className="border-border border-2 shadow-xl">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-48" />
-              <Skeleton className="h-4 w-32" />
+        <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4 md:px-6">
+            <div className="space-y-1.5">
+              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-4 w-28" />
             </div>
-            <div className="flex gap-2">
-              <Skeleton className="h-10 w-24" />
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
+            <Skeleton className="h-8 w-24 rounded-full" />
+          </div>
+          <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
             <div className="flex justify-center">
               <Skeleton className="h-32 w-32 rounded-full" />
             </div>
@@ -147,8 +144,8 @@ export default function ProfilePage({
                 <Skeleton className="h-24 w-full" />
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     );
   }

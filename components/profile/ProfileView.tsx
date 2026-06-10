@@ -3,7 +3,6 @@
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { progressionFromTotalExp } from "@/lib/gamification/levels";
-import { Card, CardContent } from "@/components/ui/card";
 import { UserAvatarSection } from "./UserAvatarSection";
 import { ProfileHeader } from "./ProfileHeader";
 import { ProfileInfo } from "./ProfileInfo";
@@ -143,7 +142,7 @@ export function ProfileView({
     : undefined;
 
   return (
-    <Card className="border-border border-2 shadow-xl">
+    <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
       <ProfileHeader
         isOwnProfile={isOwnProfile}
         userName={user.name}
@@ -158,7 +157,7 @@ export function ProfileView({
         onDeleteAccount={onDeleteAccount}
         settingsUrl={settingsUrl}
       />
-      <CardContent className="space-y-6">
+      <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
         {/* Blocked Status Badge */}
         {isBlocked && !isOwnProfile && (
           <div className="flex justify-center">
@@ -232,7 +231,7 @@ export function ProfileView({
             isLoading={isLoading}
           />
         )}
-      </CardContent>
+      </div>
 
       {/* Email Verification Dialog */}
       {isOwnProfile && (
@@ -248,6 +247,6 @@ export function ProfileView({
           onResend={handleResendVerificationEmail}
         />
       )}
-    </Card>
+    </div>
   );
 }

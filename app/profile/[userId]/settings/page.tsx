@@ -6,7 +6,6 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ProfileForm } from "@/components/profile/ProfileForm";
@@ -22,7 +21,6 @@ import { useProfileForm } from "@/lib/hooks/useProfileForm";
 import { useEmailVerification } from "@/lib/hooks/useEmailVerification";
 import { usePasswordManagement } from "@/lib/hooks/usePasswordManagement";
 import type { OAuthProvider } from "@/lib/types/profile";
-import { Separator } from "@/components/ui/separator";
 
 // Convex document IDs are 32 base-32 chars; treat other segments as username
 function looksLikeConvexId(s: string): boolean {
@@ -202,11 +200,11 @@ export default function ProfileSettingsPage({
   if (user === undefined || currentUser === undefined) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <Card className="border-border border-2 shadow-xl">
-          <CardHeader>
-            <Skeleton className="h-8 w-48" />
-          </CardHeader>
-          <CardContent className="space-y-6">
+        <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
+          <div className="border-b border-zinc-100 px-5 py-4 md:px-6">
+            <Skeleton className="h-6 w-48" />
+          </div>
+          <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
             <div className="flex justify-center">
               <Skeleton className="h-32 w-32 rounded-full" />
             </div>
@@ -215,8 +213,8 @@ export default function ProfileSettingsPage({
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-24 w-full" />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     );
   }
@@ -248,11 +246,11 @@ export default function ProfileSettingsPage({
       />
 
       {/* Account Settings Section */}
-      <Card className="mt-6 border-border border-2 shadow-xl">
-        <CardHeader>
-          <CardTitle>Account Settings</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
+      <div className="mt-4 rounded-2xl border border-zinc-200 bg-white shadow-sm">
+        <div className="border-b border-zinc-100 px-5 py-4 md:px-6">
+          <h2 className="text-base font-semibold text-zinc-900">Account Settings</h2>
+        </div>
+        <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
           {/* Email Section */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Email</label>
@@ -277,8 +275,8 @@ export default function ProfileSettingsPage({
           />
 
           {/* Delete Account Section */}
-          <Separator className="w-full h-0.5" />
-          <div className="mt-4">
+          <div className="h-px bg-zinc-100" />
+          <div>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium">Delete Account</p>
@@ -295,8 +293,8 @@ export default function ProfileSettingsPage({
               </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Dialogs */}
       <DeleteAccountDialog

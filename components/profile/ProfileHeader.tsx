@@ -1,8 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserPlus, UserMinus, Ban } from "lucide-react";
+import { UserPlus, UserMinus, Ban, Settings } from "lucide-react";
 import Link from "next/link";
 
 interface ProfileHeaderProps {
@@ -31,110 +30,74 @@ export function ProfileHeader({
   onRemoveFriend,
   onBlock,
   onUnblock,
-  onDeleteAccount,
   settingsUrl,
 }: ProfileHeaderProps) {
   return (
-    <CardHeader>
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-        <div>
-          <CardTitle>
-            {isOwnProfile ? "Profile" : `${userName}'s Profile`}
-          </CardTitle>
-          <CardDescription>
-            {isOwnProfile ? "Manage your profile information" : `@${username}`}
-          </CardDescription>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {isOwnProfile ? (
-            <>
-              {onDeleteAccount && (
-                <Button
-                  variant="destructive"
-                  onClick={onDeleteAccount}
-                  className="w-full md:w-auto"
-                >
-                  Delete Account
-                </Button>
-              )}
-              {settingsUrl && (
-                <Button asChild className="w-full md:w-auto">
-                  <Link href={settingsUrl}>Edit Profile</Link>
-                </Button>
-              )}
-            </>
-          ) : (
-            <>
-              {isBlocked ? (
-                <>
-                  {onUnblock && (
-                    <Button
-                      variant="outline"
-                      onClick={onUnblock}
-                      className="w-full md:w-auto"
-                    >
-                      <Ban className="h-4 w-4 mr-2" />
-                      Unblock
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    disabled
-                    className="w-full md:w-auto opacity-50 cursor-not-allowed"
-                  >
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    User is Blocked
-                  </Button>
-                </>
-              ) : isFriend ? (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={onRemoveFriend}
-                    className="w-full md:w-auto"
-                  >
-                    <UserMinus className="h-4 w-4 mr-2" />
-                    Remove Friend
-                  </Button>
-                  {onBlock && (
-                    <Button
-                      variant="destructive"
-                      onClick={onBlock}
-                      className="w-full md:w-auto"
-                    >
-                      <Ban className="h-4 w-4 mr-2" />
-                      Block
-                    </Button>
-                  )}
-                </>
-              ) : (
-                <>
-                  <Button
-                    onClick={onAddFriend}
-                    disabled={hasBlockedYou}
-                    className="w-full md:w-auto"
-                    title={hasBlockedYou ? "This user has blocked you" : "Add friend"}
-                  >
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Add Friend
-                  </Button>
-                  {onBlock && (
-                    <Button
-                      variant="destructive"
-                      onClick={onBlock}
-                      className="w-full md:w-auto"
-                    >
-                      <Ban className="h-4 w-4 mr-2" />
-                      Block
-                    </Button>
-                  )}
-                </>
-              )}
-            </>
-          )}
-        </div>
+    <div className="flex flex-col gap-3 border-b border-zinc-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
+      <div>
+        <h2 className="text-lg font-semibold text-zinc-900">
+          {isOwnProfile ? "My Profile" : userName}
+        </h2>
+        <p className="text-sm text-zinc-400">@{username}</p>
       </div>
-    </CardHeader>
+
+      <div className="flex flex-wrap gap-2">
+        {isOwnProfile ? (
+          settingsUrl && (
+            <Button asChild size="sm" variant="outline" className="rounded-full border-zinc-200">
+              <Link href={settingsUrl}>
+                <Settings className="mr-1.5 h-3.5 w-3.5" />
+                Edit Profile
+              </Link>
+            </Button>
+          )
+        ) : isBlocked ? (
+          <>
+            {onUnblock && (
+              <Button size="sm" variant="outline" onClick={onUnblock} className="rounded-full border-zinc-200">
+                <Ban className="mr-1.5 h-3.5 w-3.5" />
+                Unblock
+              </Button>
+            )}
+            <Button size="sm" variant="outline" disabled className="rounded-full opacity-50">
+              <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+              Blocked
+            </Button>
+          </>
+        ) : isFriend ? (
+          <>
+            <Button size="sm" variant="outline" onClick={onRemoveFriend} className="rounded-full border-zinc-200">
+              <UserMinus className="mr-1.5 h-3.5 w-3.5" />
+              Remove Friend
+            </Button>
+            {onBlock && (
+              <Button size="sm" variant="destructive" onClick={onBlock} className="rounded-full">
+                <Ban className="mr-1.5 h-3.5 w-3.5" />
+                Block
+              </Button>
+            )}
+          </>
+        ) : (
+          <>
+            <Button
+              size="sm"
+              onClick={onAddFriend}
+              disabled={hasBlockedYou}
+              className="rounded-full"
+              title={hasBlockedYou ? "This user has blocked you" : "Add friend"}
+            >
+              <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+              Add Friend
+            </Button>
+            {onBlock && (
+              <Button size="sm" variant="destructive" onClick={onBlock} className="rounded-full">
+                <Ban className="mr-1.5 h-3.5 w-3.5" />
+                Block
+              </Button>
+            )}
+          </>
+        )}
+      </div>
+    </div>
   );
 }
-
