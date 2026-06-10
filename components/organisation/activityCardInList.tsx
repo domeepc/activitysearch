@@ -1,9 +1,8 @@
 import Image from "next/image";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { getTagColorScheme } from "@/lib/tagColors";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { Pencil } from "lucide-react";
+import { Pencil, Star } from "lucide-react";
 import { api as convexApi } from "@/convex/_generated/api";
 import { useQuery } from "convex/react";
 
@@ -14,15 +13,9 @@ interface ActivityCardProps {
     description: string;
     category: string;
     tags?: string[];
-    location?: {
-      address: string;
-    };
+    location?: { address: string };
     address?: string;
-    price: {
-      amount: number;
-      currency: string;
-      type: string;
-    };
+    price: { amount: number; currency: string; type: string };
     duration: string;
     difficulty: string;
     rating: number;
@@ -33,92 +26,95 @@ interface ActivityCardProps {
   onEdit?: (activityId: string) => void;
 }
 
-export default function ActivityCardInList(props: ActivityCardProps) {
+export default function ActivityCardInList({ activity, onEdit }: ActivityCardProps) {
   const allTags =
-    props.activity.tags && props.activity.tags.length > 0
-      ? props.activity.tags
-      : props.activity.category
-        ? [props.activity.category]
+    activity.tags && activity.tags.length > 0
+      ? activity.tags
+      : activity.category
+        ? [activity.category]
         : [];
 
   const databaseTags = useQuery(convexApi.activity.getAllTags);
+
   return (
-    <>
-      <Card className="w-72 p-0 border-2 border-foreground/30 shadow-xl">
-        <CardHeader className="text-2xl font-bold p-0">
-          <div className="w-full">
-            {props.activity.images && props.activity.images.length > 0 ? (
-              <div className="relative w-full h-48 rounded-md mb-0 overflow-hidden">
-                <Image
-                  src={props.activity.images[0]}
-                  alt={props.activity.title}
-                  fill
-                  className="object-cover"
-                />
-              </div>
-            ) : (
-              <div className="w-full h-48 bg-gray-200 flex items-center justify-center rounded-md mb-0">
-                <span className="text-gray-500">No Image Available</span>
-              </div>
-            )}
+    <div className="w-64 overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-sm transition-shadow hover:shadow-md">
+      {/* Image */}
+      <div className="relative h-40 w-full bg-zinc-100">
+        {activity.images && activity.images.length > 0 ? (
+          <Image
+            src={activity.images[0]}
+            alt={activity.title}
+            fill
+            className="object-cover"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <span className="text-xs text-zinc-400">No image</span>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-row justify-between items-center mb-8 gap-2">
-            <h1 className="text-xl font-bold flex-1 min-w-0 truncate">
-              {props.activity.title}
-            </h1>
-            <div className="flex items-center gap-1 shrink-0">
-              {props.onEdit && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  aria-label="Edit activity"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    props.onEdit?.(props.activity.id);
+        )}
+        {/* Price badge on image */}
+        <div className="absolute right-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-emerald-700 shadow-sm">
+          {activity.price.amount} {activity.price.currency}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="p-4 space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="flex-1 truncate text-sm font-semibold text-zinc-900 leading-tight">
+            {activity.title}
+          </h3>
+          {onEdit && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0 text-zinc-400 hover:text-zinc-700"
+              aria-label="Edit activity"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(activity.id);
+              }}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+
+        {activity.rating > 0 && (
+          <div className="flex items-center gap-1 text-xs text-zinc-500">
+            <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+            <span className="font-medium text-zinc-700">{activity.rating.toFixed(1)}</span>
+            <span>({activity.reviewCount})</span>
+          </div>
+        )}
+
+        {allTags.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {allTags.slice(0, 3).map((tag, index) => {
+              const colorScheme = getTagColorScheme(tag, databaseTags);
+              return (
+                <Badge
+                  key={index}
+                  variant="secondary"
+                  className="text-[10px] px-1.5 py-0.5"
+                  style={{
+                    backgroundColor: colorScheme.bgHex,
+                    color: colorScheme.textHex,
+                    borderColor: colorScheme.bgHex,
                   }}
                 >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-              )}
-              <p className="text-green-600 text-md font-semibold">
-                {props.activity.price.amount} {props.activity.price.currency}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-row gap-4 flex-wrap mb-4">
-            {allTags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {allTags.slice(0, 3).map((tag, index) => {
-                  const colorScheme = getTagColorScheme(tag, databaseTags);
-                  return (
-                    <Badge
-                      key={index}
-                      variant="secondary"
-                      className="text-xs px-1.5 py-0.5"
-                      style={{
-                        backgroundColor: colorScheme.bgHex,
-                        color: colorScheme.textHex,
-                        borderColor: colorScheme.bgHex,
-                      }}
-                    >
-                      {tag}
-                    </Badge>
-                  );
-                })}
-                {allTags.length > 3 && (
-                  <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
-                    +{allTags.length - 3}
-                  </Badge>
-                )}
-              </div>
+                  {tag}
+                </Badge>
+              );
+            })}
+            {allTags.length > 3 && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">
+                +{allTags.length - 3}
+              </Badge>
             )}
           </div>
-        </CardContent>
-      </Card>
-    </>
+        )}
+      </div>
+    </div>
   );
 }

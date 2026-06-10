@@ -5,112 +5,107 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { mapActivityFromDb } from "@/lib/activities";
 import ActivityCardInList from "./activityCardInList";
+import { LayoutGrid } from "lucide-react";
 
 interface ActivityListSectionProps {
   activityIDs: Id<"activities">[];
   onEdit?: (activityId: string) => void;
 }
 
-export default function ActivityListSection({
-  activityIDs,
-  onEdit,
-}: ActivityListSectionProps) {
+export default function ActivityListSection({ activityIDs, onEdit }: ActivityListSectionProps) {
   const router = useRouter();
 
-  // Fetch activities by their IDs
   const activitiesFromDb = useQuery(
     api.activity.getActivitiesByIds,
     activityIDs.length > 0 ? { activityIds: activityIDs } : "skip"
   );
 
-  // Map activities to the frontend format
   const activities = useMemo(() => {
     if (!activitiesFromDb) return [];
     return activitiesFromDb.map((doc) => mapActivityFromDb(doc));
   }, [activitiesFromDb]);
 
-  // Handle click on card - navigate to activity page
-  const handleCardClick = (activityId: string) => {
-    router.push(`/activities/${activityId}`);
-  };
+  const handleCardClick = (activityId: string) => router.push(`/activities/${activityId}`);
 
-  // If no activity IDs, show empty state immediately
   if (activityIDs.length === 0) {
     return (
-      <Card className="border-2 border-border shadow-xl">
-        <CardContent>
-          <CardHeader className="text-2xl font-bold">Activities</CardHeader>
-          <div className="text-center py-8 text-muted-foreground">
-            <p>No activities found.</p>
-            <p className="text-sm mt-2">
-              Create your first activity to get started!
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
+        <div className="flex items-center gap-2 border-b border-zinc-100 px-5 py-4 md:px-6">
+          <LayoutGrid className="h-4 w-4 text-zinc-400" />
+          <h2 className="text-base font-semibold text-zinc-900">Activities</h2>
+        </div>
+        <div className="flex flex-col items-center justify-center py-12 text-center px-5">
+          <LayoutGrid className="h-10 w-10 text-zinc-200 mb-3" />
+          <p className="text-sm text-zinc-400">No activities yet.</p>
+          <p className="text-xs text-zinc-300 mt-1">Create your first activity to get started.</p>
+        </div>
+      </div>
     );
   }
 
-  // Loading state
   if (activitiesFromDb === undefined) {
     return (
-      <Card className="border-2 border-border shadow-xl">
-        <CardContent>
-          <CardHeader className="text-2xl font-bold">Activities</CardHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3].map((i) => (
-              <Card key={i} className="w-full border-2 border-border shadow-xl">
-                <Skeleton className="h-48 w-full" />
-                <CardContent className="p-4 space-y-2">
-                  <Skeleton className="h-6 w-3/4" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-2/3" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
+        <div className="flex items-center gap-2 border-b border-zinc-100 px-5 py-4 md:px-6">
+          <LayoutGrid className="h-4 w-4 text-zinc-400" />
+          <h2 className="text-base font-semibold text-zinc-900">Activities</h2>
+        </div>
+        <div className="flex flex-row flex-wrap gap-4 p-5 md:p-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="w-64 rounded-2xl border border-zinc-100 overflow-hidden">
+              <Skeleton className="h-40 w-full" />
+              <div className="p-4 space-y-2">
+                <Skeleton className="h-5 w-3/4" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card className="border-2 border-border shadow-xl">
-      <CardContent>
-        <CardHeader className="text-2xl font-bold">Activities</CardHeader>
-        <div className="flex flex-row flex-wrap gap-6">
-          {activities.map((activity) => (
-            <div
-              key={activity.id}
-              onClick={() => handleCardClick(activity.id)}
-              className="cursor-pointer transition-transform hover:scale-[1.02]"
-            >
-              <ActivityCardInList
-                activity={{
-                  id: activity.id,
-                  title: activity.title,
-                  description: activity.description,
-                  category: activity.category,
-                  tags: activity.tags,
-                  location: activity.location,
-                  address: activity.location.address,
-                  price: activity.price,
-                  duration: activity.duration,
-                  difficulty: activity.difficulty,
-                  rating: activity.rating,
-                  reviewCount: activity.reviewCount,
-                  images: activity.images,
-                }}
-                onEdit={onEdit}
-              />
-            </div>
-          ))}
+    <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4 md:px-6">
+        <div className="flex items-center gap-2">
+          <LayoutGrid className="h-4 w-4 text-zinc-400" />
+          <h2 className="text-base font-semibold text-zinc-900">Activities</h2>
         </div>
-      </CardContent>
-    </Card>
+        <span className="text-xs text-zinc-400">{activities.length} total</span>
+      </div>
+      <div className="flex flex-row flex-wrap gap-4 p-5 md:p-6">
+        {activities.map((activity) => (
+          <div
+            key={activity.id}
+            onClick={() => handleCardClick(activity.id)}
+            className="cursor-pointer transition-transform hover:scale-[1.02]"
+          >
+            <ActivityCardInList
+              activity={{
+                id: activity.id,
+                title: activity.title,
+                description: activity.description,
+                category: activity.category,
+                tags: activity.tags,
+                location: activity.location,
+                address: activity.location.address,
+                price: activity.price,
+                duration: activity.duration,
+                difficulty: activity.difficulty,
+                rating: activity.rating,
+                reviewCount: activity.reviewCount,
+                images: activity.images,
+              }}
+              onEdit={onEdit}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
