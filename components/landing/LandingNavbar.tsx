@@ -26,14 +26,8 @@ export function LandingNavbar() {
           ActivitySearch
         </Link>
         <div className="flex items-center gap-3">
-          <Link
-            href="/sign-in"
-            className="text-sm font-medium text-zinc-600 transition-colors hover:text-zinc-900"
-          >
-            Sign in
-          </Link>
           <Button asChild size="sm" className="rounded-full">
-            <Link href="/sign-up">Get started</Link>
+            <Link href="/sign-in">Sign in</Link>
           </Button>
         </div>
       </div>

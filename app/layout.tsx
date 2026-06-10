@@ -6,7 +6,7 @@ import ConvexClientProvider from "@/components/providers/ConvexClientProvider";
 import { PostHogIdentify } from "@/components/providers/PostHogIdentify";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
 import { PresenceProviderWrapper } from "@/components/providers/PresenceProviderWrapper";
-import Navbar from "@/components/ui/navBar/NavBar";
+import { ConditionalNavbar } from "@/components/ui/navBar/ConditionalNavbar";
 import { Toaster } from "@/components/ui/sonner";
 import { Suspense } from "react";
 import Loading from "@/app/loading";
@@ -56,9 +56,7 @@ export default function RootLayout({
               <PostHogProvider>
                 <PostHogIdentify />
                 <PresenceProviderWrapper>
-                  <header className="app-site-header">
-                    <Navbar />
-                  </header>
+                  <ConditionalNavbar />
                   {children}
                 </PresenceProviderWrapper>
               </PostHogProvider>

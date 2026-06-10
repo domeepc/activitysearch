@@ -4,6 +4,8 @@ import { HeroSection } from "@/components/landing/HeroSection";
 import { CategorySection } from "@/components/landing/CategorySection";
 import { TopRatedSection } from "@/components/landing/TopRatedSection";
 import { QuestsSection } from "@/components/landing/QuestsSection";
+import { SecuritySection } from "@/components/landing/SecuritySection";
+import { PaymentsSection } from "@/components/landing/PaymentsSection";
 import { CtaSection } from "@/components/landing/CtaSection";
 import { LandingFooter } from "@/components/landing/LandingFooter";
 import { LandingNavbar } from "@/components/landing/LandingNavbar";
@@ -27,8 +29,10 @@ const LANDING_SECTIONS = [
     content: <TopRatedSection items={topRated} />,
   },
   { id: "quests", delayMs: 320, content: <QuestsSection /> },
-  { id: "cta", delayMs: 400, content: <CtaSection /> },
-  { id: "footer", delayMs: 480, content: <LandingFooter /> },
+  { id: "security", delayMs: 400, content: <SecuritySection /> },
+  { id: "payments", delayMs: 480, content: <PaymentsSection /> },
+  { id: "cta", delayMs: 560, content: <CtaSection /> },
+  { id: "footer", delayMs: 640, content: <LandingFooter /> },
 ] as const;
 
 export function LandingPage() {
