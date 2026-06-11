@@ -19,6 +19,7 @@ import {
   ImagesSection,
   TimeSlotsSection,
 } from "@/components/activities/ActivityFormSections";
+import { ADDRESS_DROPDOWN_ATTR } from "@/components/ui/address-autocomplete";
 import { validateActivityField } from "@/lib/validation";
 import { Stepper } from "@/components/ui/stepper";
 import { useActivityForm } from "@/lib/hooks/useActivityForm";
@@ -73,7 +74,15 @@ export default function DialogAddActivity({
   return (
     <div className={isEdit ? "" : "hidden md:block"}>
       <Dialog open={showDialog} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent
+          className="max-w-4xl max-h-[90vh] overflow-y-auto"
+          onPointerDownOutside={(e) => {
+            const target = e.detail.originalEvent.target as Element;
+            if (target?.closest(`[${ADDRESS_DROPDOWN_ATTR}]`)) {
+              e.preventDefault();
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>
               {isEdit ? "Edit Activity" : "Add New Activity"}
