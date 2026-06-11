@@ -54,7 +54,7 @@ export function PasswordDialog({
         }
       }}
     >
-      <DialogContent className="border-border border-2 shadow-xl">
+      <DialogContent >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Lock className="h-5 w-5" />

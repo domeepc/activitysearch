@@ -4,8 +4,6 @@ import { AvatarUpload } from "@/components/ui/avatar-upload";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { useIsMobile } from "@/lib/hooks/useIsMobile";
-
 interface TeamIconSectionProps {
   teamId: Id<"teams">;
   currentIcon?: string;
@@ -19,7 +17,6 @@ export function TeamIconSection({
   teamName,
   disabled = false,
 }: TeamIconSectionProps) {
-  const isMobile = useIsMobile();
   const updateTeamIcon = useMutation(api.teams.updateTeamIcon);
 
   const handleIconChange = async (file: File) => {
@@ -50,7 +47,7 @@ export function TeamIconSection({
       userName={teamName}
       onAvatarChange={handleIconChange}
       disabled={disabled}
-      size={isMobile ? "sm" : "md"}
+      size="sm"
     />
   );
 }

@@ -160,10 +160,10 @@ export function TeamInviteDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" className="border-border" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" className="rounded-full border-zinc-200" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleInvite} disabled={selectedFriends.size === 0}>
+          <Button onClick={handleInvite} disabled={selectedFriends.size === 0} className="rounded-full">
             Invite {selectedFriends.size > 0 && `(${selectedFriends.size})`}
           </Button>
         </DialogFooter>

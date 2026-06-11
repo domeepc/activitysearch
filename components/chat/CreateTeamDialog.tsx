@@ -135,11 +135,11 @@ export function CreateTeamDialog({
                 );
               }
               return (
-              <div className="max-h-60 overflow-y-auto border-2 border-border rounded-md p-2 space-y-2">
+              <div className="max-h-60 overflow-y-auto rounded-2xl bg-zinc-50 border border-zinc-100 p-2 space-y-1">
                 {(friends ?? []).map((friend) => (
                   <div
                     key={friend._id}
-                    className="flex items-center gap-3 p-2 hover:bg-accent rounded-md cursor-pointer"
+                    className="flex items-center gap-3 p-2 hover:bg-zinc-100 rounded-xl cursor-pointer transition-colors"
                     onClick={() => handleToggleFriend(friend._id)}
                   >
                     <Checkbox
@@ -169,10 +169,10 @@ export function CreateTeamDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" className="border-border" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" className="rounded-full border-zinc-200" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!teamName.trim()}>
+          <Button onClick={handleSubmit} disabled={!teamName.trim()} className="rounded-full">
             Create Team
           </Button>
         </DialogFooter>

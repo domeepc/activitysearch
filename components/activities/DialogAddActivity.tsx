@@ -19,6 +19,7 @@ import {
   ImagesSection,
   TimeSlotsSection,
 } from "@/components/activities/ActivityFormSections";
+import { ADDRESS_DROPDOWN_ATTR } from "@/components/ui/address-autocomplete";
 import { validateActivityField } from "@/lib/validation";
 import { Stepper } from "@/components/ui/stepper";
 import { useActivityForm } from "@/lib/hooks/useActivityForm";
@@ -73,7 +74,15 @@ export default function DialogAddActivity({
   return (
     <div className={isEdit ? "" : "hidden md:block"}>
       <Dialog open={showDialog} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent
+          className="max-w-4xl max-h-[90vh] overflow-y-auto"
+          onPointerDownOutside={(e) => {
+            const target = e.detail.originalEvent.target as Element;
+            if (target?.closest(`[${ADDRESS_DROPDOWN_ATTR}]`)) {
+              e.preventDefault();
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>
               {isEdit ? "Edit Activity" : "Add New Activity"}
@@ -85,7 +94,7 @@ export default function DialogAddActivity({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="py-4">
+          <div className="rounded-2xl bg-zinc-50 px-4 py-4">
             <Stepper steps={steps} currentStep={currentStep} className="mb-6" />
 
             <div className="grid gap-6">
@@ -155,7 +164,7 @@ export default function DialogAddActivity({
             <Button
               type="button"
               variant="outline"
-              className="border-border"
+              className="rounded-full border-zinc-200"
               onClick={() => setShowDialog(false)}
               disabled={isSubmitting}
             >
@@ -167,7 +176,7 @@ export default function DialogAddActivity({
                 variant="outline"
                 onClick={() => setCurrentStep(currentStep - 1)}
                 disabled={isSubmitting}
-                className="border-2 border-border"
+                className="rounded-full border-zinc-200"
               >
                 Previous
               </Button>
@@ -177,6 +186,7 @@ export default function DialogAddActivity({
                 type="button"
                 onClick={() => setCurrentStep(currentStep + 1)}
                 disabled={isSubmitting}
+                className="rounded-full"
               >
                 Next
               </Button>
@@ -185,6 +195,7 @@ export default function DialogAddActivity({
                 type="button"
                 onClick={handleSubmit}
                 disabled={!isFormValid()}
+                className="rounded-full"
               >
                 {isSubmitting
                   ? isEdit

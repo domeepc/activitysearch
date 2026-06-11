@@ -22,7 +22,7 @@ export default function ActivityFilters({
   const uniqueCategories = getUniqueCategories(activities);
 
   return (
-    <>
+    <div className="flex flex-col gap-2">
       <SearchAutocomplete
         activities={activities}
         onActivitySelect={onActivitySelect}
@@ -50,7 +50,6 @@ export default function ActivityFilters({
           </MultiSelectContent>
         )}
       </MultiSelect>
-
-    </>
+    </div>
   );
 }

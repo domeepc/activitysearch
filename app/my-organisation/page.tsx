@@ -7,14 +7,6 @@ import { usePostHog } from "@posthog/react";
 import { Id } from "@/convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -26,6 +18,38 @@ import ActivityListSection from "@/components/organisation/activityListSection";
 import { StripeConnectButton } from "@/components/organisation/StripeConnectButton";
 import DialogAddActivity from "@/components/activities/DialogAddActivity";
 import { useAction } from "convex/react";
+import { Building2, Pencil } from "lucide-react";
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-0.5 py-3 sm:flex-row sm:gap-4">
+      <span className="w-36 shrink-0 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+        {label}
+      </span>
+      <span className="text-sm text-zinc-700">{value}</span>
+    </div>
+  );
+}
+
+function EditRow({
+  label,
+  children,
+  error,
+}: {
+  label: string;
+  children: React.ReactNode;
+  error?: string;
+}) {
+  return (
+    <div className="py-3 space-y-1.5">
+      <label className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+        {label}
+      </label>
+      {children}
+      {error && <p className="text-xs text-red-600">{error}</p>}
+    </div>
+  );
+}
 
 export default function MyOrganisationPage() {
   const router = useRouter();
@@ -34,12 +58,8 @@ export default function MyOrganisationPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingActivityId, setEditingActivityId] = useState<Id<"activities"> | null>(null);
-  const [errors, setErrors] = useState({
-    name: "",
-    email: "",
-    address: "",
-    IBAN: "",
-  });
+  const [errors, setErrors] = useState({ name: "", email: "", address: "", IBAN: "" });
+
   const currentUser = useQuery(api.users.current);
   const organisation = useQuery(
     api.organisation.getOrganisationByOwnerId,
@@ -50,7 +70,6 @@ export default function MyOrganisationPage() {
 
   const isOrganiser = currentUser?.role === "organiser";
 
-  // Compute form data from organisation when not editing
   const organisationFormData = useMemo(
     () => ({
       name: organisation?.organisationName || "",
@@ -62,18 +81,11 @@ export default function MyOrganisationPage() {
     [organisation]
   );
 
-  const [editedFormData, setEditedFormData] = useState(
-    () => organisationFormData
-  );
-
-  // Use edited data when editing, otherwise use organisation data
+  const [editedFormData, setEditedFormData] = useState(() => organisationFormData);
   const formData = isEditing ? editedFormData : organisationFormData;
 
-  // Redirect if not authenticated in Clerk (only redirect if Clerk has loaded and user is definitely not signed in)
   useEffect(() => {
-    if (clerkLoaded && !isSignedIn) {
-      router.push("/sign-in");
-    }
+    if (clerkLoaded && !isSignedIn) router.push("/sign-in");
   }, [clerkLoaded, isSignedIn, router]);
 
   const validateField = (name: string, value: string) => {
@@ -81,21 +93,10 @@ export default function MyOrganisationPage() {
     setErrors((prev) => ({ ...prev, [name]: error }));
   };
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setEditedFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-
-    if (
-      name === "name" ||
-      name === "email" ||
-      name === "address" ||
-      name === "IBAN"
-    ) {
+    setEditedFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === "name" || name === "email" || name === "address" || name === "IBAN") {
       validateField(name, value);
     }
   };
@@ -108,44 +109,14 @@ export default function MyOrganisationPage() {
 
   const handleSave = async () => {
     if (!organisation) return;
-
-    // Validate all required fields and collect errors
-    const newErrors = {
-      name: "",
-      email: "",
-      address: "",
-      IBAN: "",
-    };
-
-    if (!formData.name.trim()) {
-      newErrors.name = "Organisation name is required";
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!validateEmail(formData.email)) {
-      newErrors.email = "Please enter a valid email";
-    }
-
-    if (!formData.address.trim()) {
-      newErrors.address = "Address is required";
-    }
-
-    if (!formData.IBAN.trim()) {
-      newErrors.IBAN = "IBAN is required";
-    }
-
+    const newErrors = { name: "", email: "", address: "", IBAN: "" };
+    if (!formData.name.trim()) newErrors.name = "Organisation name is required";
+    if (!formData.email.trim()) newErrors.email = "Email is required";
+    else if (!validateEmail(formData.email)) newErrors.email = "Please enter a valid email";
+    if (!formData.address.trim()) newErrors.address = "Address is required";
+    if (!formData.IBAN.trim()) newErrors.IBAN = "IBAN is required";
     setErrors(newErrors);
-
-    // Check if there are any errors
-    if (
-      newErrors.name ||
-      newErrors.email ||
-      newErrors.address ||
-      newErrors.IBAN
-    ) {
-      return;
-    }
+    if (newErrors.name || newErrors.email || newErrors.address || newErrors.IBAN) return;
 
     try {
       await updateOrganisation({
@@ -156,20 +127,13 @@ export default function MyOrganisationPage() {
         address: formData.address,
         IBAN: formData.IBAN,
       });
-
-      // Sync updates to Stripe if account exists
       if (organisation.stripeAccountId) {
         try {
-          await updateStripeAccount({
-            organisationId: organisation._id,
-          });
+          await updateStripeAccount({ organisationId: organisation._id });
         } catch (stripeError) {
           console.error("Failed to sync to Stripe:", stripeError);
-          // Don't fail the entire update if Stripe sync fails
-          // User can manually update Stripe later if needed
         }
       }
-
       posthog?.capture("organisation_updated", {
         organisation_id: String(organisation._id),
         organisation_name: formData.name,
@@ -177,317 +141,151 @@ export default function MyOrganisationPage() {
       setIsEditing(false);
       setErrors({ name: "", email: "", address: "", IBAN: "" });
     } catch (error: unknown) {
-      console.error("Failed to update organisation:", error);
-      const errorMessage = extractErrorMessage(error);
-      // Could set a general error state here if needed
-      console.error("Error message:", errorMessage);
+      console.error("Failed to update organisation:", extractErrorMessage(error));
     }
   };
 
-  // Loading state
+  const hasErrors = !!(errors.name || errors.email || errors.address || errors.IBAN);
+
+  // Loading
   if (currentUser === undefined || organisation === undefined) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <Card className="border-2 border-border shadow-xl">
-          <CardHeader>
-            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-              <div>
-                <Skeleton className="h-8 w-48" />
-                <Skeleton className="h-4 w-32 mt-2" />
-              </div>
-              <div className="flex gap-2">
-                <Skeleton className="h-10 w-24" />
-                <Skeleton className="h-10 w-24" />
-              </div>
+        <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4 md:px-6">
+            <div className="space-y-1.5">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-4 w-32" />
             </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-6">
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-8 w-28 rounded-full" />
+          </div>
+          <div className="space-y-0 divide-y divide-zinc-100 px-5 py-2 md:px-6">
+            {["w-40", "w-36", "w-48", "w-32", "w-28"].map((w, i) => (
+              <div key={i} className="flex gap-4 py-3">
+                <Skeleton className="h-3 w-28 shrink-0" />
+                <Skeleton className={`h-4 ${w}`} />
               </div>
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-28" />
-                <Skeleton className="h-24 w-full" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
 
-  // Wait for Clerk to load before making decisions
-  if (!clerkLoaded) {
-    return (
-      <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <Card>
-          <CardContent className="flex items-center justify-center py-8">
-            <div className="text-muted-foreground">Loading...</div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  if (!clerkLoaded) return null;
+  if (!isSignedIn) return null;
 
-  // Not authenticated in Clerk - redirect will happen in useEffect
-  if (!isSignedIn) {
-    return null;
-  }
-
-  // Wait for Convex user to load
-  if (currentUser === undefined) {
-    return (
-      <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <Card>
-          <CardContent className="flex items-center justify-center py-8">
-            <div className="text-muted-foreground">Loading...</div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Not an organiser (but authenticated)
   if (currentUser !== null && !isOrganiser) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <Card className="border-2 border-border shadow-xl">
-          <CardHeader>
-            <CardTitle>Access Denied</CardTitle>
-            <CardDescription>
-              You must be an organiser to access this page.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => router.push(SIGNED_IN_HOME_HREF)}>Go to Home</Button>
-          </CardContent>
-        </Card>
+        <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm p-6 text-center space-y-3">
+          <p className="text-base font-semibold text-zinc-900">Access Denied</p>
+          <p className="text-sm text-zinc-400">You must be an organiser to access this page.</p>
+          <Button size="sm" className="rounded-full" onClick={() => router.push(SIGNED_IN_HOME_HREF)}>
+            Go to Home
+          </Button>
+        </div>
       </div>
     );
   }
 
-  // User authenticated but not found in Convex (shouldn't happen normally, but handle gracefully)
   if (currentUser === null && isSignedIn) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <Card className="border-2 border-border shadow-xl">
-          <CardHeader>
-            <CardTitle>Setting Up</CardTitle>
-            <CardDescription>
-              Your account is being set up. Please wait a moment and refresh the page.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => router.push(SIGNED_IN_HOME_HREF)}>Go to Home</Button>
-          </CardContent>
-        </Card>
+        <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm p-6 text-center space-y-3">
+          <p className="text-base font-semibold text-zinc-900">Setting Up</p>
+          <p className="text-sm text-zinc-400">Your account is being set up. Please wait a moment and refresh.</p>
+          <Button size="sm" className="rounded-full" onClick={() => router.push(SIGNED_IN_HOME_HREF)}>
+            Go to Home
+          </Button>
+        </div>
       </div>
     );
   }
 
-  // No organisation found
   if (organisation === null) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <Card className="border-2 border-border shadow-xl">
-          <CardHeader>
-            <CardTitle>No Organisation Found</CardTitle>
-            <CardDescription>
-              You don&apos;t have an organisation associated with your account.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => router.push(SIGNED_IN_HOME_HREF)}>Go to Home</Button>
-          </CardContent>
-        </Card>
+        <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm p-6 text-center space-y-3">
+          <p className="text-base font-semibold text-zinc-900">No Organisation Found</p>
+          <p className="text-sm text-zinc-400">You don&apos;t have an organisation associated with your account.</p>
+          <Button size="sm" className="rounded-full" onClick={() => router.push(SIGNED_IN_HOME_HREF)}>
+            Go to Home
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6 max-w-4xl space-y-6">
-      <Card className="border-2 border-border shadow-xl">
-        <CardHeader>
-          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+    <div className="container mx-auto p-4 md:p-6 max-w-4xl space-y-4">
+      {/* Organisation card */}
+      <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
+        {/* Header */}
+        <div className="flex flex-col gap-3 border-b border-zinc-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-zinc-400" />
             <div>
-              <CardTitle>My Organisation</CardTitle>
-              <CardDescription>
-                Manage your organisation information
-              </CardDescription>
+              <h2 className="text-base font-semibold text-zinc-900">My Organisation</h2>
+              <p className="text-xs text-zinc-400">Manage your organisation information</p>
             </div>
-            <div className="flex gap-2">
-              {isEditing ? (
-                <>
-                  <Button variant="outline" className="border-border" onClick={handleCancel}>
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleSave}
-                    disabled={
-                      errors.name ||
-                        errors.email ||
-                        errors.address ||
-                        errors.IBAN
-                        ? true
-                        : false
-                    }
-                  >
-                    Save Changes
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  onClick={() => {
-                    setEditedFormData(organisationFormData);
-                    setIsEditing(true);
-                  }}
-                >
-                  Edit Organisation
+          </div>
+          <div className="flex gap-2">
+            {isEditing ? (
+              <>
+                <Button size="sm" variant="outline" className="rounded-full border-zinc-200" onClick={handleCancel}>
+                  Cancel
                 </Button>
-              )}
-            </div>
+                <Button size="sm" className="rounded-full" onClick={handleSave} disabled={hasErrors}>
+                  Save Changes
+                </Button>
+              </>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-full border-zinc-200"
+                onClick={() => { setEditedFormData(organisationFormData); setIsEditing(true); }}
+              >
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                Edit
+              </Button>
+            )}
           </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid gap-6">
-            {/* Organisation Name */}
-            <div className="space-y-2">
-              <Label htmlFor="name">Organisation Name</Label>
-              {isEditing ? (
-                <>
-                  <Input
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    aria-invalid={!!errors.name}
-                  />
-                  {errors.name && (
-                    <p className="text-sm font-medium text-destructive">
-                      {errors.name}
-                    </p>
-                  )}
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  {formData.name || "No organisation name"}
-                </p>
-              )}
-            </div>
+        </div>
 
-            {/* Email */}
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              {isEditing ? (
-                <>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    aria-invalid={!!errors.email}
-                  />
-                  {errors.email && (
-                    <p className="text-sm font-medium text-destructive">
-                      {errors.email}
-                    </p>
-                  )}
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  {formData.email || "No email"}
-                </p>
-              )}
-            </div>
+        {/* Fields */}
+        <div className={`px-5 md:px-6 ${isEditing ? "py-4 space-y-0 divide-y divide-zinc-100" : "py-2 divide-y divide-zinc-100"}`}>
+          {isEditing ? (
+            <>
+              <EditRow label="Organisation Name" error={errors.name}>
+                <Input id="name" name="name" value={formData.name} onChange={handleChange} aria-invalid={!!errors.name} />
+              </EditRow>
+              <EditRow label="Email" error={errors.email}>
+                <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} aria-invalid={!!errors.email} />
+              </EditRow>
+              <EditRow label="Description">
+                <Textarea id="description" name="description" value={formData.description} onChange={handleChange} rows={4} className="resize-none" />
+              </EditRow>
+              <EditRow label="Address" error={errors.address}>
+                <Input id="address" name="address" value={formData.address} onChange={handleChange} aria-invalid={!!errors.address} />
+              </EditRow>
+              <EditRow label="IBAN" error={errors.IBAN}>
+                <Input id="IBAN" name="IBAN" value={formData.IBAN} onChange={handleChange} aria-invalid={!!errors.IBAN} />
+              </EditRow>
+            </>
+          ) : (
+            <>
+              <InfoRow label="Name" value={formData.name || "No organisation name"} />
+              <InfoRow label="Email" value={formData.email || "No email"} />
+              <InfoRow label="Description" value={formData.description || "No description provided"} />
+              <InfoRow label="Address" value={formData.address || "No address"} />
+              <InfoRow label="IBAN" value={formData.IBAN || "No IBAN"} />
+            </>
+          )}
+        </div>
+      </div>
 
-            {/* Description */}
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              {isEditing ? (
-                <Textarea
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  rows={4}
-                  className="resize-none"
-                />
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  {formData.description || "No description provided"}
-                </p>
-              )}
-            </div>
-
-            {/* Address */}
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              {isEditing ? (
-                <>
-                  <Input
-                    id="address"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleChange}
-                    aria-invalid={!!errors.address}
-                  />
-                  {errors.address && (
-                    <p className="text-sm font-medium text-destructive">
-                      {errors.address}
-                    </p>
-                  )}
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  {formData.address || "No address"}
-                </p>
-              )}
-            </div>
-
-            {/* IBAN */}
-            <div className="space-y-2">
-              <Label htmlFor="IBAN">IBAN</Label>
-              {isEditing ? (
-                <>
-                  <Input
-                    id="IBAN"
-                    name="IBAN"
-                    value={formData.IBAN}
-                    onChange={handleChange}
-                    aria-invalid={!!errors.IBAN}
-                  />
-                  {errors.IBAN && (
-                    <p className="text-sm font-medium text-destructive">
-                      {errors.IBAN}
-                    </p>
-                  )}
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  {formData.IBAN || "No IBAN"}
-                </p>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Stripe Connect Section */}
       <StripeConnectButton organisationId={organisation._id} />
 
       <ActivityListSection
@@ -498,13 +296,9 @@ export default function MyOrganisationPage() {
         }}
       />
 
-      {/* Edit Activity Dialog */}
       <DialogAddActivity
         showDialog={editDialogOpen}
-        setShowDialog={(v) => {
-          setEditDialogOpen(v);
-          if (!v) setEditingActivityId(null);
-        }}
+        setShowDialog={(v) => { setEditDialogOpen(v); if (!v) setEditingActivityId(null); }}
         activityId={editingActivityId ?? undefined}
       />
     </div>

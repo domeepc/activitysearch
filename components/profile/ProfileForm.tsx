@@ -1,6 +1,5 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UserAvatarSection } from "./UserAvatarSection";
 import { ProfileFormFields } from "./ProfileFormFields";
@@ -38,23 +37,19 @@ export function ProfileForm({
     !!usernameError || !!errors.name || !!errors.lastname || hasEmailError;
 
   return (
-    <Card className="border-border border-2 shadow-xl">
-      <CardHeader>
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-          <div>
-            <CardTitle>Edit Profile</CardTitle>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" className="border-border" onClick={onCancel}>
-              Cancel
-            </Button>
-            <Button onClick={onSave} disabled={hasErrors}>
-              Save Changes
-            </Button>
-          </div>
+    <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
+      <div className="flex flex-col gap-3 border-b border-zinc-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
+        <h2 className="text-lg font-semibold text-zinc-900">Edit Profile</h2>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm" className="rounded-full border-zinc-200" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button size="sm" onClick={onSave} disabled={hasErrors} className="rounded-full">
+            Save Changes
+          </Button>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
+      </div>
+      <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
         {/* Avatar */}
         <div className="flex justify-center">
           <UserAvatarSection
@@ -73,8 +68,8 @@ export function ProfileForm({
           onChange={onChange}
           clerkUser={clerkUser}
         />
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 

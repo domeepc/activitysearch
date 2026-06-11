@@ -27,7 +27,7 @@ export function RemoveFriendDialog({
 }: RemoveFriendDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="border-border border-2 shadow-xl">
+      <DialogContent >
         <DialogHeader>
           <DialogTitle>Remove Friend</DialogTitle>
           <DialogDescription>
@@ -36,10 +36,10 @@ export function RemoveFriendDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" className="border-border" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" className="rounded-full border-zinc-200" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button variant="destructive" onClick={onConfirm}>
+          <Button variant="destructive" onClick={onConfirm} className="rounded-full">
             Remove Friend
           </Button>
         </DialogFooter>

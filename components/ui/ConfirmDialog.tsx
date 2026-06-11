@@ -56,7 +56,7 @@ export function ConfirmDialog({
         <DialogFooter>
           <Button
             variant="outline"
-            className="border-border"
+            className="rounded-full border-zinc-200"
             onClick={() => onOpenChange(false)}
             disabled={isLoading}
           >
@@ -66,6 +66,7 @@ export function ConfirmDialog({
             variant={variant}
             onClick={handleConfirm}
             disabled={isLoading}
+            className="rounded-full"
           >
             {isLoading ? "Processing..." : confirmText}
           </Button>

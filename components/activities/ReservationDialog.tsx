@@ -294,7 +294,7 @@ export function ReservationDialog({
             </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" className="border-border" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" className="rounded-full border-zinc-200" onClick={() => onOpenChange(false)}>
               Close
             </Button>
           </DialogFooter>
@@ -305,7 +305,7 @@ export function ReservationDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto border-border border-2 shadow-xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Reserve Activity</DialogTitle>
           <DialogDescription>

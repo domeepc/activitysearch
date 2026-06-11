@@ -33,10 +33,10 @@ export function DeleteAccountDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" className="border-border" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" className="rounded-full border-zinc-200" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button variant="destructive" onClick={onConfirm}>
+          <Button variant="destructive" onClick={onConfirm} className="rounded-full">
             Delete Account
           </Button>
         </DialogFooter>

@@ -1,6 +1,5 @@
 "use client";
 
-import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -24,48 +23,57 @@ export function ProfileStats({
 }: ProfileStatsProps) {
   if (isLoading || progression === undefined) {
     return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-4 w-24" />
+      <div className="rounded-2xl bg-zinc-50 p-4 space-y-3">
+        <div className="flex items-baseline justify-between">
+          <Skeleton className="h-8 w-16" />
+          <Skeleton className="h-4 w-28" />
         </div>
-        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-2 w-full rounded-full" />
         <Skeleton className="h-3 w-32" />
       </div>
     );
   }
 
-  if (!progression) {
-    return null;
-  }
+  if (!progression) return null;
 
   const pct = progression.progressFraction * 100;
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <Label>Level {progression.level}</Label>
-        <span className="text-sm font-medium text-muted-foreground">
-          {progression.expIntoLevel} / {progression.expForCurrentLevel} XP
-        </span>
+      <div className="rounded-2xl bg-zinc-50 p-4 space-y-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-bold text-zinc-900">
+              {progression.level}
+            </span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+              Level
+            </span>
+          </div>
+          <span className="text-sm text-zinc-500 tabular-nums">
+            {progression.expIntoLevel} / {progression.expForCurrentLevel} XP
+          </span>
+        </div>
+        <Progress value={pct} className="h-2" />
+        <div className="flex items-center justify-between text-xs text-zinc-400">
+          <span>{Math.round(pct)}% to level {progression.level + 1}</span>
+          <span>{progression.totalExp} XP total</span>
+        </div>
       </div>
-      <Progress value={pct} className="h-3" />
-      <p className="text-xs text-muted-foreground">
-        {Math.round(pct)}% to level {progression.level + 1}
-      </p>
-      <p className="text-xs text-muted-foreground">
-        Total experience: {progression.totalExp} XP
-      </p>
+
       {progression.loyaltyPoints !== undefined && (
-        <div className="rounded-md border border-border bg-muted/40 px-3 py-2">
-          <p className="text-xs font-medium text-foreground">Loyalty points</p>
-          <p className="text-lg font-semibold tabular-nums">
+        <div className="rounded-2xl bg-amber-50 border border-amber-100 px-4 py-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-600">
+              Loyalty Points
+            </p>
+            <p className="text-[11px] text-amber-700/70 mt-0.5">
+              Redeem toward activity discounts at checkout.
+            </p>
+          </div>
+          <span className="text-2xl font-bold tabular-nums text-amber-700">
             {progression.loyaltyPoints}
-          </p>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
-            Earned when you level up. Redeem toward activity discounts at
-            checkout (where available).
-          </p>
+          </span>
         </div>
       )}
     </div>

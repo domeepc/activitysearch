@@ -263,7 +263,7 @@ export function ConversationList({
   const reservationCount = filteredReservationConversations.length;
 
   return (
-    <div className="flex flex-col h-full px-4 py-4 md:px-8 border-r-0 md:border-r border-border overflow-hidden bg-background">
+    <div className="flex flex-col h-full px-3 py-4 md:px-4 border-r-0 md:border-r border-zinc-100 overflow-hidden bg-white">
       {/* Search Bar */}
       <div className="mb-4">
         <div className="relative">
@@ -283,19 +283,19 @@ export function ConversationList({
         {/* Friends Section */}
         <div className="mb-4">
           {(!searchQuery.trim() || filteredFriendsList.length > 0) && (
-            <div className="mb-4 bg-cyan-100 p-2 rounded-lg text-xs md:text-sm font-semibold text-foreground flex items-center justify-between">
-              <span>Friends {!searchQuery.trim() && friendCount}</span>
-              {!searchQuery.trim() &&
-                onAddFriend &&
-                filteredFriendsList.length > 0 && (
-                  <button
-                    onClick={onAddFriend}
-                    className="h-6 w-6 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors shrink-0"
-                    title="Add friend"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
-                )}
+            <div className="mb-2 flex items-center justify-between px-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                Friends {!searchQuery.trim() && friendCount > 0 ? `(${friendCount})` : ""}
+              </span>
+              {!searchQuery.trim() && onAddFriend && filteredFriendsList.length > 0 && (
+                <button
+                  onClick={onAddFriend}
+                  className="h-5 w-5 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors shrink-0"
+                  title="Add friend"
+                >
+                  <Plus className="h-3 w-3" />
+                </button>
+              )}
             </div>
           )}
           {filteredFriendsList.length > 0 && (
@@ -351,8 +351,8 @@ export function ConversationList({
                       }
                     }}
                     className={cn(
-                      "w-full px-4 py-2 bg-gray-200 cursor-pointer mb-4 hover:bg-blue-200 transition-colors text-left flex items-center gap-3 rounded-lg",
-                      isSelected && "bg-blue-100 border-2 border-blue-500"
+                      "w-full px-3 py-2.5 cursor-pointer mb-2 hover:bg-blue-50 transition-colors text-left flex items-center gap-3 rounded-xl border border-transparent",
+                      isSelected ? "bg-blue-50 border-blue-200" : "bg-zinc-50"
                     )}
                   >
                     <div className="relative shrink-0">
@@ -410,8 +410,8 @@ export function ConversationList({
                             asChild
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <button className="h-6 w-6 flex items-center justify-center rounded transition-colors hover:bg-blue-300 cursor-pointer">
-                              <MoreVertical className="h-4 w-4 " />
+                            <button className="h-6 w-6 flex items-center justify-center rounded-lg transition-colors hover:bg-blue-100 cursor-pointer">
+                              <MoreVertical className="h-4 w-4 text-zinc-400" />
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
@@ -459,10 +459,10 @@ export function ConversationList({
           {filteredFriendsList.length === 0 &&
             onAddFriend &&
             !searchQuery.trim() && (
-              <div className="mt-4 py-2 mb-4">
+              <div className="py-2">
                 <Button
                   onClick={onAddFriend}
-                  className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+                  className="w-full rounded-full bg-blue-500 hover:bg-blue-600 text-white"
                   size="sm"
                 >
                   <div className="flex items-center gap-2">
@@ -477,23 +477,20 @@ export function ConversationList({
         </div>
 
         {/* Teams Section */}
-        <div className="mb-4">
+        <div className="mb-4 mt-5">
           {(!searchQuery.trim() ||
             (filteredTeams && filteredTeams.length > 0)) && (
-              <div className="mb-4 bg-cyan-100 p-2 rounded-lg text-xs md:text-sm font-semibold text-foreground flex items-center justify-between">
-                <span>Teams</span>
-                {!searchQuery.trim() &&
-                  filteredTeams &&
-                  filteredTeams.length > 0 &&
-                  onCreateTeam && (
-                    <button
-                      onClick={onCreateTeam}
-                      className="h-6 w-6 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors shrink-0"
-                      title="Create team"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
-                  )}
+              <div className="mb-2 flex items-center justify-between px-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Teams</span>
+                {!searchQuery.trim() && filteredTeams && filteredTeams.length > 0 && onCreateTeam && (
+                  <button
+                    onClick={onCreateTeam}
+                    className="h-5 w-5 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors shrink-0"
+                    title="Create team"
+                  >
+                    <Plus className="h-3 w-3" />
+                  </button>
+                )}
               </div>
             )}
           {filteredTeams && filteredTeams.length > 0 && (
@@ -508,8 +505,8 @@ export function ConversationList({
                       onSelectTeam(team.slug);
                     }}
                     className={cn(
-                      "w-full px-4 py-2 mb-4 bg-gray-200 hover:bg-blue-200 transition-colors flex items-center gap-3 rounded-lg cursor-pointer",
-                      isSelected && "bg-blue-100 border-2 border-blue-500"
+                      "w-full px-3 py-2.5 mb-2 hover:bg-blue-50 transition-colors flex items-center gap-3 rounded-xl border border-transparent cursor-pointer",
+                      isSelected ? "bg-blue-50 border-blue-200" : "bg-zinc-50"
                     )}
                   >
                     <div className="relative shrink-0">
@@ -567,7 +564,7 @@ export function ConversationList({
                               e.stopPropagation();
                               onInviteToTeam(team.slug);
                             }}
-                            className="h-6 w-6 cursor-pointer rounded text-blue-600 hover:bg-blue-300  flex items-center justify-center transition-colors shrink-0"
+                            className="h-6 w-6 cursor-pointer rounded-lg text-blue-500 hover:bg-blue-100 flex items-center justify-center transition-colors shrink-0"
                             title="Invite friends"
                           >
                             <UserRoundPlus className="h-4 w-4" />
@@ -578,8 +575,8 @@ export function ConversationList({
                             asChild
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <button className="h-6 w-6 flex items-center justify-center rounded transition-colors hover:bg-blue-300 cursor-pointer">
-                              <MoreVertical className="h-4 w-4" />
+                            <button className="h-6 w-6 flex items-center justify-center rounded-lg transition-colors hover:bg-blue-100 cursor-pointer">
+                              <MoreVertical className="h-4 w-4 text-zinc-400" />
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
@@ -668,10 +665,10 @@ export function ConversationList({
           {(!filteredTeams || filteredTeams.length === 0) &&
             onCreateTeam &&
             !searchQuery.trim() && (
-              <div className="mt-4 py-2">
+              <div className="py-2">
                 <Button
                   onClick={onCreateTeam}
-                  className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+                  className="w-full rounded-full bg-blue-500 hover:bg-blue-600 text-white"
                   size="sm"
                 >
                   <div className="flex items-center gap-2">
@@ -687,9 +684,11 @@ export function ConversationList({
 
         {/* Reservation Chats Section */}
         {filteredReservationConversations.length > 0 && (
-          <div className="mb-4">
-            <div className="mb-4 bg-purple-100 p-2 rounded-lg text-xs md:text-sm font-semibold text-foreground flex items-center justify-between">
-              <span>Reservation Chats {!searchQuery.trim() && reservationCount}</span>
+          <div className="mb-4 mt-5">
+            <div className="mb-2 flex items-center justify-between px-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-violet-400">
+                Reservation Chats {!searchQuery.trim() && reservationCount > 0 ? `(${reservationCount})` : ""}
+              </span>
             </div>
             {filteredReservationConversations.map((conv) => {
               // Use conversation ID for matching instead of slug
@@ -712,8 +711,8 @@ export function ConversationList({
                     }
                   }}
                   className={cn(
-                    "w-full px-4 py-2 bg-gray-200 hover:bg-purple-200 transition-colors text-left flex items-center gap-3 rounded-lg cursor-pointer mb-4",
-                    isSelected && "bg-purple-300 border-2 border-purple-500"
+                    "w-full px-3 py-2.5 hover:bg-violet-50 transition-colors text-left flex items-center gap-3 rounded-xl border border-transparent cursor-pointer mb-2",
+                    isSelected ? "bg-violet-50 border-violet-200" : "bg-zinc-50"
                   )}
                 >
                   <div className="relative shrink-0">
@@ -743,7 +742,7 @@ export function ConversationList({
                         {conv.lastMessageSenderName
                           ? `${conv.lastMessageSenderName}: `
                           : ""}
-                        {conv.lastMessage || "No messages yet"}
+                        {conv.lastMessage || "📋 Reservation"}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">

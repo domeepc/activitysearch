@@ -21,6 +21,7 @@ import {
 import { validateActivityField } from "@/lib/validation";
 import { Stepper } from "@/components/ui/stepper";
 import { useActivityForm } from "@/lib/hooks/useActivityForm";
+import { ADDRESS_DROPDOWN_ATTR } from "@/components/ui/address-autocomplete";
 
 const steps = [
   { label: "Basic Info" },
@@ -68,7 +69,15 @@ export default function DialogAddActivityMobile({
   return (
     <div className="md:hidden">
       <Dialog open={showDialog} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-y-auto p-4">
+        <DialogContent
+          className="max-w-[95vw] max-h-[95vh] overflow-y-auto p-4"
+          onPointerDownOutside={(e) => {
+            const target = e.detail.originalEvent.target as Element;
+            if (target?.closest(`[${ADDRESS_DROPDOWN_ATTR}]`)) {
+              e.preventDefault();
+            }
+          }}
+        >
           <DialogHeader className="space-y-2 pb-4">
             <DialogTitle className="text-xl">Add New Activity</DialogTitle>
             <DialogDescription className="text-sm">
