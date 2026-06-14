@@ -91,7 +91,7 @@ export default function DesktopFilterSection({
               <MultiSelectValue placeholder="All categories" />
             </MultiSelectTrigger>
             {uniqueCategories.length > 0 && (
-              <MultiSelectContent search={false} className="filter_tab_content">
+              <MultiSelectContent search={false} className="filter_tab_content" popoverClassName="border-0 bg-muted shadow-lg">
                 <MultiSelectGroup>
                   {uniqueCategories.map((category) => (
                     <MultiSelectItem key={category} value={category}>
