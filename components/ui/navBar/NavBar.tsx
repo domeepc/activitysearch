@@ -16,6 +16,7 @@ import {
   User,
   Building2,
   Inbox,
+  Moon,
 } from "lucide-react";
 
 import Link from "next/link";
@@ -31,6 +32,7 @@ import { SIGNED_IN_HOME_HREF } from "@/lib/routes";
 import { Badge } from "@/components/ui/badge";
 import { useUnreadReservationCount } from "@/lib/hooks/useReservations";
 import { useUnreadMessageCount } from "@/lib/hooks/useUnreadMessageCount";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 export default function Navbar() {
   const { isLoaded, isSignedIn } = useAuth();
@@ -134,6 +136,16 @@ export default function Navbar() {
                     </DropdownMenuItem>
                   </Link>
                 )}
+                <DropdownMenuItem
+                  onSelect={(e) => e.preventDefault()}
+                  className="flex items-center justify-between cursor-default"
+                >
+                  <span className="flex items-center gap-2">
+                    <Moon className="size-4" />
+                    Dark mode
+                  </span>
+                  <ThemeToggle />
+                </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem
