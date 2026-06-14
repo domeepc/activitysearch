@@ -15,10 +15,10 @@ interface ProfileInfoProps {
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-0.5 py-3 sm:flex-row sm:gap-4">
-      <span className="w-28 shrink-0 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+      <span className="w-28 shrink-0 text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
         {label}
       </span>
-      <span className="text-sm text-zinc-700">{value}</span>
+      <span className="text-sm text-zinc-700 dark:text-zinc-300">{value}</span>
     </div>
   );
 }
@@ -34,7 +34,7 @@ export function ProfileInfo({
 }: ProfileInfoProps) {
   if (isLoading) {
     return (
-      <div className="divide-y divide-zinc-100">
+      <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
         {[80, 96, 64, 160, 120].map((w, i) => (
           <div key={i} className="flex items-center gap-4 py-3">
             <Skeleton className="h-3 w-24 shrink-0" />
@@ -46,7 +46,7 @@ export function ProfileInfo({
   }
 
   return (
-    <div className="divide-y divide-zinc-100">
+    <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
       <InfoRow label="Name" value={`${name} ${lastname}`} />
       {username && <InfoRow label="Username" value={`@${username}`} />}
       <InfoRow

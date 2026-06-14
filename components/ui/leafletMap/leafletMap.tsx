@@ -6,6 +6,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import ActivityCard from "./activityCard";
 import { useEffect, useRef } from "react";
+import { useTheme } from "next-themes";
 import { ActivityData } from "@/lib/types/activity";
 
 // Add styles to make Leaflet popups invisible
@@ -68,11 +69,12 @@ const PopupContent = ({ activity }: { activity: ActivityData }) => {
   );
 };
 
-const CustomMarker = ({ activity }: { activity: ActivityData }) => {
+const CustomMarker = ({ activity, isDark }: { activity: ActivityData; isDark: boolean }) => {
   const map = useMap();
 
+  const markerBg = isDark ? "#1e1e2e" : "white";
   const customIcon = L.divIcon({
-    html: '<div style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: white; border-radius: 50%; border: 2px solid #3b82f6; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"><svg width="24" color="#3b82f6" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></div>',
+    html: `<div style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: ${markerBg}; border-radius: 50%; border: 2px solid #3b82f6; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"><svg width="24" color="#3b82f6" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></div>`,
     className: "custom-marker",
     iconSize: [32, 32],
     iconAnchor: [16, 32],
@@ -158,6 +160,12 @@ export default function OpenStreetMapComponent({
 }) {
   const defaultCenter: [number, number] = [43.5113657, 16.4688471];
   const clusterGroupRef = useRef<L.LayerGroup | null>(null);
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+
+  const tileUrl = isDark
+    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 
   return (
     <MapContainer
@@ -166,7 +174,7 @@ export default function OpenStreetMapComponent({
       style={{ height: "100%", width: "100%" }}
       attributionControl={false}
     >
-      <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
+      <TileLayer key={tileUrl} url={tileUrl} />
       <MapUpdater selectedActivity={selectedActivity} clusterGroupRef={clusterGroupRef} />
       <MarkerClusterGroup
         ref={clusterGroupRef as React.Ref<L.LayerGroup>}
@@ -178,8 +186,9 @@ export default function OpenStreetMapComponent({
         zoomToBoundsOnClick={true}
         iconCreateFunction={(cluster: { getChildCount: () => unknown }) => {
           const count = cluster.getChildCount();
+          const clusterBorder = isDark ? "rgba(255,255,255,0.15)" : "white";
           return L.divIcon({
-            html: `<div style="display: flex; align-items: center; justify-content: center; width: 60px; height: 60px; background: #3b82f6; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); color: white; font-weight: bold; font-size: 1rem">${count}</div>`,
+            html: `<div style="display: flex; align-items: center; justify-content: center; width: 60px; height: 60px; background: #3b82f6; border-radius: 50%; border: 2px solid ${clusterBorder}; box-shadow: 0 2px 4px rgba(0,0,0,0.3); color: white; font-weight: bold; font-size: 1rem">${count}</div>`,
             className: "custom-cluster-icon",
             iconSize: [40, 40],
             iconAnchor: [20, 40],
@@ -188,7 +197,7 @@ export default function OpenStreetMapComponent({
         }}
       >
         {activities.map((activity) => (
-          <CustomMarker key={activity.id} activity={activity} />
+          <CustomMarker key={activity.id} activity={activity} isDark={isDark} />
         ))}
       </MarkerClusterGroup>
     </MapContainer>

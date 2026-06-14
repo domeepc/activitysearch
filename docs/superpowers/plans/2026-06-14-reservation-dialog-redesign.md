@@ -1,3 +1,80 @@
+# ReservationDialog Redesign Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Replace the flat stacked form in `ReservationDialog` with a 3-step wizard (Date → Time → Team) using numbered panels, chip selectors, a progress bar, and dynamic Back/Next footer — all logic and hooks unchanged.
+
+**Architecture:** Single file rewrite of `components/activities/ReservationDialog.tsx`. Add one new piece of state (`currentStep`). Replace `NativeSelect` inputs with chip button grids. Remove `Label`, `NativeSelect`, `NativeSelectOption`, `Users`, `Clock` imports (unused after rewrite). Keep all hooks, memos, `handleSubmit`, PostHog calls, and the "no teams" empty state untouched.
+
+**Tech Stack:** Next.js App Router, React 19, TypeScript, Tailwind v4, shadcn/ui (new-york), date-fns, lucide-react
+
+---
+
+## Files
+
+- **Modify:** `components/activities/ReservationDialog.tsx` — full JSX rewrite, one new state variable, two removed imports groups
+
+---
+
+### Task 1: Add `currentStep` state and reset it on dialog close
+
+**Files:**
+- Modify: `components/activities/ReservationDialog.tsx`
+
+> No test framework exists in this project — verify behaviour manually by running `pnpm dev`.
+
+- [ ] **Step 1: Add `currentStep` state after the existing state declarations**
+
+In `components/activities/ReservationDialog.tsx`, after line 65 (`const [calendarOpen, setCalendarOpen] = useState(false);`), add:
+
+```tsx
+const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+```
+
+- [ ] **Step 2: Reset `currentStep` inside `handleOpenChange`**
+
+Replace the existing `handleOpenChange` function:
+
+```tsx
+const handleOpenChange = (newOpen: boolean) => {
+  if (!newOpen) {
+    setSelectedDate(undefined);
+    setSelectedTime("");
+    setSelectedTeamId("");
+    setError(null);
+    setCurrentStep(1);
+  }
+  onOpenChange(newOpen);
+};
+```
+
+- [ ] **Step 3: Verify dev server compiles with no TypeScript errors**
+
+```bash
+pnpm build 2>&1 | tail -20
+```
+
+Expected: no errors referencing `ReservationDialog.tsx`.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add components/activities/ReservationDialog.tsx
+git commit -m "feat(reservation-dialog): add currentStep wizard state"
+```
+
+---
+
+### Task 2: Update imports — remove unused, keep required
+
+**Files:**
+- Modify: `components/activities/ReservationDialog.tsx`
+
+- [ ] **Step 1: Replace the import block**
+
+Replace the entire import section (lines 1–43 in the original) with:
+
+```tsx
 "use client";
 
 import { useState, useMemo } from "react";
@@ -31,271 +108,47 @@ import {
 import { Calendar as CalendarIcon, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+```
 
-interface ReservationDialogProps {
-  activityId: Id<"activities">;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
+Removed: `Label`, `NativeSelect`, `NativeSelectOption`, `Users`, `Clock`.
 
-export function ReservationDialog({
-  activityId,
-  open,
-  onOpenChange,
-}: ReservationDialogProps) {
-  const posthog = usePostHog();
+- [ ] **Step 2: Verify no unused import warnings**
 
-  // Use open state and activityId as key to reset form when dialog opens
-  const formKey = `${activityId}-${open}`;
+```bash
+pnpm lint 2>&1 | grep "ReservationDialog"
+```
 
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [selectedTime, setSelectedTime] = useState<string>("");
-  const [selectedTeamId, setSelectedTeamId] = useState<string>("");
-  const [error, setError] = useState<string | null>(null);
-  const [calendarOpen, setCalendarOpen] = useState(false);
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+Expected: no output (no lint errors on this file).
 
-  // Handle dialog open change and reset form when closing
-  const handleOpenChange = (newOpen: boolean) => {
-    if (!newOpen) {
-      setSelectedDate(undefined);
-      setSelectedTime("");
-      setSelectedTeamId("");
-      setError(null);
-      setCurrentStep(1);
-    }
-    onOpenChange(newOpen);
-  };
+- [ ] **Step 3: Commit**
 
-  const { teams, isLoading: teamsLoading, hasTeams } = useMyTeamsAsCreator();
-  const { createReservation, isPending } = useCreateReservation();
-  const { joinQueue, isPending: isJoiningQueue } = useJoinQueue();
-  const activity = useQuery(api.activity.getActivityById, { activityId });
+```bash
+git add components/activities/ReservationDialog.tsx
+git commit -m "feat(reservation-dialog): clean up imports for wizard rewrite"
+```
 
-  // Get available time slots from activity (memoized to avoid dependency issues)
-  const availableTimeSlots = useMemo(
-    () => activity?.availableTimeSlots ?? [],
-    [activity?.availableTimeSlots]
-  );
+---
 
-  // Get reservations for the activity to calculate status
-  const { reservations } = useReservations(activityId);
+### Task 3: Rewrite the main dialog JSX with step panels, progress bar, chips, and footer
 
-  // Check if selected date is fulfilled
-  const selectedDateStr = selectedDate
-    ? format(selectedDate, "yyyy-MM-dd")
-    : undefined;
-  const { status: dateStatus } = useReservationStatus(
-    activityId,
-    selectedDateStr
-  );
+**Files:**
+- Modify: `components/activities/ReservationDialog.tsx`
 
-  // Check queue position if team is selected and date is fulfilled
-  const { queuePosition } = useGetQueuePosition(
-    activityId,
-    selectedDateStr,
-    selectedTeamId
-      ? ([selectedTeamId as Id<"teams">] as Id<"teams">[])
-      : undefined
-  );
+This task replaces everything from the `return (` statement of the main export (line 306 onwards in the original) through to end of file. The "no teams" empty state (lines 279–304) is **unchanged**.
 
-  const isDateFulfilled = dateStatus?.status === "full";
+- [ ] **Step 1: Add `progressPct` derived value after the existing memos**
 
-  // Calculate reservation status for each date in the visible month
-  const getDateModifiers = useMemo(() => {
-    return (date: Date) => {
-      const dateStr = format(date, "yyyy-MM-dd");
-      const reservationsForDate = reservations.filter(
-        (r) => r.date === dateStr
-      );
-      const reservedCount = reservationsForDate.length;
-      const totalSlots = availableTimeSlots.length;
+After the `userCount` memo (after line 188 in original), add:
 
-      if (totalSlots === 0) return {};
+```tsx
+const progressPct = currentStep === 1 ? 33 : currentStep === 2 ? 66 : 100;
+```
 
-      const percentage = (reservedCount / totalSlots) * 100;
-      const modifiers: Record<string, boolean> = {};
+- [ ] **Step 2: Replace the main `return` block with the full wizard JSX**
 
-      if (percentage === 100) {
-        modifiers.reservation_full = true;
-      } else if (percentage >= 50) {
-        modifiers.reservation_limited = true;
-      } else if (percentage > 0) {
-        modifiers.reservation_available = true;
-      }
+Replace from `return (` (line 306) to end of file with:
 
-      return modifiers;
-    };
-  }, [reservations, availableTimeSlots]);
-
-  // Get today's date for disabling past dates (memoized to avoid recreating on every render)
-  const today = useMemo(() => {
-    const date = new Date();
-    date.setHours(0, 0, 0, 0);
-    return date;
-  }, []);
-
-  // Get available time slots (excluding already reserved ones and past times for selected date)
-  const availableTimeSlotsForDate = useMemo(() => {
-    if (!selectedDate) return availableTimeSlots;
-    const dateStr = format(selectedDate, "yyyy-MM-dd");
-    const reservedTimes = reservations
-      .filter((r) => r.date === dateStr)
-      .map((r) => r.time);
-
-    const now = new Date();
-    const selectedDateStart = new Date(selectedDate);
-    selectedDateStart.setHours(0, 0, 0, 0);
-
-    // Check if selected date is today
-    const isToday = selectedDateStart.getTime() === today.getTime();
-
-    return availableTimeSlots.filter((time) => {
-      // Filter out reserved times
-      if (reservedTimes.includes(time)) return false;
-
-      // Filter out past times if the date is today
-      if (isToday) {
-        const [hours, minutes] = time.split(":").map(Number);
-        const timeDate = new Date(selectedDate);
-        timeDate.setHours(hours, minutes, 0, 0);
-
-        // If the time is in the past, filter it out
-        if (timeDate <= now) return false;
-      }
-
-      return true;
-    });
-  }, [selectedDate, availableTimeSlots, reservations, today]);
-
-  // Calculate total number of members in selected team
-  const userCount = useMemo(() => {
-    if (!selectedTeamId) return 0;
-
-    const selectedTeam = teams.find((team) => team._id === selectedTeamId);
-    if (!selectedTeam) return 0;
-
-    return selectedTeam.teammates.length;
-  }, [selectedTeamId, teams]);
-
-  const progressPct = currentStep === 1 ? 33 : currentStep === 2 ? 66 : 100;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    // Validation
-    if (!selectedDate) {
-      setError("Please select a date");
-      return;
-    }
-
-    if (!selectedTeamId) {
-      setError("Please select a team");
-      return;
-    }
-
-    if (userCount === 0) {
-      setError("Selected team has no members");
-      return;
-    }
-
-    // Check if team has more members than activity allows
-    if (
-      activity &&
-      activity.maxParticipants &&
-      userCount > Number(activity.maxParticipants)
-    ) {
-      setError(
-        `This team has ${userCount} members, but this activity only allows ${activity.maxParticipants} participants.`
-      );
-      return;
-    }
-
-    const dateStr = format(selectedDate, "yyyy-MM-dd");
-
-    // If date is fulfilled, join queue instead
-    if (isDateFulfilled) {
-      try {
-        const result = await joinQueue({
-          activityId,
-          date: dateStr,
-          teamIds: [selectedTeamId as Id<"teams">],
-          userCount,
-        });
-        if (result.success) {
-          posthog?.capture("activity_queue_joined", {
-            activity_id: String(activityId),
-            date: dateStr,
-            queue_position: result.position,
-          });
-          setError(null);
-          toast.success(
-            `Successfully joined the queue! Your position: ${result.position} of ${result.totalInQueue}`
-          );
-          onOpenChange(false);
-        } else {
-          setError(result.error ?? "Failed to join queue");
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to join queue");
-      }
-      return;
-    }
-
-    // Normal reservation flow
-    if (!selectedTime) {
-      setError("Please select a time slot");
-      return;
-    }
-
-    const result = await createReservation({
-      activityId,
-      date: dateStr,
-      time: selectedTime,
-      teamIds: [selectedTeamId as Id<"teams">],
-      userCount,
-    });
-
-    if (result.success) {
-      posthog?.capture("activity_reservation_created", {
-        activity_id: String(activityId),
-        date: dateStr,
-        time: selectedTime,
-      });
-      onOpenChange(false);
-    } else {
-      setError(result.error || "Failed to create reservation");
-    }
-  };
-
-  if (!hasTeams && !teamsLoading) {
-    return (
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reserve Activity</DialogTitle>
-            <DialogDescription>
-              You need to be a team creator to make reservations.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex items-center gap-2 p-4 bg-muted rounded-lg">
-            <AlertCircle className="h-5 w-5 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              You don&apos;t have any teams where you are the creator. Create a
-              team first to make reservations.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" className="rounded-full border-zinc-200 dark:border-zinc-700" onClick={() => onOpenChange(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
+```tsx
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg">
@@ -320,12 +173,7 @@ export function ReservationDialog({
               <button
                 type="button"
                 className="w-full flex items-center gap-3 py-3 text-left disabled:cursor-default"
-                onClick={() => {
-                  if (currentStep > 1) {
-                    setCurrentStep(1);
-                    setSelectedTime("");
-                  }
-                }}
+                onClick={() => currentStep > 1 && setCurrentStep(1)}
                 disabled={currentStep <= 1}
               >
                 <span className="font-mono text-xs text-muted-foreground w-5">01</span>
@@ -408,7 +256,7 @@ export function ReservationDialog({
                 <span className="flex-1 text-sm font-medium">Pick a time</span>
                 {currentStep > 2 && (
                   <span className="text-xs text-muted-foreground">
-                    {isDateFulfilled ? "Queue" : selectedTime || "—"}
+                    {isDateFulfilled ? "Queue" : selectedTime}
                   </span>
                 )}
               </button>
@@ -556,7 +404,7 @@ export function ReservationDialog({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setCurrentStep((s) => Math.max(1, s - 1) as 1 | 2 | 3)}
+                onClick={() => setCurrentStep((s) => (s - 1) as 1 | 2 | 3)}
                 disabled={isPending || isJoiningQueue}
               >
                 ← Back
@@ -568,7 +416,7 @@ export function ReservationDialog({
                 type="button"
                 onClick={() => {
                   setError(null);
-                  setCurrentStep((s) => Math.min(3, s + 1) as 1 | 2 | 3);
+                  setCurrentStep((s) => (s + 1) as 1 | 2 | 3);
                 }}
                 disabled={
                   (currentStep === 1 && !selectedDate) ||
@@ -605,3 +453,31 @@ export function ReservationDialog({
     </Dialog>
   );
 }
+```
+
+- [ ] **Step 3: Verify TypeScript compiles clean**
+
+```bash
+pnpm build 2>&1 | tail -30
+```
+
+Expected: no TypeScript errors. If `activityName` causes a type error, check the return type of `api.activity.getActivityById` — the field is `activityName` per `convex/schema.ts` line 182.
+
+- [ ] **Step 4: Manual smoke test**
+
+Run `pnpm dev` and open an activity page. Click "Reserve". Verify:
+- Dialog opens on Step 1 of 3
+- Progress bar shows ~33%
+- Selecting a date enables "Next →"
+- Advancing to Step 2 shows the step header with date summary; time chips render
+- Selecting a time enables "Next →"; advancing shows "03 Select your team"
+- Team chips show "TeamName · N members"; selecting one enables "Create Reservation"
+- Back button returns to previous step
+- Closing and reopening resets to Step 1
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add components/activities/ReservationDialog.tsx
+git commit -m "feat(reservation-dialog): 3-step wizard with chips, progress bar, and dynamic footer"
+```

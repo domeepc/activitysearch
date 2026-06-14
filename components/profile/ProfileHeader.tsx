@@ -33,18 +33,18 @@ export function ProfileHeader({
   settingsUrl,
 }: ProfileHeaderProps) {
   return (
-    <div className="flex flex-col gap-3 border-b border-zinc-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
+    <div className="flex flex-col gap-3 border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
       <div>
-        <h2 className="text-lg font-semibold text-zinc-900">
+        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
           {isOwnProfile ? "My Profile" : userName}
         </h2>
-        <p className="text-sm text-zinc-400">@{username}</p>
+        <p className="text-sm text-zinc-400 dark:text-zinc-500">@{username}</p>
       </div>
 
       <div className="flex flex-wrap gap-2">
         {isOwnProfile ? (
           settingsUrl && (
-            <Button asChild size="sm" variant="outline" className="rounded-full border-zinc-200">
+            <Button asChild size="sm" variant="outline" className="rounded-full border-zinc-200 dark:border-zinc-700">
               <Link href={settingsUrl}>
                 <Settings className="mr-1.5 h-3.5 w-3.5" />
                 Edit Profile
@@ -54,7 +54,7 @@ export function ProfileHeader({
         ) : isBlocked ? (
           <>
             {onUnblock && (
-              <Button size="sm" variant="outline" onClick={onUnblock} className="rounded-full border-zinc-200">
+              <Button size="sm" variant="outline" onClick={onUnblock} className="rounded-full border-zinc-200 dark:border-zinc-700">
                 <Ban className="mr-1.5 h-3.5 w-3.5" />
                 Unblock
               </Button>
@@ -66,7 +66,7 @@ export function ProfileHeader({
           </>
         ) : isFriend ? (
           <>
-            <Button size="sm" variant="outline" onClick={onRemoveFriend} className="rounded-full border-zinc-200">
+            <Button size="sm" variant="outline" onClick={onRemoveFriend} className="rounded-full border-zinc-200 dark:border-zinc-700">
               <UserMinus className="mr-1.5 h-3.5 w-3.5" />
               Remove Friend
             </Button>

@@ -16,6 +16,7 @@ import {
   User,
   Building2,
   Inbox,
+  Moon,
 } from "lucide-react";
 
 import Link from "next/link";
@@ -31,6 +32,7 @@ import { SIGNED_IN_HOME_HREF } from "@/lib/routes";
 import { Badge } from "@/components/ui/badge";
 import { useUnreadReservationCount } from "@/lib/hooks/useReservations";
 import { useUnreadMessageCount } from "@/lib/hooks/useUnreadMessageCount";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 export default function Navbar() {
   const { isLoaded, isSignedIn } = useAuth();
@@ -54,7 +56,15 @@ export default function Navbar() {
           alt="ActivitySearch"
           width={200}
           height={50}
-          className="hidden md:block logo-desktop"
+          className="hidden md:block dark:md:hidden logo-desktop"
+          priority
+        />
+        <Image
+          src="/full-logo-dark.svg"
+          alt="ActivitySearch"
+          width={200}
+          height={50}
+          className="hidden dark:md:block logo-desktop"
           priority
         />
         <Image
@@ -62,7 +72,15 @@ export default function Navbar() {
           alt="ActivitySearch"
           width={50}
           height={50}
-          className="block md:hidden logo-mobile"
+          className="block md:hidden dark:hidden logo-mobile"
+          priority
+        />
+        <Image
+          src="/mobile-logo-dark.svg"
+          alt="ActivitySearch"
+          width={50}
+          height={50}
+          className="hidden dark:block dark:md:hidden logo-mobile"
           priority
         />
       </Link>
@@ -134,6 +152,16 @@ export default function Navbar() {
                     </DropdownMenuItem>
                   </Link>
                 )}
+                <DropdownMenuItem
+                  onSelect={(e) => e.preventDefault()}
+                  className="flex items-center justify-between cursor-default"
+                >
+                  <span className="flex items-center gap-2">
+                    <Moon className="size-4" />
+                    Dark mode
+                  </span>
+                  <ThemeToggle />
+                </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem

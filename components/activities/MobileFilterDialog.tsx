@@ -69,7 +69,7 @@ export default function MobileFilterDialog({
               "fixed bottom-0 left-0 right-0 z-50",
               "w-full max-w-full",
               "rounded-t-3xl",
-              "bg-white",
+              "bg-white dark:bg-zinc-900",
               "shadow-[0_-8px_60px_-8px_rgba(0,0,0,0.2)]",
               "outline-none",
               "data-[state=open]:animate-in data-[state=closed]:animate-out",
@@ -79,26 +79,26 @@ export default function MobileFilterDialog({
           >
             {/* Handle bar */}
             <div className="flex justify-center pt-3 pb-0">
-              <div className="w-10 h-1 rounded-full bg-zinc-200" />
+              <div className="w-10 h-1 rounded-full bg-zinc-200 dark:bg-zinc-700" />
             </div>
 
             {/* Header */}
             <div className="flex items-center justify-between px-5 pt-4 pb-4">
               <div>
-                <DialogPrimitive.Title className="text-lg font-bold text-zinc-900 tracking-tight">
+                <DialogPrimitive.Title className="text-lg font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">
                   Find activities
                 </DialogPrimitive.Title>
-                <p className="text-xs text-zinc-400 mt-0.5">
+                <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">
                   {activities.length} activities available
                 </p>
               </div>
-              <DialogPrimitive.Close className="flex items-center justify-center size-8 rounded-full bg-zinc-100 text-zinc-500 hover:bg-zinc-200 transition-colors">
+              <DialogPrimitive.Close className="flex items-center justify-center size-8 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
                 <X className="size-4" />
               </DialogPrimitive.Close>
             </div>
 
             {/* Divider */}
-            <div className="h-px bg-zinc-100 mx-5" />
+            <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-5" />
 
             {/* Filters */}
             <div className="px-5 py-4 flex flex-col gap-2">

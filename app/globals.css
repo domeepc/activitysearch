@@ -130,7 +130,13 @@
     @apply border-border outline-ring/50 box-border;
   }
   body {
-    @apply bg-background text-foreground h-screen p-0 m-0 font-sans bg-gray-200;
+    @apply bg-gray-200 text-foreground h-screen p-0 m-0 font-sans;
+  }
+
+  @variant dark {
+    body {
+      @apply bg-zinc-950;
+    }
   }
 
   /* Only the app shell header — not in-page <header> landmarks (e.g. legal docs). */

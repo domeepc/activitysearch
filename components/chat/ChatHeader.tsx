@@ -35,7 +35,7 @@ export function ChatHeader({
 
   return (
     <div
-      className={`${sticky ? "sticky top-(--app-navbar-height) z-40" : ""} border-b border-zinc-100 px-4 py-1.5 md:px-8 md:py-4 shrink-0 bg-white`}
+      className={`${sticky ? "sticky top-(--app-navbar-height) z-40" : ""} border-b border-zinc-100 dark:border-zinc-800 px-4 py-1.5 md:px-8 md:py-4 shrink-0 bg-white dark:bg-zinc-950`}
     >
       <div className="flex items-center gap-2 md:gap-3">
         {/* Back button - only visible on mobile */}
@@ -56,17 +56,17 @@ export function ChatHeader({
           />
         )}
         <div className="min-w-0">
-          <h2 className="text-sm md:text-lg font-semibold truncate text-zinc-900">{displayName}</h2>
+          <h2 className="text-sm md:text-lg font-semibold truncate text-zinc-900 dark:text-zinc-50">{displayName}</h2>
           {username ? (
             profileUserId ? (
               <Link
                 href={`/profile/${profileUserId}`}
-                className="block truncate text-[11px] md:text-sm text-zinc-400 underline-offset-2 hover:text-zinc-700 hover:underline"
+                className="block truncate text-[11px] md:text-sm text-zinc-400 dark:text-zinc-500 underline-offset-2 hover:text-zinc-700 dark:hover:text-zinc-300 hover:underline"
               >
                 @{username}
               </Link>
             ) : (
-              <p className="truncate text-[11px] md:text-sm text-zinc-400">
+              <p className="truncate text-[11px] md:text-sm text-zinc-400 dark:text-zinc-500">
                 @{username}
               </p>
             )

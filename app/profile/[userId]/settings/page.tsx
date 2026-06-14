@@ -200,8 +200,8 @@ export default function ProfileSettingsPage({
   if (user === undefined || currentUser === undefined) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
-          <div className="border-b border-zinc-100 px-5 py-4 md:px-6">
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
+          <div className="border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 md:px-6">
             <Skeleton className="h-6 w-48" />
           </div>
           <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
@@ -246,9 +246,9 @@ export default function ProfileSettingsPage({
       />
 
       {/* Account Settings Section */}
-      <div className="mt-4 rounded-2xl border border-zinc-200 bg-white shadow-sm">
-        <div className="border-b border-zinc-100 px-5 py-4 md:px-6">
-          <h2 className="text-base font-semibold text-zinc-900">Account Settings</h2>
+      <div className="mt-4 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
+        <div className="border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 md:px-6">
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Account Settings</h2>
         </div>
         <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
           {/* Email Section */}
@@ -275,7 +275,7 @@ export default function ProfileSettingsPage({
           />
 
           {/* Delete Account Section */}
-          <div className="h-px bg-zinc-100" />
+          <div className="h-px bg-zinc-100 dark:bg-zinc-800" />
           <div>
             <div className="flex items-center justify-between">
               <div>

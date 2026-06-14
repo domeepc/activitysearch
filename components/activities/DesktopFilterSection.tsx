@@ -40,30 +40,29 @@ export default function DesktopFilterSection({
       <div
         className={cn(
           "w-72 flex flex-col",
-          "bg-white/95 backdrop-blur-sm",
-          "rounded-2xl border border-zinc-200/80",
-          "shadow-[0_4px_24px_-4px_rgba(0,0,0,0.10),0_1px_4px_-1px_rgba(0,0,0,0.06)]",
-          "overflow-hidden"
+          "bg-muted/95 backdrop-blur-sm",
+          "rounded-2xl border border-border/80",
+          "shadow-[0_4px_24px_-4px_rgba(0,0,0,0.10),0_1px_4px_-1px_rgba(0,0,0,0.06)]"
         )}
       >
         {/* Header */}
-        <div className="px-4 pt-4 pb-3 border-b border-zinc-100">
+        <div className="px-4 pt-4 pb-3 border-b border-border">
           <div className="flex items-center gap-2 mb-0.5">
-            <div className="flex items-center justify-center size-7 rounded-lg bg-blue-50">
+            <div className="flex items-center justify-center size-7 rounded-lg bg-blue-50 dark:bg-blue-950/30">
               <MapPin className="size-3.5 text-blue-600" />
             </div>
-            <h2 className="text-sm font-bold text-zinc-900 tracking-tight">
+            <h2 className="text-sm font-bold text-foreground tracking-tight">
               Find Activities
             </h2>
           </div>
-          <p className="text-[11px] text-zinc-400 pl-9">
+          <p className="text-[11px] text-muted-foreground pl-9">
             {activities.length} {activities.length === 1 ? "activity" : "activities"} available
           </p>
         </div>
 
         {/* Search */}
         <div className="px-4 pt-4 pb-3">
-          <label className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+          <label className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
             <SlidersHorizontal className="size-3" />
             Search
           </label>
@@ -76,11 +75,11 @@ export default function DesktopFilterSection({
         </div>
 
         {/* Divider */}
-        <div className="h-px bg-zinc-100 mx-4" />
+        <div className="h-px bg-border mx-4" />
 
         {/* Categories */}
         <div className="px-4 pt-3 pb-4">
-          <label className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+          <label className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
             <span className="size-3 rounded-full border-2 border-zinc-300 inline-block" />
             Category
           </label>
@@ -92,7 +91,7 @@ export default function DesktopFilterSection({
               <MultiSelectValue placeholder="All categories" />
             </MultiSelectTrigger>
             {uniqueCategories.length > 0 && (
-              <MultiSelectContent search={false} className="filter_tab_content">
+              <MultiSelectContent search={false} className="filter_tab_content" popoverClassName="border-0 bg-muted shadow-lg">
                 <MultiSelectGroup>
                   {uniqueCategories.map((category) => (
                     <MultiSelectItem key={category} value={category}>
@@ -108,7 +107,7 @@ export default function DesktopFilterSection({
         {/* Add Activity */}
         {isOrganiser && (
           <div className="px-4 pb-4">
-            <div className="h-px bg-zinc-100 mb-3" />
+            <div className="h-px bg-border mb-3" />
             <button
               onClick={onAddActivity}
               className={cn(

@@ -83,7 +83,7 @@ export default function ReservationsPage() {
       </div>
 
       {/* View Mode Toggle */}
-      <div className="mb-4 flex items-center gap-1 rounded-xl bg-zinc-100 p-1 w-fit sm:mb-6">
+      <div className="mb-4 flex items-center gap-1 rounded-xl bg-zinc-100 dark:bg-zinc-800 p-1 w-fit sm:mb-6">
         {([
           { key: "reservations", label: "Reservations", icon: Inbox },
           { key: "payments", label: "Payments", icon: CreditCard },
@@ -94,8 +94,8 @@ export default function ReservationsPage() {
             className={cn(
               "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
               viewMode === key
-                ? "bg-white text-zinc-900 shadow-sm"
-                : "text-zinc-500 hover:text-zinc-900"
+                ? "bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 shadow-sm"
+                : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50"
             )}
           >
             <Icon className="h-3.5 w-3.5" />
@@ -120,8 +120,8 @@ export default function ReservationsPage() {
                 className={cn(
                   "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
                   statusFilter === key
-                    ? "bg-zinc-900 text-white"
-                    : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-900"
+                    ? "bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900"
+                    : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-900 dark:hover:text-zinc-50"
                 )}
               >
                 {key === "all" && <Filter className="h-3 w-3" />}

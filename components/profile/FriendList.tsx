@@ -39,7 +39,7 @@ export function FriendList({
 
   return (
     <div className="space-y-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
         Friends ({count})
       </p>
       {friends && friends.length > 0 ? (
@@ -48,14 +48,14 @@ export function FriendList({
             <button
               key={friend._id}
               onClick={() => router.push(`/profile/${friend._id}`)}
-              className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
+              className="rounded-full border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-1 text-sm text-zinc-700 dark:text-zinc-300 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-700 hover:text-zinc-900 dark:hover:text-zinc-50"
             >
               @{friend.username}
             </button>
           ))}
         </div>
       ) : (
-        <p className="text-sm text-zinc-400">No friends yet</p>
+        <p className="text-sm text-zinc-400 dark:text-zinc-500">No friends yet</p>
       )}
     </div>
   );

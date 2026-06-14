@@ -32,14 +32,14 @@ export function ChatInput({ onSend, disabled = false }: ChatInputProps) {
   };
 
   return (
-    <div className="border-t border-zinc-100 px-4 py-3 shrink-0 bg-white">
+    <div className="border-t border-zinc-100 dark:border-zinc-800 px-4 py-3 shrink-0 bg-white dark:bg-zinc-950">
       <div className="flex items-end gap-2">
         <Textarea
           value={messageText}
           onChange={(e) => setMessageText(e.target.value)}
           onKeyPress={handleKeyPress}
           placeholder="Type a message..."
-          className="min-h-[44px] max-h-32 resize-none rounded-2xl border-zinc-200 bg-zinc-50 text-sm"
+          className="min-h-[44px] max-h-32 resize-none rounded-2xl border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 text-sm"
           disabled={disabled}
         />
         <Button

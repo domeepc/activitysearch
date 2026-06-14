@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTheme } from "next-themes";
 import {
   Dialog,
   DialogContent,
@@ -232,6 +233,7 @@ export function PaymentDialog({
   const [error, setError] = useState<string | null>(null);
   const [personsToPayFor, setPersonsToPayFor] = useState(1);
   const createSetupIntentAction = useAction(api.stripe.createSetupIntent);
+  const { resolvedTheme } = useTheme();
 
   // Reset persons to pay for when dialog opens
   useEffect(() => {
@@ -394,7 +396,7 @@ export function PaymentDialog({
               options={{
                 clientSecret,
                 appearance: {
-                  theme: "stripe",
+                  theme: resolvedTheme === "dark" ? "night" : "stripe",
                 },
                 loader: "auto",
               }}

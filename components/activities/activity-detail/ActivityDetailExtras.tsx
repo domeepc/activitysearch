@@ -22,7 +22,7 @@ export function ActivityDetailExtras({
 
   return (
     <>
-      <div className="my-7 h-px bg-zinc-100" />
+      <div className="my-7 h-px bg-zinc-100 dark:bg-zinc-800" />
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Additional Information</h3>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

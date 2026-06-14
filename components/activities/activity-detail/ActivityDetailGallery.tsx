@@ -44,8 +44,8 @@ export function ActivityDetailGallery({
 }: ActivityDetailGalleryProps) {
   if (images.length === 0) {
     return (
-      <div className="flex h-[320px] w-full items-center justify-center rounded-2xl bg-zinc-100 md:h-[420px]">
-        <p className="text-sm text-zinc-400">No image available</p>
+      <div className="flex h-[320px] w-full items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800 md:h-[420px]">
+        <p className="text-sm text-zinc-400 dark:text-zinc-500">No image available</p>
       </div>
     );
   }

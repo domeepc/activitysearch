@@ -11,7 +11,7 @@ export function CtaSection({ content }: CtaSectionProps) {
   return (
     <section className="py-14">
       <div className="mx-auto w-full max-w-6xl px-4 md:px-6">
-        <div className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-900 p-8 text-white shadow-sm md:p-12">
+        <div className="relative overflow-hidden rounded-2xl border border-border bg-zinc-900 p-8 text-white shadow-sm md:p-12">
           <div className="absolute inset-0 opacity-30 [background:radial-gradient(circle_at_top_right,#3b82f6_0%,transparent_45%)]" />
           <div className="relative max-w-2xl space-y-4">
             <p className="text-xs uppercase tracking-[0.2em] text-white/70">

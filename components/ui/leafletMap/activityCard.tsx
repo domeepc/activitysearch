@@ -133,7 +133,7 @@ export default function ActivityCard({
       className={`${cardWidth} relative border-2 border-border shadow-xl transition-all duration-200  pointer-events-auto`}
     >
       <button
-        className="!absolute top-2 right-2 z-50 bg-white w-8 h-8 flex justify-center items-center rounded-full p-1.5 hover:bg-gray-100 shadow-md focus:outline-none transition-colors pointer-events-auto cursor-pointer"
+        className="!absolute top-2 right-2 z-50 bg-background w-8 h-8 flex justify-center items-center rounded-full p-1.5 hover:bg-muted shadow-md focus:outline-none transition-colors pointer-events-auto cursor-pointer"
         onClick={handleClosePopup}
         onMouseDown={(e) => {
           e.stopPropagation();
@@ -153,7 +153,7 @@ export default function ActivityCard({
         <svg width={16} height={16} viewBox="0 0 20 20" fill="none">
           <path
             d="M6 6l8 8M14 6l-8 8"
-            stroke="#333"
+            stroke="currentColor"
             strokeWidth={2}
             strokeLinecap="round"
           />

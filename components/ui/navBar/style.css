@@ -43,7 +43,7 @@ nav.app-navbar {
 
 .app-navbar > ul > li > * {
   display: flex;
-  color: #000;
+  color: var(--foreground);
   align-items: center;
   gap: 0.5rem;
   flex-direction: row;
@@ -52,15 +52,15 @@ nav.app-navbar {
 .icon {
   width: 1.25rem;
   height: 1.25rem;
-  color: #0077ff;
+  color: oklch(0.55 0.2 250);
 }
 
 .profile_button {
   display: flex;
   align-items: center;
-  color: #000;
+  color: var(--foreground);
   gap: 0.5rem;
-  background-color: #f3f4f6;
+  background-color: var(--muted);
   padding: 0.5rem 1rem;
   border-radius: 0.375rem;
   cursor: pointer;

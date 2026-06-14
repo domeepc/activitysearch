@@ -161,7 +161,7 @@ export default function SearchAutocomplete({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           className={cn(
-            "w-full h-10 pl-10 pr-4 rounded-md border border-input bg-background",
+            "w-full h-10 pl-10 pr-4 rounded-md border border-input bg-transparent dark:bg-input/30",
             "text-sm placeholder:text-muted-foreground",
             "focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent",
             "transition-all"

@@ -123,9 +123,9 @@ function MiniTrendChart({
 
   if (points.length === 0) {
     return (
-      <div className="rounded-2xl bg-white border border-zinc-100 p-5">
-        <p className="text-sm font-semibold text-zinc-900 mb-1">{title}</p>
-        <p className="text-sm text-zinc-400">No data for this range.</p>
+      <div className="rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-800 p-5">
+        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 mb-1">{title}</p>
+        <p className="text-sm text-zinc-400 dark:text-zinc-500">No data for this range.</p>
       </div>
     );
   }
@@ -135,10 +135,10 @@ function MiniTrendChart({
   const maxValue = Math.max(...allValues);
 
   return (
-    <div className="rounded-2xl bg-white border border-zinc-100 p-5 space-y-3">
+    <div className="rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-800 p-5 space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-zinc-900">{title}</p>
-        <p className="text-xs text-zinc-400">
+        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{title}</p>
+        <p className="text-xs text-zinc-400 dark:text-zinc-500">
           {points[0]?.date} – {points[points.length - 1]?.date}
         </p>
       </div>
@@ -162,8 +162,8 @@ function MiniTrendChart({
         {series.map((s) => (
           <div key={s.label} className="inline-flex items-center gap-2">
             <span className={`h-2 w-2 rounded-full ${s.dotClass}`} />
-            <span className="text-zinc-500">{s.label}</span>
-            <span className="font-semibold text-zinc-900">{formatCurrency(s.getValue(points[points.length - 1]))}</span>
+            <span className="text-zinc-500 dark:text-zinc-400">{s.label}</span>
+            <span className="font-semibold text-zinc-900 dark:text-zinc-50">{formatCurrency(s.getValue(points[points.length - 1]))}</span>
           </div>
         ))}
       </div>
@@ -265,9 +265,9 @@ export function StripeDashboard() {
   const getStatusBadge = (status: PaymentIntentStatus) => {
     switch (status) {
       case "on_hold": return <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" />On Hold</Badge>;
-      case "paid": return <Badge className="bg-emerald-500 hover:bg-emerald-600 gap-1"><CheckCircle className="h-3 w-3" />Paid</Badge>;
+      case "paid": return <Badge className="bg-emerald-500 hover:bg-emerald-600 dark:bg-emerald-700 dark:hover:bg-emerald-600 gap-1"><CheckCircle className="h-3 w-3" />Paid</Badge>;
       case "canceled": return <Badge variant="destructive" className="gap-1"><XCircle className="h-3 w-3" />Canceled</Badge>;
-      case "refunded": return <Badge variant="outline" className="gap-1 border-amber-300 text-amber-700"><CheckCircle className="h-3 w-3" />Refunded</Badge>;
+      case "refunded": return <Badge variant="outline" className="gap-1 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400"><CheckCircle className="h-3 w-3" />Refunded</Badge>;
       case "pending": return <Badge variant="outline" className="gap-1"><AlertCircle className="h-3 w-3" />Pending</Badge>;
     }
   };
@@ -288,15 +288,15 @@ export function StripeDashboard() {
 
   if (isLoading) {
     return (
-      <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 p-6 shadow-sm">
         <div className="flex items-center gap-2 mb-6">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-50 border border-zinc-100">
-            <CreditCard className="h-4 w-4 text-zinc-500" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800">
+            <CreditCard className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
           </div>
-          <h2 className="text-base font-semibold text-zinc-900">Payments</h2>
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Payments</h2>
         </div>
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-zinc-400 dark:text-zinc-500" />
         </div>
       </div>
     );
@@ -304,57 +304,57 @@ export function StripeDashboard() {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 p-6 shadow-sm">
         <div className="flex items-center gap-2 mb-6">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-50 border border-zinc-100">
-            <CreditCard className="h-4 w-4 text-zinc-500" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800">
+            <CreditCard className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
           </div>
-          <h2 className="text-base font-semibold text-zinc-900">Payments</h2>
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Payments</h2>
         </div>
-        <div className="flex items-center gap-3 rounded-xl bg-red-50 p-4">
-          <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
-          <p className="text-sm text-red-700">{error}</p>
+        <div className="flex items-center gap-3 rounded-xl bg-red-50 dark:bg-red-950 p-4">
+          <AlertCircle className="h-4 w-4 shrink-0 text-red-500 dark:text-red-400" />
+          <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
+    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 shadow-sm">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-zinc-100 px-6 py-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-50 border border-zinc-100">
+      <div className="flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-800 px-6 py-4">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800">
           <CreditCard className="h-4 w-4 text-zinc-600" />
         </div>
         <div>
-          <h2 className="text-base font-semibold text-zinc-900">Stripe Dashboard</h2>
-          <p className="text-xs text-zinc-400">Each row is one teammate&apos;s card hold. Net after fees may differ from listed price.</p>
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Stripe Dashboard</h2>
+          <p className="text-xs text-zinc-400 dark:text-zinc-500">Each row is one teammate&apos;s card hold. Net after fees may differ from listed price.</p>
         </div>
       </div>
 
       <div className="p-6 space-y-5">
         {/* Balance — light panel */}
-        <div className="rounded-2xl bg-zinc-50 p-5 space-y-4">
+        <div className="rounded-2xl bg-zinc-50 dark:bg-zinc-900 p-5 space-y-4">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-zinc-400">Stripe Balance</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-zinc-400 dark:text-zinc-500">Stripe Balance</p>
             {!balanceData?.hasConnectedAccount ? (
               <Badge variant="outline" className="text-zinc-500">Not connected</Badge>
             ) : balanceData.payoutsEnabled ? (
-              <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0">Payouts enabled</Badge>
+              <Badge className="bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 border-0">Payouts enabled</Badge>
             ) : (
-              <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-0">Pending setup</Badge>
+              <Badge className="bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900 border-0">Pending setup</Badge>
             )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl bg-white border border-zinc-100 p-4">
-              <p className="text-xs text-zinc-400 mb-1">Available</p>
+            <div className="rounded-xl bg-white dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-800 p-4">
+              <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-1">Available</p>
               <p className="text-2xl font-bold text-emerald-600">
                 {formatCurrency(balanceData?.available ?? 0, balanceData?.currency ?? "EUR")}
               </p>
             </div>
-            <div className="rounded-xl bg-white border border-zinc-100 p-4">
-              <p className="text-xs text-zinc-400 mb-1">Pending</p>
+            <div className="rounded-xl bg-white dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-800 p-4">
+              <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-1">Pending</p>
               <p className="text-2xl font-bold text-amber-600">
                 {formatCurrency(balanceData?.pending ?? 0, balanceData?.currency ?? "EUR")}
               </p>
@@ -369,7 +369,7 @@ export function StripeDashboard() {
               value={payoutAmount}
               onChange={(e) => setPayoutAmount(e.target.value)}
               placeholder="Payout amount"
-              className="bg-white"
+              className="bg-white dark:bg-zinc-900"
               disabled={!balanceData?.hasConnectedAccount || !balanceData?.payoutsEnabled}
             />
             <Button
@@ -381,29 +381,29 @@ export function StripeDashboard() {
             </Button>
           </div>
           {payoutError && (
-            <p className="text-sm text-red-600 flex items-center gap-1.5">
+            <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-1.5">
               <AlertCircle className="h-4 w-4 shrink-0" />{payoutError}
             </p>
           )}
           {payoutSuccess && (
-            <p className="text-sm text-emerald-600 flex items-center gap-1.5">
+            <p className="text-sm text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
               <CheckCircle className="h-4 w-4 shrink-0" />{payoutSuccess}
             </p>
           )}
         </div>
 
         {/* Balance History */}
-        <div className="rounded-2xl bg-zinc-50 p-4 space-y-4">
+        <div className="rounded-2xl bg-zinc-50 dark:bg-zinc-900 p-4 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-zinc-900">Balance History</p>
-            <div className="flex items-center gap-1 rounded-lg bg-white border border-zinc-100 p-1">
+            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Balance History</p>
+            <div className="flex items-center gap-1 rounded-lg bg-white dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-800 p-1">
               {HISTORY_RANGES.map((range) => (
                 <button
                   key={range.key}
                   onClick={() => setHistoryRange(range.key)}
                   className={cn(
                     "rounded-md px-3 py-1 text-xs font-medium transition-colors",
-                    historyRange === range.key ? "bg-zinc-900 text-white" : "text-zinc-500 hover:text-zinc-900"
+                    historyRange === range.key ? "bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900" : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50"
                   )}
                 >
                   {range.label}
@@ -413,7 +413,7 @@ export function StripeDashboard() {
           </div>
 
           {historyError ? (
-            <p className="text-sm text-red-500 flex items-center gap-1.5"><AlertCircle className="h-4 w-4" />{historyError}</p>
+            <p className="text-sm text-red-500 dark:text-red-400 flex items-center gap-1.5"><AlertCircle className="h-4 w-4" />{historyError}</p>
           ) : isHistoryLoading ? (
             <div className="flex items-center justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-zinc-400" /></div>
           ) : historyData?.hasConnectedAccount ? (
@@ -439,7 +439,7 @@ export function StripeDashboard() {
               />
             </div>
           ) : (
-            <p className="text-sm text-zinc-400">Connect Stripe to view balance history.</p>
+            <p className="text-sm text-zinc-400 dark:text-zinc-500">Connect Stripe to view balance history.</p>
           )}
         </div>
 
@@ -451,7 +451,7 @@ export function StripeDashboard() {
               onClick={() => setStatusFilter(key)}
               className={cn(
                 "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-                statusFilter === key ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-900"
+                statusFilter === key ? "bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-900 dark:hover:text-zinc-50"
               )}
             >
               {label} ({getStatCount(key)})
@@ -461,49 +461,49 @@ export function StripeDashboard() {
 
         {/* Payment intents */}
         {filteredIntents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-zinc-400">
+          <div className="flex flex-col items-center justify-center py-12 text-zinc-400 dark:text-zinc-500">
             <CreditCard className="h-10 w-10 mb-3 opacity-30" />
             <p className="text-sm">No payments{statusFilter !== "all" ? ` with status "${statusFilter}"` : ""}.</p>
           </div>
         ) : isMobile ? (
           <div className="space-y-3">
             {filteredIntents.map((intent) => (
-              <div key={`${intent.paymentIntentId}-${intent.reservationId}`} className="rounded-2xl bg-zinc-50 p-4 space-y-3">
+              <div key={`${intent.paymentIntentId}-${intent.reservationId}`} className="rounded-2xl bg-zinc-50 dark:bg-zinc-900 p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-sm text-zinc-900 truncate">{intent.activityName}</h3>
+                    <h3 className="font-semibold text-sm text-zinc-900 dark:text-zinc-50 truncate">{intent.activityName}</h3>
                     {intent.activityAddress && (
-                      <div className="flex items-center gap-1 text-xs text-zinc-400 mt-0.5">
+                      <div className="flex items-center gap-1 text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">
                         <MapPin className="h-3 w-3 shrink-0" /><span className="truncate">{intent.activityAddress}</span>
                       </div>
                     )}
                   </div>
                   {getStatusBadge(intent.status)}
                 </div>
-                <div className="flex items-center gap-2 text-sm text-zinc-700">
-                  <Users className="h-4 w-4 text-zinc-400 shrink-0" />
+                <div className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                  <Users className="h-4 w-4 text-zinc-400 dark:text-zinc-500 shrink-0" />
                   <span className="font-medium truncate">{intent.teamName}</span>
                 </div>
-                <div className="text-xs text-zinc-400 pl-6">
+                <div className="text-xs text-zinc-400 dark:text-zinc-500 pl-6">
                   Payer: {intent.payerName}{intent.personsPaidFor > 1 ? ` · covers ${intent.personsPaidFor} people` : ""}
                 </div>
-                <div className="flex items-center gap-2 text-sm text-zinc-700">
-                  <Calendar className="h-4 w-4 text-zinc-400 shrink-0" />
+                <div className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                  <Calendar className="h-4 w-4 text-zinc-400 dark:text-zinc-500 shrink-0" />
                   <span className="font-medium">{formatDate(intent.date)}</span>
-                  <span className="text-zinc-400">at</span>
+                  <span className="text-zinc-400 dark:text-zinc-500">at</span>
                   <span>{intent.time}</span>
                 </div>
-                <div className="rounded-xl bg-white border border-zinc-100 p-3 space-y-2">
+                <div className="rounded-xl bg-white dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-800 p-3 space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-zinc-400 flex items-center gap-1"><Wallet className="h-3.5 w-3.5" />Collected</span>
+                    <span className="text-zinc-400 dark:text-zinc-500 flex items-center gap-1"><Wallet className="h-3.5 w-3.5" />Collected</span>
                     <span className="font-semibold text-emerald-600">{formatCurrency(intent.collectedAmount, intent.currency)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-zinc-400">This card (auth)</span>
-                    <span className="text-zinc-700">{formatCurrency(intent.amount, intent.currency)}</span>
+                    <span className="text-zinc-400 dark:text-zinc-500">This card (auth)</span>
+                    <span className="text-zinc-700 dark:text-zinc-300">{formatCurrency(intent.amount, intent.currency)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-zinc-400">Remaining</span>
+                    <span className="text-zinc-400 dark:text-zinc-500">Remaining</span>
                     <span className={intent.remainingAmount > 0 ? "font-semibold text-orange-600" : "text-zinc-400"}>
                       {formatCurrency(intent.remainingAmount, intent.currency)}
                     </span>
@@ -513,36 +513,36 @@ export function StripeDashboard() {
             ))}
           </div>
         ) : (
-          <div className="rounded-2xl border border-zinc-100 overflow-hidden">
+          <div className="rounded-2xl border border-zinc-100 dark:border-zinc-800 overflow-hidden">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-zinc-100 bg-zinc-50">
+                <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900">
                   {["Payment ID", "Team", "Payer", "Activity", "Date & Time", "Status", "Collected", "This card", "Remaining"].map((h) => (
-                    <th key={h} className="h-11 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-zinc-400">{h}</th>
+                    <th key={h} className="h-11 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {filteredIntents.map((intent) => (
-                  <tr key={`${intent.paymentIntentId}-${intent.reservationId}`} className="border-b border-zinc-50 transition-colors hover:bg-zinc-50">
-                    <td className="p-4 align-middle font-mono text-xs text-zinc-400">{intent.paymentIntentId.substring(0, 20)}…</td>
-                    <td className="p-4 align-middle font-medium text-zinc-900">{intent.teamName}</td>
+                  <tr key={`${intent.paymentIntentId}-${intent.reservationId}`} className="border-b border-zinc-50 dark:border-zinc-800 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900">
+                    <td className="p-4 align-middle font-mono text-xs text-zinc-400 dark:text-zinc-500">{intent.paymentIntentId.substring(0, 20)}…</td>
+                    <td className="p-4 align-middle font-medium text-zinc-900 dark:text-zinc-50">{intent.teamName}</td>
                     <td className="p-4 align-middle">
-                      <div className="font-medium text-zinc-900">{intent.payerName}</div>
-                      {intent.personsPaidFor > 1 && <div className="text-xs text-zinc-400">{intent.personsPaidFor} people</div>}
+                      <div className="font-medium text-zinc-900 dark:text-zinc-50">{intent.payerName}</div>
+                      {intent.personsPaidFor > 1 && <div className="text-xs text-zinc-400 dark:text-zinc-500">{intent.personsPaidFor} people</div>}
                     </td>
                     <td className="p-4 align-middle">
-                      <div className="font-medium text-zinc-900">{intent.activityName}</div>
-                      {intent.activityAddress && <div className="text-xs text-zinc-400">{intent.activityAddress}</div>}
+                      <div className="font-medium text-zinc-900 dark:text-zinc-50">{intent.activityName}</div>
+                      {intent.activityAddress && <div className="text-xs text-zinc-400 dark:text-zinc-500">{intent.activityAddress}</div>}
                     </td>
                     <td className="p-4 align-middle">
-                      <div className="font-medium text-zinc-900">{formatDate(intent.date)}</div>
-                      <div className="text-xs text-zinc-400">{intent.time}</div>
+                      <div className="font-medium text-zinc-900 dark:text-zinc-50">{formatDate(intent.date)}</div>
+                      <div className="text-xs text-zinc-400 dark:text-zinc-500">{intent.time}</div>
                     </td>
                     <td className="p-4 align-middle">{getStatusBadge(intent.status)}</td>
                     <td className="p-4 align-middle font-semibold text-emerald-600">{formatCurrency(intent.collectedAmount, intent.currency)}</td>
-                    <td className="p-4 align-middle text-zinc-700">{formatCurrency(intent.amount, intent.currency)}</td>
-                    <td className={cn("p-4 align-middle", intent.remainingAmount > 0 ? "font-semibold text-orange-600" : "text-zinc-400")}>
+                    <td className="p-4 align-middle text-zinc-700 dark:text-zinc-300">{formatCurrency(intent.amount, intent.currency)}</td>
+                    <td className={cn("p-4 align-middle", intent.remainingAmount > 0 ? "font-semibold text-orange-600" : "text-zinc-400 dark:text-zinc-500")}>
                       {formatCurrency(intent.remainingAmount, intent.currency)}
                     </td>
                   </tr>
