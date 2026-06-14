@@ -23,7 +23,7 @@ function questListClassName(count: number) {
 
 function XpPill({ amount }: { amount: number }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+    <span className="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-950 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
       +{amount} XP
     </span>
   );
@@ -35,8 +35,8 @@ function QuestRowCard({ quest, completed }: Omit<QuestRow, "completedAt">) {
       className={cn(
         "flex gap-3 rounded-2xl p-3.5 transition-colors",
         completed
-          ? "bg-emerald-50 border border-emerald-100"
-          : "bg-zinc-50 border border-zinc-100"
+          ? "bg-emerald-50 dark:bg-emerald-950 border border-emerald-100 dark:border-emerald-900"
+          : "bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700"
       )}
     >
       <QuestVisual
@@ -49,7 +49,7 @@ function QuestRowCard({ quest, completed }: Omit<QuestRow, "completedAt">) {
           <p
             className={cn(
               "font-medium leading-tight",
-              completed ? "text-emerald-900" : "text-zinc-900"
+              completed ? "text-emerald-900 dark:text-emerald-100" : "text-zinc-900 dark:text-zinc-50"
             )}
           >
             {quest.questName}
@@ -60,7 +60,7 @@ function QuestRowCard({ quest, completed }: Omit<QuestRow, "completedAt">) {
             <Circle className="size-4 shrink-0 text-zinc-300 mt-0.5" />
           )}
         </div>
-        <p className="mt-1 line-clamp-3 text-xs text-zinc-500">
+        <p className="mt-1 line-clamp-3 text-xs text-zinc-500 dark:text-zinc-400">
           {quest.description}
         </p>
         <div className="mt-2">
@@ -82,10 +82,10 @@ function SectionLabel({
 }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
         {label}
       </p>
-      <span className="text-xs text-zinc-400">
+      <span className="text-xs text-zinc-400 dark:text-zinc-500">
         {completed}/{total}
       </span>
     </div>
@@ -97,12 +97,12 @@ export function MyQuestsSection() {
 
   if (overview === undefined) {
     return (
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-5">
         <div className="flex items-center gap-2 mb-4">
-          <Trophy className="h-4 w-4 text-zinc-400" />
-          <h3 className="text-base font-semibold text-zinc-900">Quests</h3>
+          <Trophy className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+          <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Quests</h3>
         </div>
-        <p className="text-sm text-zinc-400">Loading…</p>
+        <p className="text-sm text-zinc-400 dark:text-zinc-500">Loading…</p>
       </div>
     );
   }
@@ -112,12 +112,12 @@ export function MyQuestsSection() {
 
   if (!hasAny) {
     return (
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-5">
         <div className="flex items-center gap-2 mb-3">
-          <Trophy className="h-4 w-4 text-zinc-400" />
-          <h3 className="text-base font-semibold text-zinc-900">Quests</h3>
+          <Trophy className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+          <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Quests</h3>
         </div>
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-zinc-400 dark:text-zinc-500">
           Complete quests to earn XP and level up. Join an activity to see
           organiser quests.
         </p>
@@ -126,10 +126,10 @@ export function MyQuestsSection() {
   }
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 space-y-5">
+    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-5 space-y-5">
       <div className="flex items-center gap-2">
         <Trophy className="h-4 w-4 text-amber-500" />
-        <h3 className="text-base font-semibold text-zinc-900">Quests</h3>
+        <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Quests</h3>
       </div>
 
       {overview.systemQuests.length > 0 && (

@@ -263,7 +263,7 @@ export function ConversationList({
   const reservationCount = filteredReservationConversations.length;
 
   return (
-    <div className="flex flex-col h-full px-3 py-4 md:px-4 border-r-0 md:border-r border-zinc-100 overflow-hidden bg-white">
+    <div className="flex flex-col h-full px-3 py-4 md:px-4 border-r-0 md:border-r border-zinc-100 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-950">
       {/* Search Bar */}
       <div className="mb-4">
         <div className="relative">
@@ -284,7 +284,7 @@ export function ConversationList({
         <div className="mb-4">
           {(!searchQuery.trim() || filteredFriendsList.length > 0) && (
             <div className="mb-2 flex items-center justify-between px-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+              <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
                 Friends {!searchQuery.trim() && friendCount > 0 ? `(${friendCount})` : ""}
               </span>
               {!searchQuery.trim() && onAddFriend && filteredFriendsList.length > 0 && (
@@ -351,8 +351,8 @@ export function ConversationList({
                       }
                     }}
                     className={cn(
-                      "w-full px-3 py-2.5 cursor-pointer mb-2 hover:bg-blue-50 transition-colors text-left flex items-center gap-3 rounded-xl border border-transparent",
-                      isSelected ? "bg-blue-50 border-blue-200" : "bg-zinc-50"
+                      "w-full px-3 py-2.5 cursor-pointer mb-2 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors text-left flex items-center gap-3 rounded-xl border border-transparent",
+                      isSelected ? "bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800" : "bg-zinc-50 dark:bg-zinc-900"
                     )}
                   >
                     <div className="relative shrink-0">
@@ -397,10 +397,10 @@ export function ConversationList({
                           </Badge>
                         )}
                         {friend.unreadCount === 0 && friend.lastMessageReadStatus === "sent" && (
-                          <Check className="h-4 w-4 text-gray-400" />
+                          <Check className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                         )}
                         {friend.unreadCount === 0 && friend.lastMessageReadStatus === "delivered" && (
-                          <CheckCheck className="h-4 w-4 text-gray-400" />
+                          <CheckCheck className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                         )}
                         {friend.unreadCount === 0 && friend.lastMessageReadStatus === "read" && (
                           <CheckCheck className="h-4 w-4 text-blue-500" />
@@ -411,7 +411,7 @@ export function ConversationList({
                             onClick={(e) => e.stopPropagation()}
                           >
                             <button className="h-6 w-6 flex items-center justify-center rounded-lg transition-colors hover:bg-blue-100 cursor-pointer">
-                              <MoreVertical className="h-4 w-4 text-zinc-400" />
+                              <MoreVertical className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
@@ -466,7 +466,7 @@ export function ConversationList({
                   size="sm"
                 >
                   <div className="flex items-center gap-2">
-                    <div className="h-5 w-5 rounded-full bg-white/20 flex items-center justify-center">
+                    <div className="h-5 w-5 rounded-full bg-white/20 dark:bg-white/10 flex items-center justify-center">
                       <Plus className="h-3 w-3" />
                     </div>
                     <span>Add friend</span>
@@ -481,7 +481,7 @@ export function ConversationList({
           {(!searchQuery.trim() ||
             (filteredTeams && filteredTeams.length > 0)) && (
               <div className="mb-2 flex items-center justify-between px-1">
-                <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Teams</span>
+                <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">Teams</span>
                 {!searchQuery.trim() && filteredTeams && filteredTeams.length > 0 && onCreateTeam && (
                   <button
                     onClick={onCreateTeam}
@@ -505,8 +505,8 @@ export function ConversationList({
                       onSelectTeam(team.slug);
                     }}
                     className={cn(
-                      "w-full px-3 py-2.5 mb-2 hover:bg-blue-50 transition-colors flex items-center gap-3 rounded-xl border border-transparent cursor-pointer",
-                      isSelected ? "bg-blue-50 border-blue-200" : "bg-zinc-50"
+                      "w-full px-3 py-2.5 mb-2 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors flex items-center gap-3 rounded-xl border border-transparent cursor-pointer",
+                      isSelected ? "bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800" : "bg-zinc-50 dark:bg-zinc-900"
                     )}
                   >
                     <div className="relative shrink-0">
@@ -550,10 +550,10 @@ export function ConversationList({
                           </Badge>
                         )}
                         {team.unreadCount === 0 && team.lastMessageReadStatus === "sent" && (
-                          <Check className="h-4 w-4 text-gray-400" />
+                          <Check className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                         )}
                         {team.unreadCount === 0 && team.lastMessageReadStatus === "delivered" && (
-                          <CheckCheck className="h-4 w-4 text-gray-400" />
+                          <CheckCheck className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                         )}
                         {team.unreadCount === 0 && team.lastMessageReadStatus === "read" && (
                           <CheckCheck className="h-4 w-4 text-blue-500" />
@@ -576,7 +576,7 @@ export function ConversationList({
                             onClick={(e) => e.stopPropagation()}
                           >
                             <button className="h-6 w-6 flex items-center justify-center rounded-lg transition-colors hover:bg-blue-100 cursor-pointer">
-                              <MoreVertical className="h-4 w-4 text-zinc-400" />
+                              <MoreVertical className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
@@ -672,7 +672,7 @@ export function ConversationList({
                   size="sm"
                 >
                   <div className="flex items-center gap-2">
-                    <div className="h-5 w-5 rounded-full bg-white/20 flex items-center justify-center">
+                    <div className="h-5 w-5 rounded-full bg-white/20 dark:bg-white/10 flex items-center justify-center">
                       <Users className="h-3 w-3" />
                     </div>
                     <span>Create team</span>
@@ -711,8 +711,8 @@ export function ConversationList({
                     }
                   }}
                   className={cn(
-                    "w-full px-3 py-2.5 hover:bg-violet-50 transition-colors text-left flex items-center gap-3 rounded-xl border border-transparent cursor-pointer mb-2",
-                    isSelected ? "bg-violet-50 border-violet-200" : "bg-zinc-50"
+                    "w-full px-3 py-2.5 hover:bg-violet-50 dark:hover:bg-violet-950 transition-colors text-left flex items-center gap-3 rounded-xl border border-transparent cursor-pointer mb-2",
+                    isSelected ? "bg-violet-50 dark:bg-violet-950 border-violet-200 dark:border-violet-800" : "bg-zinc-50 dark:bg-zinc-900"
                   )}
                 >
                   <div className="relative shrink-0">

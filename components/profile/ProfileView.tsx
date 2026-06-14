@@ -142,7 +142,7 @@ export function ProfileView({
     : undefined;
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
+    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
       <ProfileHeader
         isOwnProfile={isOwnProfile}
         userName={user.name}

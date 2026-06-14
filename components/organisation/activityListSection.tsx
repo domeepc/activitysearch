@@ -32,15 +32,15 @@ export default function ActivityListSection({ activityIDs, onEdit }: ActivityLis
 
   if (activityIDs.length === 0) {
     return (
-      <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
-        <div className="flex items-center gap-2 border-b border-zinc-100 px-5 py-4 md:px-6">
-          <LayoutGrid className="h-4 w-4 text-zinc-400" />
-          <h2 className="text-base font-semibold text-zinc-900">Activities</h2>
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
+        <div className="flex items-center gap-2 border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 md:px-6">
+          <LayoutGrid className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Activities</h2>
         </div>
         <div className="flex flex-col items-center justify-center py-12 text-center px-5">
-          <LayoutGrid className="h-10 w-10 text-zinc-200 mb-3" />
-          <p className="text-sm text-zinc-400">No activities yet.</p>
-          <p className="text-xs text-zinc-300 mt-1">Create your first activity to get started.</p>
+          <LayoutGrid className="h-10 w-10 text-zinc-200 dark:text-zinc-700 mb-3" />
+          <p className="text-sm text-zinc-400 dark:text-zinc-500">No activities yet.</p>
+          <p className="text-xs text-zinc-300 dark:text-zinc-600 mt-1">Create your first activity to get started.</p>
         </div>
       </div>
     );
@@ -48,14 +48,14 @@ export default function ActivityListSection({ activityIDs, onEdit }: ActivityLis
 
   if (activitiesFromDb === undefined) {
     return (
-      <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
-        <div className="flex items-center gap-2 border-b border-zinc-100 px-5 py-4 md:px-6">
-          <LayoutGrid className="h-4 w-4 text-zinc-400" />
-          <h2 className="text-base font-semibold text-zinc-900">Activities</h2>
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
+        <div className="flex items-center gap-2 border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 md:px-6">
+          <LayoutGrid className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Activities</h2>
         </div>
         <div className="flex flex-row flex-wrap gap-4 p-5 md:p-6">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="w-64 rounded-2xl border border-zinc-100 overflow-hidden">
+            <div key={i} className="w-64 rounded-2xl border border-zinc-100 dark:border-zinc-800 overflow-hidden">
               <Skeleton className="h-40 w-full" />
               <div className="p-4 space-y-2">
                 <Skeleton className="h-5 w-3/4" />
@@ -70,13 +70,13 @@ export default function ActivityListSection({ activityIDs, onEdit }: ActivityLis
   }
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4 md:px-6">
+    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
+      <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 md:px-6">
         <div className="flex items-center gap-2">
-          <LayoutGrid className="h-4 w-4 text-zinc-400" />
-          <h2 className="text-base font-semibold text-zinc-900">Activities</h2>
+          <LayoutGrid className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Activities</h2>
         </div>
-        <span className="text-xs text-zinc-400">{activities.length} total</span>
+        <span className="text-xs text-zinc-400 dark:text-zinc-500">{activities.length} total</span>
       </div>
       <div className="flex flex-row flex-wrap gap-4 p-5 md:p-6">
         {activities.map((activity) => (

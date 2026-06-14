@@ -37,11 +37,11 @@ export function ProfileForm({
     !!usernameError || !!errors.name || !!errors.lastname || hasEmailError;
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
-      <div className="flex flex-col gap-3 border-b border-zinc-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
-        <h2 className="text-lg font-semibold text-zinc-900">Edit Profile</h2>
+    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 shadow-sm">
+      <div className="flex flex-col gap-3 border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
+        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Edit Profile</h2>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" size="sm" className="rounded-full border-zinc-200" onClick={onCancel}>
+          <Button variant="outline" size="sm" className="rounded-full border-zinc-200 dark:border-zinc-700" onClick={onCancel}>
             Cancel
           </Button>
           <Button size="sm" onClick={onSave} disabled={hasErrors} className="rounded-full">

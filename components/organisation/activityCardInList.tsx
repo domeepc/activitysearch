@@ -37,9 +37,9 @@ export default function ActivityCardInList({ activity, onEdit }: ActivityCardPro
   const databaseTags = useQuery(convexApi.activity.getAllTags);
 
   return (
-    <div className="w-64 overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-sm transition-shadow hover:shadow-md">
+    <div className="w-64 overflow-hidden rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm transition-shadow hover:shadow-md">
       {/* Image */}
-      <div className="relative h-40 w-full bg-zinc-100">
+      <div className="relative h-40 w-full bg-zinc-100 dark:bg-zinc-800">
         {activity.images && activity.images.length > 0 ? (
           <Image
             src={activity.images[0]}
@@ -49,11 +49,11 @@ export default function ActivityCardInList({ activity, onEdit }: ActivityCardPro
           />
         ) : (
           <div className="flex h-full items-center justify-center">
-            <span className="text-xs text-zinc-400">No image</span>
+            <span className="text-xs text-zinc-400 dark:text-zinc-500">No image</span>
           </div>
         )}
         {/* Price badge on image */}
-        <div className="absolute right-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-emerald-700 shadow-sm">
+        <div className="absolute right-3 top-3 rounded-full bg-white/90 dark:bg-zinc-900/90 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300 shadow-sm">
           {activity.price.amount} {activity.price.currency}
         </div>
       </div>
@@ -61,14 +61,14 @@ export default function ActivityCardInList({ activity, onEdit }: ActivityCardPro
       {/* Content */}
       <div className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="flex-1 truncate text-sm font-semibold text-zinc-900 leading-tight">
+          <h3 className="flex-1 truncate text-sm font-semibold text-zinc-900 dark:text-zinc-50 leading-tight">
             {activity.title}
           </h3>
           {onEdit && (
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 shrink-0 text-zinc-400 hover:text-zinc-700"
+              className="h-7 w-7 shrink-0 text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
               aria-label="Edit activity"
               onClick={(e) => {
                 e.stopPropagation();
@@ -81,9 +81,9 @@ export default function ActivityCardInList({ activity, onEdit }: ActivityCardPro
         </div>
 
         {activity.rating > 0 && (
-          <div className="flex items-center gap-1 text-xs text-zinc-500">
+          <div className="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
             <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-            <span className="font-medium text-zinc-700">{activity.rating.toFixed(1)}</span>
+            <span className="font-medium text-zinc-700 dark:text-zinc-300">{activity.rating.toFixed(1)}</span>
             <span>({activity.reviewCount})</span>
           </div>
         )}

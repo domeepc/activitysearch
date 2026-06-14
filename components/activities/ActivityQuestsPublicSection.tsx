@@ -47,7 +47,7 @@ export function ActivityQuestsPublicSection({
           {quests.map((q) => (
             <li
               key={q._id}
-              className="flex gap-3 rounded-xl bg-zinc-50 p-4"
+              className="flex gap-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 p-4"
             >
               <QuestVisual
                 iconImageUrl={q.iconImageUrl}

@@ -94,7 +94,7 @@ export default function DialogAddActivity({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="rounded-2xl bg-zinc-50 px-4 py-4">
+          <div className="rounded-2xl bg-zinc-50 dark:bg-zinc-900 px-4 py-4">
             <Stepper steps={steps} currentStep={currentStep} className="mb-6" />
 
             <div className="grid gap-6">
@@ -164,7 +164,7 @@ export default function DialogAddActivity({
             <Button
               type="button"
               variant="outline"
-              className="rounded-full border-zinc-200"
+              className="rounded-full border-zinc-200 dark:border-zinc-700"
               onClick={() => setShowDialog(false)}
               disabled={isSubmitting}
             >
@@ -176,7 +176,7 @@ export default function DialogAddActivity({
                 variant="outline"
                 onClick={() => setCurrentStep(currentStep - 1)}
                 disabled={isSubmitting}
-                className="rounded-full border-zinc-200"
+                className="rounded-full border-zinc-200 dark:border-zinc-700"
               >
                 Previous
               </Button>

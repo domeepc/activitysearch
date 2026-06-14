@@ -118,8 +118,8 @@ export default function ProfilePage({
   if (user === undefined || currentUser === undefined) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4 md:px-6">
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
+          <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 md:px-6">
             <div className="space-y-1.5">
               <Skeleton className="h-6 w-40" />
               <Skeleton className="h-4 w-28" />

@@ -294,7 +294,7 @@ export function ReservationDialog({
             </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" className="rounded-full border-zinc-200" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" className="rounded-full border-zinc-200 dark:border-zinc-700" onClick={() => onOpenChange(false)}>
               Close
             </Button>
           </DialogFooter>
@@ -380,23 +380,23 @@ export function ReservationDialog({
                 <Clock className="inline h-4 w-4 mr-2" />
                 Queue Status
               </Label>
-              <div className="p-4 border rounded-md bg-purple-50 border-purple-200">
+              <div className="p-4 border rounded-md bg-purple-50 border-purple-200 dark:bg-purple-950 dark:border-purple-800">
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="h-5 w-5 text-purple-600 mt-0.5" />
+                  <AlertCircle className="h-5 w-5 text-purple-600 dark:text-purple-400 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-purple-900 mb-1">
+                    <p className="text-sm font-medium text-purple-900 dark:text-purple-100 mb-1">
                       This date is fully booked
                     </p>
-                    <p className="text-xs text-purple-700 mb-3">
+                    <p className="text-xs text-purple-700 dark:text-purple-300 mb-3">
                       All time slots for this date are reserved. You can join
                       the queue to be notified when a slot becomes available.
                     </p>
                     {queuePosition?.inQueue && (
-                      <div className="mt-2 p-2 bg-purple-100 rounded border border-purple-300">
-                        <p className="text-xs font-medium text-purple-900">
+                      <div className="mt-2 p-2 bg-purple-100 dark:bg-purple-900 rounded border border-purple-300 dark:border-purple-700">
+                        <p className="text-xs font-medium text-purple-900 dark:text-purple-100">
                           You are in the queue
                         </p>
-                        <p className="text-xs text-purple-700">
+                        <p className="text-xs text-purple-700 dark:text-purple-300">
                           Position: {queuePosition.position} of{" "}
                           {queuePosition.totalInQueue}
                         </p>

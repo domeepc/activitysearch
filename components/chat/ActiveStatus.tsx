@@ -42,8 +42,8 @@ export function StatusDot({
 
   return (
     <div
-      className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white ${
-        isActive ? "bg-green-500" : "bg-gray-400"
+      className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white dark:border-zinc-950 ${
+        isActive ? "bg-green-500" : "bg-gray-400 dark:bg-gray-600"
       } ${className}`}
     />
   );
@@ -102,7 +102,7 @@ export function ActiveStatus({ userId, lastActive }: ActiveStatusProps) {
 
   return (
     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-      <div className="h-2 w-2 rounded-full bg-gray-400" />
+      <div className="h-2 w-2 rounded-full bg-gray-400 dark:bg-gray-600" />
       <span>Last active {formatLastActive(lastSeenTimestamp)}</span>
     </div>
   );

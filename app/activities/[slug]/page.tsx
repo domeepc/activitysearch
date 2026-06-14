@@ -101,7 +101,7 @@ export default function ActivityPage({
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
-      <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm md:p-6">
+      <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-950 md:p-6">
       <ActivityDetailGallery
         images={images}
         title={title}
@@ -111,20 +111,20 @@ export default function ActivityPage({
       {/* Title + actions */}
       <div className="mt-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0 flex-1">
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 md:text-4xl">
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-4xl">
             {title}
           </h1>
-          <p className="mt-2 max-w-2xl text-base leading-relaxed text-zinc-500">
+          <p className="mt-2 max-w-2xl text-base leading-relaxed text-zinc-500 dark:text-zinc-400">
             {description}
           </p>
         </div>
         <div className="flex flex-col gap-3 md:shrink-0 md:items-end">
           <div className="flex items-center gap-1.5">
             <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
-            <span className="text-lg font-bold text-zinc-900">
+            <span className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
               {rating.toFixed(1)}
             </span>
-            <span className="text-sm text-zinc-400">
+            <span className="text-sm text-zinc-400 dark:text-zinc-500">
               ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
             </span>
           </div>
@@ -149,7 +149,7 @@ export default function ActivityPage({
               onClick={() => setEditDialogOpen(true)}
               variant="outline"
               size="lg"
-              className="w-full rounded-full border-zinc-200 md:w-auto"
+              className="w-full rounded-full border-zinc-200 dark:border-zinc-700 md:w-auto"
             >
               <Pencil className="mr-2 h-4 w-4" />
               Edit Activity
@@ -180,7 +180,7 @@ export default function ActivityPage({
         </div>
       ) : null}
 
-      <div className="my-7 h-px bg-zinc-100" />
+      <div className="my-7 h-px bg-zinc-100 dark:bg-zinc-800" />
 
       <ActivityDetailMetaGrid
         address={address}
@@ -195,20 +195,20 @@ export default function ActivityPage({
         equipment={equipment}
       />
 
-      <div className="my-7 h-px bg-zinc-100" />
+      <div className="my-7 h-px bg-zinc-100 dark:bg-zinc-800" />
 
       <ActivityQuestsPublicSection
         activityId={activityId}
         isOrganiser={isOrganiserOfActivity}
       />
 
-      <div className="my-7 h-px bg-zinc-100" />
+      <div className="my-7 h-px bg-zinc-100 dark:bg-zinc-800" />
 
       <ActivityDetailReviews reviews={recentReviews} />
 
       {isOrganiserOfActivity ? (
         <>
-          <div className="my-7 h-px bg-zinc-100" />
+          <div className="my-7 h-px bg-zinc-100 dark:bg-zinc-800" />
           <OrganiserQuestsSection activityId={activityId} />
         </>
       ) : null}

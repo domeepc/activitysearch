@@ -114,7 +114,7 @@ export function ReservationTable({ reservations }: ReservationTableProps) {
       );
     }
     return (
-      <Badge variant="default" className="bg-green-500 hover:bg-green-600">
+      <Badge variant="default" className="bg-green-500 hover:bg-green-600 dark:bg-green-700 dark:hover:bg-green-600">
         Active
       </Badge>
     );
@@ -140,7 +140,7 @@ export function ReservationTable({ reservations }: ReservationTableProps) {
             return (
               <div
                 key={reservation._id}
-                className="rounded-2xl bg-zinc-50 p-4 space-y-3"
+                className="rounded-2xl bg-zinc-50 dark:bg-zinc-900 p-4 space-y-3"
               >
                   {/* Activity & Status */}
                   <div className="flex items-start justify-between gap-2">
@@ -204,11 +204,11 @@ export function ReservationTable({ reservations }: ReservationTableProps) {
 
                   {/* Cancellation Reason */}
                   {reservation.cancellationReason && (
-                    <div className="rounded-xl bg-zinc-100 p-3">
-                      <p className="text-xs font-medium text-zinc-500 mb-1">
+                    <div className="rounded-xl bg-zinc-100 dark:bg-zinc-800 p-3">
+                      <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
                         Cancellation Reason:
                       </p>
-                      <p className="text-xs text-zinc-700">
+                      <p className="text-xs text-zinc-700 dark:text-zinc-300">
                         {reservation.cancellationReason}
                       </p>
                     </div>
@@ -233,12 +233,12 @@ export function ReservationTable({ reservations }: ReservationTableProps) {
         </div>
       ) : (
         // Desktop table view
-        <div className="rounded-2xl border border-zinc-200 overflow-hidden overflow-x-auto bg-white">
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden overflow-x-auto bg-white dark:bg-zinc-950">
           <table className="w-full">
             <thead>
-          <tr className="border-b border-zinc-200 bg-white">
+          <tr className="border-b border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950">
             {["Activity", "Date & Time", "User", "Teams", "Participants", "Status", "Actions"].map((h) => (
-              <th key={h} className="h-11 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-zinc-400">
+              <th key={h} className="h-11 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
                 {h}
               </th>
             ))}
@@ -252,7 +252,7 @@ export function ReservationTable({ reservations }: ReservationTableProps) {
             return (
               <tr
                 key={reservation._id}
-                className="border-b border-zinc-100 transition-colors hover:bg-zinc-50"
+                className="border-b border-zinc-100 dark:border-zinc-800 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900"
               >
                 <td className="p-4 align-middle">
                   <div>

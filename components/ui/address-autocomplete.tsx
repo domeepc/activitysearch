@@ -235,7 +235,7 @@ export function AddressAutocomplete({
         <div
           ref={dropdownRef}
           {...{ [ADDRESS_DROPDOWN_ATTR]: "true" }}
-          className="fixed rounded-xl border border-zinc-200 bg-white shadow-md pointer-events-auto"
+          className="fixed rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-md pointer-events-auto"
           style={{
             top: dropdownPos!.top + 4,
             left: dropdownPos!.left,
@@ -260,9 +260,9 @@ export function AddressAutocomplete({
                     onMouseEnter={() => setHighlightedIndex(index)}
                     className={cn(
                       "w-full text-left px-3 py-2.5 flex items-start gap-3",
-                      "hover:bg-zinc-50 transition-colors cursor-pointer",
-                      "border-b border-zinc-100 last:border-0",
-                      highlightedIndex === index && "bg-zinc-50"
+                      "hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer",
+                      "border-b border-zinc-100 dark:border-zinc-800 last:border-0",
+                      highlightedIndex === index && "bg-zinc-50 dark:bg-zinc-800"
                     )}
                   >
                     <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />

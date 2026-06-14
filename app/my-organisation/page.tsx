@@ -23,10 +23,10 @@ import { Building2, Pencil } from "lucide-react";
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-0.5 py-3 sm:flex-row sm:gap-4">
-      <span className="w-36 shrink-0 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+      <span className="w-36 shrink-0 text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
         {label}
       </span>
-      <span className="text-sm text-zinc-700">{value}</span>
+      <span className="text-sm text-zinc-700 dark:text-zinc-300">{value}</span>
     </div>
   );
 }
@@ -42,11 +42,11 @@ function EditRow({
 }) {
   return (
     <div className="py-3 space-y-1.5">
-      <label className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+      <label className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
         {label}
       </label>
       {children}
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
 }
@@ -151,15 +151,15 @@ export default function MyOrganisationPage() {
   if (currentUser === undefined || organisation === undefined) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4 md:px-6">
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
+          <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 md:px-6">
             <div className="space-y-1.5">
               <Skeleton className="h-6 w-48" />
               <Skeleton className="h-4 w-32" />
             </div>
             <Skeleton className="h-8 w-28 rounded-full" />
           </div>
-          <div className="space-y-0 divide-y divide-zinc-100 px-5 py-2 md:px-6">
+          <div className="space-y-0 divide-y divide-zinc-100 dark:divide-zinc-800 px-5 py-2 md:px-6">
             {["w-40", "w-36", "w-48", "w-32", "w-28"].map((w, i) => (
               <div key={i} className="flex gap-4 py-3">
                 <Skeleton className="h-3 w-28 shrink-0" />
@@ -178,9 +178,9 @@ export default function MyOrganisationPage() {
   if (currentUser !== null && !isOrganiser) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm p-6 text-center space-y-3">
-          <p className="text-base font-semibold text-zinc-900">Access Denied</p>
-          <p className="text-sm text-zinc-400">You must be an organiser to access this page.</p>
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm p-6 text-center space-y-3">
+          <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Access Denied</p>
+          <p className="text-sm text-zinc-400 dark:text-zinc-500">You must be an organiser to access this page.</p>
           <Button size="sm" className="rounded-full" onClick={() => router.push(SIGNED_IN_HOME_HREF)}>
             Go to Home
           </Button>
@@ -192,9 +192,9 @@ export default function MyOrganisationPage() {
   if (currentUser === null && isSignedIn) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm p-6 text-center space-y-3">
-          <p className="text-base font-semibold text-zinc-900">Setting Up</p>
-          <p className="text-sm text-zinc-400">Your account is being set up. Please wait a moment and refresh.</p>
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm p-6 text-center space-y-3">
+          <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Setting Up</p>
+          <p className="text-sm text-zinc-400 dark:text-zinc-500">Your account is being set up. Please wait a moment and refresh.</p>
           <Button size="sm" className="rounded-full" onClick={() => router.push(SIGNED_IN_HOME_HREF)}>
             Go to Home
           </Button>
@@ -206,9 +206,9 @@ export default function MyOrganisationPage() {
   if (organisation === null) {
     return (
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm p-6 text-center space-y-3">
-          <p className="text-base font-semibold text-zinc-900">No Organisation Found</p>
-          <p className="text-sm text-zinc-400">You don&apos;t have an organisation associated with your account.</p>
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm p-6 text-center space-y-3">
+          <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">No Organisation Found</p>
+          <p className="text-sm text-zinc-400 dark:text-zinc-500">You don&apos;t have an organisation associated with your account.</p>
           <Button size="sm" className="rounded-full" onClick={() => router.push(SIGNED_IN_HOME_HREF)}>
             Go to Home
           </Button>
@@ -220,20 +220,20 @@ export default function MyOrganisationPage() {
   return (
     <div className="container mx-auto p-4 md:p-6 max-w-4xl space-y-4">
       {/* Organisation card */}
-      <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
         {/* Header */}
-        <div className="flex flex-col gap-3 border-b border-zinc-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
+        <div className="flex flex-col gap-3 border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
           <div className="flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-zinc-400" />
+            <Building2 className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
             <div>
-              <h2 className="text-base font-semibold text-zinc-900">My Organisation</h2>
-              <p className="text-xs text-zinc-400">Manage your organisation information</p>
+              <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">My Organisation</h2>
+              <p className="text-xs text-zinc-400 dark:text-zinc-500">Manage your organisation information</p>
             </div>
           </div>
           <div className="flex gap-2">
             {isEditing ? (
               <>
-                <Button size="sm" variant="outline" className="rounded-full border-zinc-200" onClick={handleCancel}>
+                <Button size="sm" variant="outline" className="rounded-full border-zinc-200 dark:border-zinc-700" onClick={handleCancel}>
                   Cancel
                 </Button>
                 <Button size="sm" className="rounded-full" onClick={handleSave} disabled={hasErrors}>
@@ -244,7 +244,7 @@ export default function MyOrganisationPage() {
               <Button
                 size="sm"
                 variant="outline"
-                className="rounded-full border-zinc-200"
+                className="rounded-full border-zinc-200 dark:border-zinc-700"
                 onClick={() => { setEditedFormData(organisationFormData); setIsEditing(true); }}
               >
                 <Pencil className="mr-1.5 h-3.5 w-3.5" />
@@ -255,7 +255,7 @@ export default function MyOrganisationPage() {
         </div>
 
         {/* Fields */}
-        <div className={`px-5 md:px-6 ${isEditing ? "py-4 space-y-0 divide-y divide-zinc-100" : "py-2 divide-y divide-zinc-100"}`}>
+        <div className={`px-5 md:px-6 ${isEditing ? "py-4 space-y-0 divide-y divide-zinc-100 dark:divide-zinc-800" : "py-2 divide-y divide-zinc-100 dark:divide-zinc-800"}`}>
           {isEditing ? (
             <>
               <EditRow label="Organisation Name" error={errors.name}>

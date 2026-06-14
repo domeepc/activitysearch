@@ -22,7 +22,7 @@ interface ActivityDetailReviewsProps {
 export function ActivityDetailReviews({ reviews }: ActivityDetailReviewsProps) {
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-zinc-900">Recent reviews</h3>
+      <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Recent reviews</h3>
       {reviews === undefined ? (
         <div className="space-y-3">
           <Skeleton className="h-20 w-full rounded-xl" />
@@ -30,13 +30,13 @@ export function ActivityDetailReviews({ reviews }: ActivityDetailReviewsProps) {
           <Skeleton className="h-20 w-full rounded-xl" />
         </div>
       ) : reviews.length === 0 ? (
-        <p className="text-sm text-zinc-400">No reviews yet</p>
+        <p className="text-sm text-zinc-400 dark:text-zinc-500">No reviews yet</p>
       ) : (
         <div className="space-y-3">
           {reviews.map((r) => (
             <div
               key={r._id}
-              className="flex gap-3 rounded-xl bg-zinc-50 p-4"
+              className="flex gap-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 p-4"
             >
               <Avatar className="size-10 shrink-0">
                 <AvatarImage src={r.user?.avatar} />
@@ -46,7 +46,7 @@ export function ActivityDetailReviews({ reviews }: ActivityDetailReviewsProps) {
               </Avatar>
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-semibold text-zinc-900">
+                  <span className="font-semibold text-zinc-900 dark:text-zinc-50">
                     {r.user?.name && r.user?.lastname
                       ? `${r.user.name} ${r.user.lastname}`
                       : "Anonymous"}
@@ -54,15 +54,15 @@ export function ActivityDetailReviews({ reviews }: ActivityDetailReviewsProps) {
                   {r.rating != null ? (
                     <span className="flex items-center gap-0.5">
                       <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                      <span className="text-sm font-medium text-zinc-700">
+                      <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                         {r.rating.toFixed(1)}
                       </span>
                     </span>
                   ) : null}
                 </div>
-                <p className="text-sm text-zinc-500">{r.text}</p>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">{r.text}</p>
                 {r._creationTime != null ? (
-                  <p className="text-xs text-zinc-400">
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500">
                     {formatDistanceToNow(r._creationTime, { addSuffix: true })}
                   </p>
                 ) : null}
