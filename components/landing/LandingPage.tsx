@@ -37,7 +37,7 @@ const LANDING_SECTIONS = [
 
 export function LandingPage() {
   return (
-    <main className="bg-white">
+    <main className="bg-background">
       <LandingNavbar />
       {LANDING_SECTIONS.map(({ id, delayMs, content }) => (
         <FadeInSection key={id} delayMs={delayMs}>

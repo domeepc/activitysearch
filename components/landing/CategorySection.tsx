@@ -11,7 +11,7 @@ function CategoryTile({ category, paddingClass }: { category: CategoryItem; padd
   const hasImage = Boolean(category.imageUrl);
 
   return (
-    <article className="group relative min-h-[120px] overflow-hidden rounded-2xl border border-zinc-200 text-white shadow-sm">
+    <article className="group relative min-h-[120px] overflow-hidden rounded-2xl border border-border text-white shadow-sm">
       {hasImage ? (
         <>
           <Image
@@ -44,22 +44,22 @@ export function CategorySection({ items }: CategorySectionProps) {
   const rest = displayCategories.slice(1);
 
   return (
-    <section className="bg-white py-14">
+    <section className="bg-background py-14">
       <div className="mx-auto w-full max-w-6xl space-y-6 px-4 md:px-6">
         <div className="flex items-end justify-between gap-4">
           <div>
             <div className="border-l-4 border-blue-600 pl-4">
-              <h2 className="text-3xl font-semibold tracking-tight text-zinc-900">
+              <h2 className="text-3xl font-semibold tracking-tight text-foreground">
                 Explore by Category
               </h2>
-              <p className="mt-1 text-sm text-zinc-600">
+              <p className="mt-1 text-sm text-muted-foreground">
                 Browse experiences by vibe and energy level.
               </p>
             </div>
           </div>
           <Link
             href="/home"
-            className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-900 transition-colors"
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             Explore all
             <ArrowRight className="h-4 w-4" />
@@ -67,7 +67,7 @@ export function CategorySection({ items }: CategorySectionProps) {
         </div>
 
         <div className="grid gap-3 md:grid-cols-3">
-          <article className="group relative min-h-[320px] overflow-hidden rounded-2xl border border-zinc-200 shadow-sm md:col-span-2">
+          <article className="group relative min-h-[320px] overflow-hidden rounded-2xl border border-border shadow-sm md:col-span-2">
             {featured.imageUrl ? (
               <>
                 <Image

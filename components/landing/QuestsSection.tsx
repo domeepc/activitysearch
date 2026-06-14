@@ -13,7 +13,7 @@ export function QuestsSection({ items }: QuestsSectionProps) {
   const displayQuests = items && items.length > 0 ? items : landingQuests;
 
   return (
-    <section className="bg-white py-14">
+    <section className="bg-background py-14">
       <div className="mx-auto w-full max-w-6xl space-y-6 px-4 md:px-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -23,10 +23,10 @@ export function QuestsSection({ items }: QuestsSectionProps) {
                 Quests
               </span>
             </div>
-            <h2 className="text-3xl font-semibold tracking-tight text-zinc-900">
+            <h2 className="text-3xl font-semibold tracking-tight text-foreground">
               Level up as you go
             </h2>
-            <p className="mt-1 max-w-xl text-sm text-zinc-600">
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
               Complete simple challenges as you book and join activities. Earn
               recognition and discover new experiences along the way.
             </p>
@@ -41,9 +41,9 @@ export function QuestsSection({ items }: QuestsSectionProps) {
 
         {/* decorative divider */}
         <div className="flex items-center gap-4">
-          <div className="h-px flex-1 bg-zinc-200" />
-          <Trophy className="h-5 w-5 text-zinc-300" aria-hidden="true" />
-          <div className="h-px flex-1 bg-zinc-200" />
+          <div className="h-px flex-1 bg-border" />
+          <Trophy className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+          <div className="h-px flex-1 bg-border" />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -51,7 +51,7 @@ export function QuestsSection({ items }: QuestsSectionProps) {
             <article
               key={quest.title}
               className={cn(
-                "relative flex min-h-full flex-col justify-end overflow-hidden rounded-2xl border border-zinc-200 p-5 text-white shadow-sm",
+                "relative flex min-h-full flex-col justify-end overflow-hidden rounded-2xl border border-border p-5 text-white shadow-sm",
                 "bg-linear-to-br",
                 quest.tone
               )}

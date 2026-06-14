@@ -24,12 +24,7 @@ export function HeroSection() {
 
   return (
     <section
-      className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden px-4 pt-16"
-      style={{
-        backgroundImage:
-          "radial-gradient(circle, #d4d4d8 1px, transparent 1px)",
-        backgroundSize: "24px 24px",
-      }}
+      className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden px-4 pt-16 [background-image:radial-gradient(circle,#d4d4d8_1px,transparent_1px)] dark:[background-image:radial-gradient(circle,#3f3f46_1px,transparent_1px)] [background-size:24px_24px]"
       onMouseMove={handleMouseMove}
     >
       {/* cursor glow */}
@@ -49,24 +44,24 @@ export function HeroSection() {
         <Badge className="mb-6 rounded-full bg-blue-600 px-3 py-1 text-xs tracking-wide text-white">
           EASY TO EXPERIENCE
         </Badge>
-        <h1 className="text-6xl font-bold leading-none tracking-tight text-zinc-900 md:text-8xl">
+        <h1 className="text-6xl font-bold leading-none tracking-tight text-foreground md:text-8xl">
           Find activities{" "}
           <span className="text-blue-600">near you.</span>
         </h1>
-        <p className="mt-6 max-w-lg text-base text-zinc-500">
+        <p className="mt-6 max-w-lg text-base text-muted-foreground">
           Discover sports and local activities, compare options, and book your
           next experience in a few taps.
         </p>
         <form
           action="/home"
           method="GET"
-          className="mt-8 w-full max-w-xl rounded-2xl border border-zinc-200 bg-white p-3 shadow-md"
+          className="mt-8 w-full max-w-xl rounded-2xl border border-border bg-background p-3 shadow-md"
         >
           <div className="flex flex-col gap-3 sm:flex-row">
             <Input
               name="q"
               placeholder="What are you looking for?"
-              className="h-11 rounded-xl border-zinc-200"
+              className="h-11 rounded-xl border-border"
             />
             <Button type="submit" className="h-11 rounded-xl px-6">
               <Search className="mr-2 h-4 w-4" />
@@ -74,7 +69,7 @@ export function HeroSection() {
             </Button>
           </div>
         </form>
-        <p className="mt-6 text-sm text-zinc-400">
+        <p className="mt-6 text-sm text-muted-foreground">
           ★ 4.9 · 2,000+ activities · Trusted by local communities
         </p>
       </div>
