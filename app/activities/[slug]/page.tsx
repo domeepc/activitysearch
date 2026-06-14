@@ -101,7 +101,7 @@ export default function ActivityPage({
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
-      <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:p-6">
+      <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-950 md:p-6">
       <ActivityDetailGallery
         images={images}
         title={title}
