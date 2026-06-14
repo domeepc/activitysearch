@@ -14,17 +14,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
 import {
   useMyTeamsAsCreator,
   useCreateReservation,
@@ -33,12 +28,7 @@ import {
   useJoinQueue,
   useGetQueuePosition,
 } from "@/lib/hooks/useReservations";
-import {
-  Calendar as CalendarIcon,
-  Users,
-  AlertCircle,
-  Clock,
-} from "lucide-react";
+import { Calendar as CalendarIcon, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -63,15 +53,16 @@ export function ReservationDialog({
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
   // Handle dialog open change and reset form when closing
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
-      // Dialog is closing, reset form
       setSelectedDate(undefined);
       setSelectedTime("");
       setSelectedTeamId("");
       setError(null);
+      setCurrentStep(1);
     }
     onOpenChange(newOpen);
   };
