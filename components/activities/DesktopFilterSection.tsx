@@ -40,10 +40,9 @@ export default function DesktopFilterSection({
       <div
         className={cn(
           "w-72 flex flex-col",
-          "bg-background/95 backdrop-blur-sm",
+          "bg-muted/95 backdrop-blur-sm",
           "rounded-2xl border border-border/80",
-          "shadow-[0_4px_24px_-4px_rgba(0,0,0,0.10),0_1px_4px_-1px_rgba(0,0,0,0.06)]",
-          "overflow-hidden"
+          "shadow-[0_4px_24px_-4px_rgba(0,0,0,0.10),0_1px_4px_-1px_rgba(0,0,0,0.06)]"
         )}
       >
         {/* Header */}
