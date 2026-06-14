@@ -56,7 +56,15 @@ export default function Navbar() {
           alt="ActivitySearch"
           width={200}
           height={50}
-          className="hidden md:block logo-desktop"
+          className="hidden md:block dark:md:hidden logo-desktop"
+          priority
+        />
+        <Image
+          src="/full-logo-dark.svg"
+          alt="ActivitySearch"
+          width={200}
+          height={50}
+          className="hidden dark:md:block logo-desktop"
           priority
         />
         <Image
@@ -64,7 +72,15 @@ export default function Navbar() {
           alt="ActivitySearch"
           width={50}
           height={50}
-          className="block md:hidden logo-mobile"
+          className="block md:hidden dark:hidden logo-mobile"
+          priority
+        />
+        <Image
+          src="/mobile-logo-dark.svg"
+          alt="ActivitySearch"
+          width={50}
+          height={50}
+          className="hidden dark:block dark:md:hidden logo-mobile"
           priority
         />
       </Link>

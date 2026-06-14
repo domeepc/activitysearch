@@ -30,7 +30,15 @@ export function LandingNavbar() {
             alt="ActivitySearch"
             width={120}
             height={30}
-            className="hidden md:block"
+            className="hidden md:block dark:md:hidden"
+            priority
+          />
+          <Image
+            src="/full-logo-dark.svg"
+            alt="ActivitySearch"
+            width={120}
+            height={30}
+            className="hidden dark:md:block"
             priority
           />
           <Image
@@ -38,7 +46,15 @@ export function LandingNavbar() {
             alt="ActivitySearch"
             width={32}
             height={32}
-            className="block md:hidden"
+            className="block md:hidden dark:hidden"
+            priority
+          />
+          <Image
+            src="/mobile-logo-dark.svg"
+            alt="ActivitySearch"
+            width={32}
+            height={32}
+            className="hidden dark:block dark:md:hidden"
             priority
           />
         </Link>
