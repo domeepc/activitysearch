@@ -7,6 +7,7 @@ import { PostHogIdentify } from "@/components/providers/PostHogIdentify";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
 import { PresenceProviderWrapper } from "@/components/providers/PresenceProviderWrapper";
 import { ConditionalNavbar } from "@/components/ui/navBar/ConditionalNavbar";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { Suspense } from "react";
 import Loading from "@/app/loading";
@@ -42,28 +43,30 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Suspense fallback={<Loading />}>
-          <ClerkProvider
-            signInUrl="/sign-in"
-            signUpUrl="/sign-up"
-            afterSignOutUrl="/"
-          >
-            <ConvexClientProvider>
-              <PostHogProvider>
-                <PostHogIdentify />
-                <PresenceProviderWrapper>
-                  <ConditionalNavbar />
-                  {children}
-                </PresenceProviderWrapper>
-              </PostHogProvider>
-            </ConvexClientProvider>
-          </ClerkProvider>
-        </Suspense>
-        <Toaster />
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <Suspense fallback={<Loading />}>
+            <ClerkProvider
+              signInUrl="/sign-in"
+              signUpUrl="/sign-up"
+              afterSignOutUrl="/"
+            >
+              <ConvexClientProvider>
+                <PostHogProvider>
+                  <PostHogIdentify />
+                  <PresenceProviderWrapper>
+                    <ConditionalNavbar />
+                    {children}
+                  </PresenceProviderWrapper>
+                </PostHogProvider>
+              </ConvexClientProvider>
+            </ClerkProvider>
+          </Suspense>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );
