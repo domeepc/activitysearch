@@ -320,7 +320,12 @@ export function ReservationDialog({
               <button
                 type="button"
                 className="w-full flex items-center gap-3 py-3 text-left disabled:cursor-default"
-                onClick={() => currentStep > 1 && setCurrentStep(1)}
+                onClick={() => {
+                  if (currentStep > 1) {
+                    setCurrentStep(1);
+                    setSelectedTime("");
+                  }
+                }}
                 disabled={currentStep <= 1}
               >
                 <span className="font-mono text-xs text-muted-foreground w-5">01</span>
@@ -403,7 +408,7 @@ export function ReservationDialog({
                 <span className="flex-1 text-sm font-medium">Pick a time</span>
                 {currentStep > 2 && (
                   <span className="text-xs text-muted-foreground">
-                    {isDateFulfilled ? "Queue" : selectedTime}
+                    {isDateFulfilled ? "Queue" : selectedTime || "—"}
                   </span>
                 )}
               </button>
@@ -551,7 +556,7 @@ export function ReservationDialog({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setCurrentStep((s) => (s - 1) as 1 | 2 | 3)}
+                onClick={() => setCurrentStep((s) => Math.max(1, s - 1) as 1 | 2 | 3)}
                 disabled={isPending || isJoiningQueue}
               >
                 ← Back
@@ -563,7 +568,7 @@ export function ReservationDialog({
                 type="button"
                 onClick={() => {
                   setError(null);
-                  setCurrentStep((s) => (s + 1) as 1 | 2 | 3);
+                  setCurrentStep((s) => Math.min(3, s + 1) as 1 | 2 | 3);
                 }}
                 disabled={
                   (currentStep === 1 && !selectedDate) ||
