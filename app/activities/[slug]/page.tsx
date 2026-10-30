@@ -19,7 +19,8 @@ import { ActivityDetailExtras } from "@/components/activities/activity-detail/Ac
 import { ActivityDetailReviews } from "@/components/activities/activity-detail/ActivityDetailReviews";
 import { useMyTeamsAsCreator } from "@/lib/hooks/useReservations";
 import { Badge } from "@/components/ui/badge";
-import { Star, Calendar, Pencil } from "lucide-react";
+import { Star, Calendar, Pencil, Check } from "lucide-react";
+import Link from "next/link";
 import { SIGNED_IN_HOME_HREF } from "@/lib/routes";
 import { getTagColorScheme } from "@/lib/tagColors";
 import { formatPrice } from "@/lib/utils";
@@ -100,130 +101,155 @@ export default function ActivityPage({
   const address = activity.address || "";
   const equipment = activity.equipment ?? [];
 
+  const bookingAction = isOrganiserOfActivity ? (
+    <Button
+      onClick={() => setEditDialogOpen(true)}
+      variant="outline"
+      size="lg"
+      className="w-full rounded-xl"
+    >
+      <Pencil className="mr-2 h-4 w-4" />
+      Edit activity
+    </Button>
+  ) : hasTeams ? (
+    <Button
+      size="lg"
+      onClick={() => {
+        posthog?.capture("reserve_activity_clicked", {
+          activity_id: String(activityId),
+          activity_name: activity.activityName,
+        });
+        setIsReservationDialogOpen(true);
+      }}
+      className="w-full rounded-xl bg-blue-600 hover:bg-blue-500"
+    >
+      <Calendar className="mr-2 h-4 w-4" />
+      Reserve
+    </Button>
+  ) : (
+    <Button asChild size="lg" variant="outline" className="w-full rounded-xl">
+      <Link href="/chat">Create a team to reserve</Link>
+    </Button>
+  );
+
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
-      <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-950 md:p-6">
+    <div className="container mx-auto max-w-6xl px-4 pb-28 pt-6 md:px-6 md:pt-8 lg:pb-8">
       <ActivityDetailGallery
         images={images}
         title={title}
         setCarouselApi={setCarouselApi}
       />
 
-      {/* Title + actions */}
-      <div className="mt-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div className="min-w-0 flex-1">
+      <div className="mt-6 flex flex-wrap items-start gap-6">
+        <div className="min-w-0 flex-[999_1_560px] rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 md:p-7">
           <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-4xl">
             {title}
           </h1>
-          <p className="mt-2 max-w-2xl text-base leading-relaxed text-zinc-500 dark:text-zinc-400">
+          <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Star className="size-4 fill-amber-400 text-amber-400" aria-hidden="true" />
+            <span className="font-semibold text-foreground">{rating.toFixed(1)}</span>
+            ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
+            {address ? <span className="truncate">· {address}</span> : null}
+          </p>
+          <p className="mt-4 max-w-2xl text-base leading-relaxed text-zinc-600 dark:text-zinc-300">
             {description}
           </p>
+
+          {/* Tags */}
+          {tags.length > 0 ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {tags.map((tag, index) => {
+                const colorScheme = getTagColorScheme(tag, databaseTags);
+                return (
+                  <Badge
+                    key={index}
+                    variant="secondary"
+                    style={{
+                      backgroundColor: colorScheme.bgHex,
+                      color: colorScheme.textHex,
+                      borderColor: colorScheme.bgHex,
+                    }}
+                  >
+                    {tag}
+                  </Badge>
+                );
+              })}
+            </div>
+          ) : null}
+
+          <div className="my-7 h-px bg-zinc-100 dark:bg-zinc-800" />
+
+          <ActivityDetailMetaGrid
+            address={address}
+            durationLabel={durationLabel}
+            difficulty={difficulty}
+            priceAmount={activity.price ?? 0}
+          />
+
+          <ActivityDetailExtras
+            maxParticipants={activity.maxParticipants}
+            minAge={activity.minAge}
+            equipment={equipment}
+          />
+
+          <div className="my-7 h-px bg-zinc-100 dark:bg-zinc-800" />
+
+          <ActivityQuestsPublicSection
+            activityId={activityId}
+            isOrganiser={isOrganiserOfActivity}
+          />
+
+          <div className="my-7 h-px bg-zinc-100 dark:bg-zinc-800" />
+
+          <ActivityDetailReviews reviews={recentReviews} />
+
+          {isOrganiserOfActivity ? (
+            <>
+              <div className="my-7 h-px bg-zinc-100 dark:bg-zinc-800" />
+              <OrganiserQuestsSection activityId={activityId} />
+            </>
+          ) : null}
+
         </div>
-        <div className="flex flex-col gap-3 md:shrink-0 md:items-end">
-          <div className="flex items-center gap-1.5">
-            <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
-            <span className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
-              {rating.toFixed(1)}
-            </span>
-            <span className="text-sm text-muted-foreground">
-              ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
-            </span>
-          </div>
+
+        <aside
+          aria-label="Booking"
+          className="hidden min-w-0 flex-[1_1_320px] flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_8px_28px_-12px_rgba(0,0,0,0.18)] lg:sticky lg:top-[calc(var(--app-navbar-height)+1.5rem)] lg:flex dark:border-zinc-700 dark:bg-zinc-900"
+        >
           {activity.price ? (
             <p className="text-sm text-muted-foreground">
-              From{" "}
-              <span className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
+              From
+              <span className="block text-[28px] font-bold leading-tight tracking-tight text-foreground">
                 {formatPrice(activity.price)}
-              </span>{" "}
-              / person
+                <span className="text-sm font-normal text-muted-foreground"> / person</span>
+              </span>
             </p>
           ) : null}
-          {hasTeams && !isOrganiserOfActivity ? (
-            <Button
-              size="lg"
-              onClick={() => {
-                posthog?.capture("reserve_activity_clicked", {
-                  activity_id: String(activityId),
-                  activity_name: activity.activityName,
-                });
-                setIsReservationDialogOpen(true);
-              }}
-              className="w-full rounded-full md:w-auto"
-            >
-              <Calendar className="mr-2 h-4 w-4" />
-              Reserve Activity
-            </Button>
-          ) : null}
-          {isOrganiserOfActivity ? (
-            <Button
-              onClick={() => setEditDialogOpen(true)}
-              variant="outline"
-              size="lg"
-              className="w-full rounded-full border-zinc-200 dark:border-zinc-700 md:w-auto"
-            >
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit Activity
-            </Button>
-          ) : null}
-        </div>
+          {bookingAction}
+          <ul className="flex flex-col gap-2.5 text-[13px] text-muted-foreground">
+            <li className="flex gap-2">
+              <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden="true" />
+              <span><b className="text-foreground">Split the bill</b> — each teammate pays their own share</span>
+            </li>
+            <li className="flex gap-2">
+              <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden="true" />
+              <span><b className="text-foreground">Join the queue</b> if your date is already full</span>
+            </li>
+          </ul>
+        </aside>
       </div>
 
-      {/* Tags */}
-      {tags.length > 0 ? (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {tags.map((tag, index) => {
-            const colorScheme = getTagColorScheme(tag, databaseTags);
-            return (
-              <Badge
-                key={index}
-                variant="secondary"
-                style={{
-                  backgroundColor: colorScheme.bgHex,
-                  color: colorScheme.textHex,
-                  borderColor: colorScheme.bgHex,
-                }}
-              >
-                {tag}
-              </Badge>
-            );
-          })}
-        </div>
-      ) : null}
-
-      <div className="my-7 h-px bg-zinc-100 dark:bg-zinc-800" />
-
-      <ActivityDetailMetaGrid
-        address={address}
-        durationLabel={durationLabel}
-        difficulty={difficulty}
-        priceAmount={activity.price ?? 0}
-      />
-
-      <ActivityDetailExtras
-        maxParticipants={activity.maxParticipants}
-        minAge={activity.minAge}
-        equipment={equipment}
-      />
-
-      <div className="my-7 h-px bg-zinc-100 dark:bg-zinc-800" />
-
-      <ActivityQuestsPublicSection
-        activityId={activityId}
-        isOrganiser={isOrganiserOfActivity}
-      />
-
-      <div className="my-7 h-px bg-zinc-100 dark:bg-zinc-800" />
-
-      <ActivityDetailReviews reviews={recentReviews} />
-
-      {isOrganiserOfActivity ? (
-        <>
-          <div className="my-7 h-px bg-zinc-100 dark:bg-zinc-800" />
-          <OrganiserQuestsSection activityId={activityId} />
-        </>
-      ) : null}
-
-      </div>{/* end card */}
+      {/* Phone: keep the price and the main action in reach */}
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
+        {activity.price ? (
+          <p className="flex-1 text-sm text-muted-foreground">
+            From <b className="text-lg text-foreground">{formatPrice(activity.price)}</b> / person
+          </p>
+        ) : (
+          <span className="flex-1" />
+        )}
+        <div className="shrink-0">{bookingAction}</div>
+      </div>
 
       {hasTeams && !isOrganiserOfActivity ? (
         <ReservationDialog

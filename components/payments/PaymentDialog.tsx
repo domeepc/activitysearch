@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, CreditCard, AlertCircle } from "lucide-react";
+import { Loader2, CreditCard, AlertCircle, Lock } from "lucide-react";
 import { loadStripe, Stripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -152,28 +152,28 @@ function PaymentForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-          <span className="text-sm font-medium">Activity:</span>
-          <span className="text-sm">{activityName}</span>
+      <dl className="divide-y divide-border rounded-2xl border border-border text-sm">
+        <div className="flex items-center justify-between gap-4 px-4 py-3">
+          <dt className="text-muted-foreground">Activity</dt>
+          <dd className="truncate text-right font-medium">{activityName}</dd>
         </div>
-        <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-          <span className="text-sm font-medium">Amount per person:</span>
-          <span className="text-sm font-semibold">
-            €{perPersonAmount.toFixed(2)}
-          </span>
+        <div className="flex items-center justify-between gap-4 px-4 py-3">
+          <dt className="text-muted-foreground">Per person</dt>
+          <dd className="font-medium tabular-nums">€{perPersonAmount.toFixed(2)}</dd>
         </div>
-        <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-          <span className="text-sm font-medium">Total amount:</span>
-          <span className="text-lg font-semibold">
-            €{totalAmount.toFixed(2)}
-          </span>
+        <div className="flex items-center justify-between gap-4 bg-muted/50 px-4 py-3">
+          <dt className="font-semibold">You pay</dt>
+          <dd className="text-lg font-bold tabular-nums">€{totalAmount.toFixed(2)}</dd>
         </div>
-      </div>
+      </dl>
 
-      <div className="border border-border rounded-lg p-4">
+      <div className="rounded-2xl border border-border p-4">
         <PaymentElement />
       </div>
+      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Lock className="size-3.5" aria-hidden="true" />
+        Card details go straight to Stripe. The amount is held until the activity date.
+      </p>
 
       {error && (
         <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
@@ -186,13 +186,13 @@ function PaymentForm({
         <Button
           type="button"
           variant="outline"
-          className="border-border"
+          className="rounded-xl"
           onClick={onClose}
           disabled={isProcessing}
         >
           Cancel
         </Button>
-        <Button type="submit" disabled={isProcessing || !stripe}>
+        <Button type="submit" disabled={isProcessing || !stripe} className="rounded-xl bg-blue-600 hover:bg-blue-500">
           {isProcessing ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
