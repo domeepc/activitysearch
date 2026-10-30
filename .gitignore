@@ -61,4 +61,4 @@ next-env.d.ts
 .sanity/
 
 # copied from node_modules by scripts/copy-maplibre-worker.mjs
-/public/maplibre-gl-worker.mjs
+/public/maplibre-gl-worker.js

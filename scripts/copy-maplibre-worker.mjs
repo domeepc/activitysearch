@@ -9,4 +9,4 @@ import { dirname, join } from "node:path";
 const require = createRequire(import.meta.url);
 const pkgDir = dirname(require.resolve("maplibre-gl/package.json"));
 mkdirSync("public", { recursive: true });
-copyFileSync(join(pkgDir, "dist", "maplibre-gl-worker.mjs"), join("public", "maplibre-gl-worker.mjs"));
+copyFileSync(join(pkgDir, "dist", "maplibre-gl-worker.mjs"), join("public", "maplibre-gl-worker.js"));

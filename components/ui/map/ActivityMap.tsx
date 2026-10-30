@@ -29,9 +29,11 @@ const MAP_STYLE = {
     "https://tiles.openfreemap.org/styles/dark",
 };
 
-// Worker is copied to /public on install (scripts/copy-maplibre-worker.mjs); the
-// default lookup next to maplibre's own script breaks once it is bundled.
-setWorkerUrl(`/maplibre-gl-worker.mjs?v=${getVersion()}`);
+// Worker is copied to /public by scripts/copy-maplibre-worker.mjs (postinstall,
+// predev, prebuild); the default lookup next to maplibre's own script breaks once
+// it is bundled. Keep the `.js` extension: the auth middleware matcher skips
+// `.js` static files but not `.mjs`, and maplibre still loads it as a module worker.
+setWorkerUrl(`/maplibre-gl-worker.js?v=${getVersion()}`);
 
 const DEFAULT_CENTER = { latitude: 43.5113657, longitude: 16.4688471 };
 const SOURCE_ID = "activities";
