@@ -73,11 +73,13 @@ export function AuthFormShell({
   const copy = PANEL_COPY[variant];
 
   return (
-    <div className="flex min-h-screen bg-background">
+    // Desktop: exactly one screen tall; the form column scrolls on its own, so the
+    // page-level scroll lock (NoScrollWrapper) can never cut anything off.
+    <div className="auth-shell flex min-h-screen bg-background lg:h-screen lg:min-h-0 lg:overflow-hidden">
       {/* Brand panel — desktop only; sign-in mirrors it to the right */}
       <aside
         className={cn(
-          "relative m-3 hidden flex-col justify-between gap-10 overflow-hidden rounded-3xl bg-zinc-950 p-10 text-zinc-50 lg:flex lg:w-[42%] xl:p-12",
+          "relative m-3 hidden shrink-0 flex-col justify-between gap-8 overflow-hidden rounded-3xl bg-zinc-950 p-10 text-zinc-50 lg:flex lg:w-[42%] xl:p-12",
           variant === "signin" && "lg:order-last"
         )}
       >
@@ -105,7 +107,7 @@ export function AuthFormShell({
               key={src}
               className={cn(
                 "relative overflow-hidden rounded-2xl bg-zinc-800",
-                i === 1 ? "h-44" : i === 0 ? "h-36" : "h-28"
+                i === 1 ? "h-36 xl:h-44" : i === 0 ? "h-28 xl:h-36" : "h-24 xl:h-28"
               )}
             >
               <Image src={src} alt="" fill sizes="14vw" className="object-cover" />
@@ -117,7 +119,7 @@ export function AuthFormShell({
       {/* Form panel */}
       <div
         className={cn(
-          "flex min-h-screen flex-1 flex-col items-center justify-center overflow-y-auto bg-background px-5 py-10 sm:px-8",
+          "flex min-w-0 flex-1 flex-col items-center overflow-y-auto bg-background px-5 py-10 sm:px-8",
           containerClassName
         )}
       >
@@ -126,7 +128,7 @@ export function AuthFormShell({
           <Image src="/full-logo-dark.svg" alt="ActivitySearch" width={132} height={32} className="hidden dark:block" priority />
         </Link>
 
-        <div className={cn("w-full max-w-[400px]", cardClassName)}>
+        <div className={cn("my-auto w-full max-w-[400px]", cardClassName)}>
           <Card className="gap-5 border-0 bg-transparent p-0 shadow-none">{children}</Card>
         </div>
       </div>

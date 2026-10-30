@@ -13,7 +13,7 @@ import { FadeInSection } from "@/components/landing/FadeInSection";
 /** The public landing page is always dark: it's an editorial surface, not app chrome. */
 export function LandingPage() {
   return (
-    <main className="dark min-h-screen bg-zinc-950 font-sans text-zinc-50 antialiased">
+    <main className="landing-root dark min-h-screen bg-zinc-950 font-sans text-zinc-50 antialiased">
       <LandingNavbar />
       <HeroSection />
       <FadeInSection>

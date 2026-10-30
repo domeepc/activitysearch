@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { OAuthButtons } from "@/components/auth/OAuthButtons";
 import { EmailVerificationDialog } from "@/components/auth/EmailVerificationDialog";
 import { AuthFormShell, authFormStyles } from "@/components/auth/AuthFormShell";
+import { AccountTypeSwitch } from "@/components/auth/AccountTypeSwitch";
 import { extractErrorMessage } from "@/lib/errors";
 import { SIGNED_IN_HOME_HREF } from "@/lib/routes";
 import { Eye, EyeOff } from "lucide-react";
@@ -164,22 +165,7 @@ export default function CustomSignUp() {
         </CardDescription>
       </CardHeader>
       <CardContent className={authFormStyles.content}>
-          <nav aria-label="Account type" className="grid grid-cols-2 gap-2">
-            <span
-              aria-current="page"
-              className="rounded-2xl border-2 border-blue-600 bg-blue-50 px-3.5 py-3 dark:bg-blue-950/40"
-            >
-              <span className="block text-[15px] font-semibold">Join activities</span>
-              <span className="block text-xs text-muted-foreground">Book with friends, earn XP</span>
-            </span>
-            <Link
-              href="/sign-up/organisator-sign-up"
-              className="rounded-2xl border border-border px-3.5 py-3 transition-colors hover:border-foreground/30 hover:bg-muted"
-            >
-              <span className="block text-[15px] font-semibold">Host activities</span>
-              <span className="block text-xs text-muted-foreground">List, get paid via Stripe</span>
-            </Link>
-          </nav>
+          <AccountTypeSwitch active="participant" />
           <OAuthButtons
             onGoogleClick={() => signUpWith("oauth_google")}
             onMicrosoftClick={() => signUpWith("oauth_microsoft")}

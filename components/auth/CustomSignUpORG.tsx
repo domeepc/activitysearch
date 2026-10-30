@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { EmailVerificationDialog } from "@/components/auth/EmailVerificationDialog";
 import { AuthFormShell, authFormStyles } from "@/components/auth/AuthFormShell";
+import { AccountTypeSwitch } from "@/components/auth/AccountTypeSwitch";
 import { Stepper } from "@/components/ui/stepper";
 import { api } from "@/convex/_generated/api";
 import { validateEmail, validateIBAN, validateContact, validateURL } from "@/lib/validation";
@@ -1191,7 +1192,8 @@ export default function CustomSignUpORG() {
             {currentPage === 3 && "Review your information before creating your account"}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4 p-4 sm:space-y-6 sm:p-5">
+      <CardContent className="space-y-4 px-0 py-4 sm:space-y-6 sm:py-5">
+          {currentPage === 0 && <AccountTypeSwitch active="organiser" />}
           {/* Step description */}
           <div className="text-center">
             <p className="text-left text-lg font-bold text-foreground sm:text-xl">

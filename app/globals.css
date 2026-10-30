@@ -250,3 +250,15 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* The page background shows in the reserved scrollbar gutter; match it to the
+   full-bleed landing (dark) and auth (theme background) screens instead of the
+   app's grey body. */
+html:has(.landing-root),
+body:has(.landing-root) {
+  background-color: var(--color-zinc-950);
+}
+html:has(.auth-shell),
+body:has(.auth-shell) {
+  background-color: var(--background);
+}

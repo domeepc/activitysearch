@@ -37,19 +37,19 @@ export function HeroSection() {
             method="GET"
             className="flex w-full max-w-xl gap-1.5 rounded-full border border-zinc-800 bg-zinc-900 p-1.5"
           >
-            <label className="flex flex-1 items-center gap-2.5 pl-4 text-zinc-400">
+            <label className="flex min-w-0 flex-1 items-center gap-2.5 pl-4 text-zinc-400">
               <Search className="size-[18px] shrink-0" aria-hidden="true" />
               <span className="sr-only">Search activities</span>
               <input
                 name="q"
                 type="search"
-                placeholder="Kayaking, padel, sunrise hike…"
+                placeholder="Kayaking, padel, hiking…"
                 className="h-12 min-w-0 flex-1 bg-transparent text-[15px] text-zinc-50 placeholder:text-zinc-500 focus:outline-none"
               />
             </label>
             <button
               type="submit"
-              className="h-12 rounded-full bg-blue-600 px-6 text-[15px] font-semibold text-white transition hover:bg-blue-500 active:scale-[0.97]"
+              className="h-12 shrink-0 whitespace-nowrap rounded-full bg-blue-600 px-4 text-[15px] font-semibold text-white transition hover:bg-blue-500 active:scale-[0.97] sm:px-6"
             >
               Explore map
             </button>
