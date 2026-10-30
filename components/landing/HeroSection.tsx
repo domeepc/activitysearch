@@ -33,7 +33,7 @@ export function HeroSection() {
             and earn XP for every adventure.
           </p>
           <form
-            action="/home"
+            action="/sign-up"
             method="GET"
             className="flex w-full max-w-xl gap-1.5 rounded-full border border-zinc-800 bg-zinc-900 p-1.5"
           >

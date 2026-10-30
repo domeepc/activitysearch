@@ -21,7 +21,7 @@ export function CategorySection({ items }: CategorySectionProps) {
         description="Browse experiences by vibe and energy level."
         action={
           <Link
-            href="/home"
+            href="/sign-up"
             className="inline-flex h-11 items-center gap-2 rounded-full border border-zinc-700 px-5 text-sm text-zinc-50 transition-colors hover:border-zinc-500"
           >
             Explore all <ArrowRight className="size-3.5" aria-hidden="true" />
@@ -32,7 +32,7 @@ export function CategorySection({ items }: CategorySectionProps) {
         {displayItems.map((category, i) => (
           <Link
             key={category.title}
-            href="/home"
+            href="/sign-up"
             className="group relative flex h-72 flex-col justify-between overflow-hidden rounded-[22px] bg-zinc-900 p-5 text-zinc-50 md:h-96"
           >
             {category.imageUrl ? (

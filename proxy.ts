@@ -24,10 +24,14 @@ export default clerkMiddleware(async (auth, req) => {
     return;
   }
 
-  // If no valid session, protect the route (will redirect to sign-in)
+  // If no valid session, protect the route (redirects to signInUrl below)
   // This only happens when user is definitely not authenticated
-  // ClerkProvider signInUrl configuration will handle the redirect
   await auth.protect();
+}, {
+  // Send signed-out visitors to our custom auth pages, not Clerk's hosted ones.
+  // (ClerkProvider's signInUrl only applies client-side, not to this middleware.)
+  signInUrl: '/sign-in',
+  signUpUrl: '/sign-up',
 });
 
 export const config = {
