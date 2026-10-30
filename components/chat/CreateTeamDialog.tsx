@@ -8,7 +8,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -19,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "sonner";
 
 interface CreateTeamDialogProps {
   open: boolean;
@@ -36,6 +36,7 @@ export function CreateTeamDialog({
   const [selectedFriends, setSelectedFriends] = useState<Set<Id<"users">>>(
     new Set()
   );
+  const [submitting, setSubmitting] = useState(false);
   const createTeam = useMutation(api.teams.createTeam);
   const currentUser = useQuery(api.users.current);
 
@@ -59,8 +60,8 @@ export function CreateTeamDialog({
   };
 
   const handleSubmit = async () => {
-    if (!teamName.trim()) return;
-
+    if (!teamName.trim() || submitting) return;
+    setSubmitting(true);
     try {
       await createTeam({
         teamName: teamName.trim(),
@@ -73,109 +74,111 @@ export function CreateTeamDialog({
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
-      console.error("Failed to create team:", error);
-      alert(error instanceof Error ? error.message : "Failed to create team");
+      toast.error(error instanceof Error ? error.message : "Failed to create team");
+    } finally {
+      setSubmitting(false);
     }
   };
 
+  const hasFriendIds = (currentUser?.friends?.length ?? 0) > 0;
+  const friendsLoading =
+    currentUser === undefined || (hasFriendIds && friends === undefined);
+  const count = selectedFriends.size;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create Team</DialogTitle>
+          <DialogTitle>New team</DialogTitle>
           <DialogDescription>
-            Create a group chat with your friends
+            A team is a group chat you can reserve activities for and split the cost.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="teamName">Team Name</Label>
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleSubmit();
+          }}
+        >
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="teamName">Team name</Label>
             <Input
               id="teamName"
               value={teamName}
               onChange={(e) => setTeamName(e.target.value)}
-              placeholder="Enter team name"
+              placeholder="e.g. Weekend Crew"
+              className="h-11"
+              required
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="teamDescription">Description (optional)</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="teamDescription">
+              Description <span className="font-normal text-zinc-500">(optional)</span>
+            </Label>
             <Textarea
               id="teamDescription"
               className="resize-none"
               value={teamDescription}
               onChange={(e) => setTeamDescription(e.target.value)}
-              placeholder="Enter team description"
-              rows={3}
+              placeholder="What's this team for?"
+              rows={2}
             />
           </div>
-          <div className="space-y-2">
-            <Label>Select Friends</Label>
-            {(() => {
-              const hasFriendIds = (currentUser?.friends?.length ?? 0) > 0;
-              const isLoading =
-                currentUser === undefined ||
-                (hasFriendIds && friends === undefined);
-              const hasNoFriends =
-                currentUser !== undefined && !hasFriendIds;
-
-              if (isLoading) {
-                return (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Spinner className="h-4 w-4 shrink-0" />
-                    Loading friends...
-                  </div>
-                );
-              }
-              if (hasNoFriends) {
-                return (
-                  <p className="text-sm text-muted-foreground">
-                    You don&apos;t have any friends yet. Add friends to create a
-                    team.
-                  </p>
-                );
-              }
-              return (
-              <div className="max-h-60 overflow-y-auto rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 p-2 space-y-1">
-                {(friends ?? []).map((friend) => (
-                  <div
-                    key={friend._id}
-                    className="flex items-center gap-3 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl cursor-pointer transition-colors"
-                    onClick={() => handleToggleFriend(friend._id)}
-                  >
-                    <Checkbox
-                      checked={selectedFriends.has(friend._id)}
-                      onCheckedChange={() => handleToggleFriend(friend._id)}
-                    />
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={friend.avatar} alt={friend.name} />
-                      <AvatarFallback>
-                        {friend.name[0]}
-                        {friend.lastname[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">
-                        {friend.name} {friend.lastname}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        @{friend.username}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+          <fieldset className="flex flex-col gap-1.5">
+            <legend className="mb-1.5 flex w-full justify-between text-sm font-medium">
+              Add friends
+              {count > 0 && <span className="font-normal text-zinc-600 dark:text-zinc-400">{count} selected</span>}
+            </legend>
+            {friendsLoading ? (
+              <div className="flex items-center gap-2 py-4 text-sm text-zinc-600 dark:text-zinc-400">
+                <Spinner className="size-4" /> Loading friends…
               </div>
-              );
-            })()}
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" className="rounded-full border-zinc-200 dark:border-zinc-700" onClick={() => onOpenChange(false)}>
-            Cancel
+            ) : !hasFriendIds ? (
+              <p className="rounded-xl bg-zinc-50 p-3 text-sm text-zinc-600 dark:bg-zinc-800/60 dark:text-zinc-400">
+                You haven&apos;t added any friends yet. You can create the team now and invite people later.
+              </p>
+            ) : (
+              <ul className="-mx-2 flex max-h-56 flex-col overflow-y-auto">
+                {(friends ?? []).map((friend) => {
+                  const checked = selectedFriends.has(friend._id);
+                  return (
+                    <li key={friend._id}>
+                      <label className="flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800/60">
+                        <Avatar className="size-9">
+                          <AvatarImage src={friend.avatar} alt="" />
+                          <AvatarFallback className="text-xs font-bold">
+                            {friend.name[0]}
+                            {friend.lastname[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="min-w-0 flex-1">
+                          <b className="block truncate text-sm font-semibold">
+                            {friend.name} {friend.lastname}
+                          </b>
+                          <span className="block truncate text-xs text-zinc-600 dark:text-zinc-400">@{friend.username}</span>
+                        </span>
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={() => handleToggleFriend(friend._id)}
+                          aria-label={`Add ${friend.name}`}
+                          className="size-5 rounded-md"
+                        />
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </fieldset>
+          <Button
+            type="submit"
+            disabled={!teamName.trim() || submitting}
+            className="h-11 bg-blue-600 font-semibold text-white hover:bg-blue-700"
+          >
+            {submitting ? "Creating…" : count > 0 ? `Create team · ${count + 1} people` : "Create team"}
           </Button>
-          <Button onClick={handleSubmit} disabled={!teamName.trim()} className="rounded-full">
-            Create Team
-          </Button>
-        </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

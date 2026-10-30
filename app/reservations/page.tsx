@@ -2,7 +2,7 @@
 
 import { useOrganiserReservations, useMarkReservationsAsRead } from "@/lib/hooks/useReservations";
 import { ReservationTable } from "@/components/reservations/ReservationTable";
-import { PaymentSection } from "@/components/reservations/PaymentSection";
+import { StripeDashboard } from "@/components/reservations/StripeDashboard";
 import { Inbox, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useMemo, useEffect, useRef, Suspense } from "react";
@@ -125,7 +125,7 @@ function ReservationsContent() {
       )}
 
       {/* Payments View */}
-      {viewMode === "payments" && <PaymentSection />}
+      {viewMode === "payments" && <StripeDashboard />}
     </div>
   );
 }

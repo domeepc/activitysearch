@@ -164,7 +164,7 @@ export default function DialogAddActivity({
             <Button
               type="button"
               variant="outline"
-              className="rounded-full border-zinc-200 dark:border-zinc-700"
+              className="h-10"
               onClick={() => setShowDialog(false)}
               disabled={isSubmitting}
             >
@@ -176,7 +176,7 @@ export default function DialogAddActivity({
                 variant="outline"
                 onClick={() => setCurrentStep(currentStep - 1)}
                 disabled={isSubmitting}
-                className="rounded-full border-zinc-200 dark:border-zinc-700"
+                className="h-10"
               >
                 Previous
               </Button>
@@ -186,7 +186,7 @@ export default function DialogAddActivity({
                 type="button"
                 onClick={() => setCurrentStep(currentStep + 1)}
                 disabled={isSubmitting}
-                className="rounded-full"
+                className="h-10 font-semibold"
               >
                 Next
               </Button>
@@ -195,7 +195,7 @@ export default function DialogAddActivity({
                 type="button"
                 onClick={handleSubmit}
                 disabled={!isFormValid()}
-                className="rounded-full"
+                className="h-10 font-semibold"
               >
                 {isSubmitting
                   ? isEdit

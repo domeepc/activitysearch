@@ -14,8 +14,8 @@ export function StatusDot({ userId, className = "" }: StatusDotProps) {
 
   return (
     <div
-      className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white dark:border-zinc-950 ${
-        isActive ? "bg-green-500" : "bg-gray-400 dark:bg-gray-600"
+      className={`absolute bottom-0 right-0 size-3 rounded-full border-2 border-white dark:border-zinc-950 ${
+        isActive ? "bg-green-500" : "bg-zinc-300 dark:bg-zinc-600"
       } ${className}`}
     />
   );
@@ -41,7 +41,7 @@ export function ActiveStatus({ userId }: { userId: Id<"users"> }) {
   if (presence?.status === "online") {
     return (
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <div className="h-2 w-2 rounded-full bg-green-500" />
+        <div className="size-2 rounded-full bg-green-500" />
         <span>Active now</span>
       </div>
     );
@@ -49,7 +49,7 @@ export function ActiveStatus({ userId }: { userId: Id<"users"> }) {
 
   return (
     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-      <div className="h-2 w-2 rounded-full bg-gray-400 dark:bg-gray-600" />
+      <div className="size-2 rounded-full bg-zinc-300 dark:bg-zinc-600" />
       <span>Last active {formatLastSeen(presence?.lastSeen, now)}</span>
     </div>
   );

@@ -15,7 +15,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import { StatusDot } from "./ActiveStatus";
 import { TeamMembersDialog } from "./TeamMembersDialog";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -385,20 +384,17 @@ export function ConversationList({
                           </span>
                         )}
                         {friend.unreadCount > 0 && (
-                          <Badge
-                            variant="destructive"
-                            className="aspect-square w-max rounded-full p-1.5 flex items-center justify-center text-xs leading-none"
-                          >
+                          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[11px] font-bold leading-none text-white tabular-nums">
                             {friend.unreadCount > 99
                               ? "99+"
                               : friend.unreadCount}
-                          </Badge>
+                          </span>
                         )}
                         {friend.unreadCount === 0 && friend.lastMessageReadStatus === "sent" && (
-                          <Check className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                          <Check className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
                         )}
                         {friend.unreadCount === 0 && friend.lastMessageReadStatus === "delivered" && (
-                          <CheckCheck className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                          <CheckCheck className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
                         )}
                         {friend.unreadCount === 0 && friend.lastMessageReadStatus === "read" && (
                           <CheckCheck className="h-4 w-4 text-blue-500" />
@@ -540,18 +536,15 @@ export function ConversationList({
                           </span>
                         )}
                         {team.unreadCount > 0 && (
-                          <Badge
-                            variant="destructive"
-                            className="aspect-square w-max rounded-full p-1.5 flex items-center justify-center text-xs leading-none"
-                          >
+                          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[11px] font-bold leading-none text-white tabular-nums">
                             {team.unreadCount > 99 ? "99+" : team.unreadCount}
-                          </Badge>
+                          </span>
                         )}
                         {team.unreadCount === 0 && team.lastMessageReadStatus === "sent" && (
-                          <Check className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                          <Check className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
                         )}
                         {team.unreadCount === 0 && team.lastMessageReadStatus === "delivered" && (
-                          <CheckCheck className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                          <CheckCheck className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
                         )}
                         {team.unreadCount === 0 && team.lastMessageReadStatus === "read" && (
                           <CheckCheck className="h-4 w-4 text-blue-500" />
@@ -747,15 +740,12 @@ export function ConversationList({
                         </span>
                       )}
                       {conv.unreadCount > 0 && (
-                        <Badge
-                          variant="destructive"
-                          className="aspect-square w-max rounded-full p-1.5 flex items-center justify-center text-xs leading-none"
-                        >
+                        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[11px] font-bold leading-none text-white tabular-nums">
                           {conv.unreadCount > 99 ? "99+" : conv.unreadCount}
-                        </Badge>
+                        </span>
                       )}
                       {conv.unreadCount === 0 && conv.lastMessageReadStatus === "sent" && (
-                        <Check className="h-4 w-4 text-gray-400" />
+                        <Check className="h-4 w-4 text-zinc-400" />
                       )}
                       {conv.unreadCount === 0 && conv.lastMessageReadStatus === "read" && (
                         <CheckCheck className="h-4 w-4 text-blue-500" />

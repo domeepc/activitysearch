@@ -77,6 +77,46 @@ function senderProfileHref(userId: Id<"users">) {
   return `/profile/${userId}`;
 }
 
+function SenderAvatar({ name, avatar, href }: { name?: string; avatar?: string; href: string | null }) {
+  const avatarEl = (
+    <Avatar className="size-7">
+      <AvatarImage src={avatar} alt={name} />
+      <AvatarFallback className="text-xs font-bold">
+        {name
+          ?.split(" ")
+          .map((n) => n[0])
+          .join("")
+          .slice(0, 2)
+          .toUpperCase() || "?"}
+      </AvatarFallback>
+    </Avatar>
+  );
+  if (!href) return <span className="shrink-0">{avatarEl}</span>;
+  return (
+    <Link
+      href={href}
+      className="shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      aria-label={`View ${name ?? "profile"}`}
+    >
+      {avatarEl}
+    </Link>
+  );
+}
+
+function DateDivider({ timestamp }: { timestamp: number }) {
+  return (
+    <div className="my-2 flex select-none justify-center">
+      <span className="rounded-full bg-zinc-200/70 px-3 py-1 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+        {new Date(timestamp).toLocaleDateString([], {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+        })}
+      </span>
+    </div>
+  );
+}
+
 export function MessageBubble({
   text,
   timestamp,
@@ -92,181 +132,54 @@ export function MessageBubble({
   reservationCardData,
 }: MessageBubbleProps) {
   const timeAgo = formatTimeAgo(timestamp);
-  const showSenderMeta =
-    !isFromCurrentUser && showSenderName && senderProfileUserId;
-  const profileHref = showSenderMeta
-    ? senderProfileHref(senderProfileUserId)
-    : null;
+  const profileHref =
+    !isFromCurrentUser && showSenderName && senderProfileUserId
+      ? senderProfileHref(senderProfileUserId)
+      : null;
 
   // Show date divider if this message is more than 30 minutes after previous
   const showDateDivider = previousTimestamp
     ? timestamp - previousTimestamp > 30 * 60 * 1000
-    : true; // Show for first message
+    : true;
 
-  // Handle reservation card messages
   if (messageType === "reservation_card" && reservationCardData) {
+    const who = isFromCurrentUser ? "You" : senderName?.split(" ")[0] || "Someone";
     return (
       <>
-        {showDateDivider && (
-          <div className="flex items-center justify-center my-4 cursor-default select-none">
-            <div className="text-xs text-muted-foreground bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-full">
-              {new Date(timestamp).toLocaleDateString([], {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </div>
-          </div>
-        )}
-        <div
-          className={cn(
-            "flex gap-2 mb-4",
-            isFromCurrentUser ? "flex-row-reverse" : "flex-row"
-          )}
-        >
-          {!isFromCurrentUser && showSenderName ? (
-            profileHref ? (
-              <Link
-                href={profileHref}
-                className="shrink-0 rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label={`View ${senderName ?? "profile"}`}
-              >
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={senderAvatar} alt={senderName} />
-                  <AvatarFallback>
-                    {senderName
-                      ?.split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .toUpperCase() || "?"}
-                  </AvatarFallback>
-                </Avatar>
-              </Link>
-            ) : (
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={senderAvatar} alt={senderName} />
-                <AvatarFallback>
-                  {senderName
-                    ?.split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .toUpperCase() || "?"}
-                </AvatarFallback>
-              </Avatar>
-            )
-          ) : null}
-          <div
-            className={cn(
-              "flex flex-col w-full max-w-[85%] sm:max-w-[75%] md:max-w-[70%]",
-              isFromCurrentUser ? "items-end" : "items-start"
-            )}
-          >
-            {!isFromCurrentUser && showSenderName && senderName ? (
-              profileHref ? (
-                <Link
-                  href={profileHref}
-                  className="mb-1 px-2 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-                >
-                  {senderName}
-                </Link>
-              ) : (
-                <span className="mb-1 px-2 text-xs text-muted-foreground">
-                  {senderName}
-                </span>
-              )
-            ) : null}
-            <ReservationCard reservationId={reservationCardData.reservationId} />
-            <div className="flex items-center gap-1 mt-1 px-2">
-              <span className="text-xs text-muted-foreground">{timeAgo}</span>
-              {isFromCurrentUser && status && (
-                <span className="text-muted-foreground">
-                  {status === "read" ? (
-                    <CheckCheck className="h-3 w-3 text-blue-400" />
-                  ) : status === "delivered" ? (
-                    <CheckCheck className="h-3 w-3" />
-                  ) : (
-                    <Check className="h-3 w-3" />
-                  )}
-                </span>
-              )}
-            </div>
-          </div>
+        {showDateDivider && <DateDivider timestamp={timestamp} />}
+        <div className="flex flex-col items-center gap-2 py-1 animate-in fade-in-0 slide-in-from-bottom-1 duration-300">
+          <span className="text-xs text-zinc-600 dark:text-zinc-400">
+            {who} reserved an activity for the team · {timeAgo}
+          </span>
+          <ReservationCard reservationId={reservationCardData.reservationId} />
         </div>
       </>
     );
   }
 
-  // Regular text message
+  const showMeta = !isFromCurrentUser && showSenderName;
+
   return (
     <>
-      {showDateDivider && (
-        <div className="flex items-center justify-center my-4 cursor-default select-none">
-          <div className="text-xs text-muted-foreground bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-full">
-            {new Date(timestamp).toLocaleDateString([], {
-              weekday: "long",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </div>
-        </div>
-      )}
+      {showDateDivider && <DateDivider timestamp={timestamp} />}
       <div
         className={cn(
-          "flex gap-2 mb-4",
-          isFromCurrentUser ? "flex-row-reverse" : "flex-row"
+          "flex max-w-[85%] items-end gap-2 sm:max-w-[70%] animate-in fade-in-0 slide-in-from-bottom-1 duration-200",
+          isFromCurrentUser ? "flex-row-reverse self-end" : "self-start"
         )}
       >
-        {!isFromCurrentUser && showSenderName ? (
-          profileHref ? (
-            <Link
-              href={profileHref}
-              className="shrink-0 rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label={`View ${senderName ?? "profile"}`}
-            >
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={senderAvatar} alt={senderName} />
-                <AvatarFallback>
-                  {senderName
-                    ?.split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .toUpperCase() || "?"}
-                </AvatarFallback>
-              </Avatar>
-            </Link>
-          ) : (
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={senderAvatar} alt={senderName} />
-              <AvatarFallback>
-                {senderName
-                  ?.split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .toUpperCase() || "?"}
-              </AvatarFallback>
-            </Avatar>
-          )
-        ) : null}
-        <div
-          className={cn(
-            "flex flex-col max-w-[70%]",
-            isFromCurrentUser ? "items-end" : "items-start"
-          )}
-        >
-          {!isFromCurrentUser && showSenderName && senderName ? (
+        {showMeta && <SenderAvatar name={senderName} avatar={senderAvatar} href={profileHref} />}
+        <div className={cn("flex min-w-0 flex-col gap-1", isFromCurrentUser ? "items-end" : "items-start")}>
+          {showMeta && senderName ? (
             profileHref ? (
               <Link
                 href={profileHref}
-                className="mb-1 px-2 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                className="px-1 text-xs text-zinc-600 underline-offset-2 hover:text-foreground hover:underline dark:text-zinc-400"
               >
                 {senderName}
               </Link>
             ) : (
-              <span className="mb-1 px-2 text-xs text-muted-foreground">
-                {senderName}
-              </span>
+              <span className="px-1 text-xs text-zinc-600 dark:text-zinc-400">{senderName}</span>
             )
           ) : null}
           <div
@@ -280,25 +193,26 @@ export function MessageBubble({
           >
             <p
               className={cn(
-                "text-sm leading-relaxed whitespace-pre-wrap wrap-break-word",
+                "whitespace-pre-wrap text-sm leading-relaxed wrap-break-word",
                 decryptionError && "italic text-muted-foreground"
               )}
             >
               {text}
             </p>
           </div>
-          <div className="flex items-center gap-1 mt-1 px-2">
-            <span className="text-xs text-muted-foreground">{timeAgo}</span>
+          <div className="flex items-center gap-1 px-1 text-[11px] text-zinc-600 dark:text-zinc-400">
+            <span>{timeAgo}</span>
             {isFromCurrentUser && status && (
-              <span className="text-muted-foreground">
+              <>
+                <span aria-hidden="true">·</span>
                 {status === "read" ? (
-                  <CheckCheck className="h-3 w-3 text-primary" />
+                  <CheckCheck className="size-3 text-blue-600 dark:text-blue-400" aria-label="Read" />
                 ) : status === "delivered" ? (
-                  <CheckCheck className="h-3 w-3" />
+                  <CheckCheck className="size-3" aria-label="Delivered" />
                 ) : (
-                  <Check className="h-3 w-3" />
+                  <Check className="size-3" aria-label="Sent" />
                 )}
-              </span>
+              </>
             )}
           </div>
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Id } from "@/convex/_generated/dataModel";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -44,7 +43,6 @@ export function TeamMembersDialog({
   currentUserId,
   onKickMember,
 }: TeamMembersDialogProps) {
-  const router = useRouter();
   const [showKickMember, setShowKickMember] = useState(false);
   const [memberToKick, setMemberToKick] = useState<{
     userId: Id<"users">;
@@ -52,21 +50,6 @@ export function TeamMembersDialog({
   } | null>(null);
 
   const isCurrentUserCreator = currentUserId === createdBy;
-
-  const handleMemberClick = (userId: Id<"users">) => {
-    router.push(`/profile/${userId}`);
-    onOpenChange(false);
-  };
-
-  const handleKickClick = (
-    e: React.MouseEvent,
-    userId: Id<"users">,
-    name: string
-  ) => {
-    e.stopPropagation();
-    setMemberToKick({ userId, name });
-    setShowKickMember(true);
-  };
 
   const handleKickConfirm = async () => {
     if (memberToKick && onKickMember) {
@@ -78,72 +61,71 @@ export function TeamMembersDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Team Members - {teamName}</DialogTitle>
-            <DialogDescription>View all members of this team</DialogDescription>
+            <DialogTitle>{teamName}</DialogTitle>
+            <DialogDescription>
+              {teammates.length} {teammates.length === 1 ? "member" : "members"}
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2 max-h-96 overflow-y-auto">
+          <ul className="-mx-2 flex max-h-96 flex-col overflow-y-auto">
             {teammates.map((teammate) => {
-              // Only creator is admin - no other admins
+              // Only the creator is an admin.
               const isCreator = teammate._id === createdBy;
               const isCurrentUser = teammate._id === currentUserId;
               const canKick = isCurrentUserCreator && !isCreator;
+              const fullName = `${teammate.name} ${teammate.lastname}`;
 
               return (
-                <div
+                <li
                   key={teammate._id}
-                  className="flex items-center gap-3 p-2 rounded-md hover:bg-accent"
+                  className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
                 >
-                  <div
-                    onClick={() => handleMemberClick(teammate._id)}
-                    className="flex items-center gap-3 flex-1 cursor-pointer"
+                  <Link
+                    href={`/profile/${teammate._id}`}
+                    onClick={() => onOpenChange(false)}
+                    className="flex min-w-0 flex-1 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={teammate.avatar} alt={teammate.name} />
-                      <AvatarFallback>
+                    <Avatar className="size-10">
+                      <AvatarImage src={teammate.avatar} alt="" />
+                      <AvatarFallback className="text-xs font-bold">
                         {teammate.name[0]}
                         {teammate.lastname[0]}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium">
-                          {teammate.name} {teammate.lastname}
-                          {isCurrentUser && " (You)"}
-                        </p>
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-2">
+                        <b className="truncate text-sm font-semibold">
+                          {fullName}
+                          {isCurrentUser && <span className="font-normal text-zinc-500"> (you)</span>}
+                        </b>
                         {isCreator && (
-                          <Badge variant="default" className="text-xs">
-                            Creator
-                          </Badge>
+                          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+                            Admin
+                          </span>
                         )}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        @{teammate.username}
-                      </p>
-                    </div>
-                  </div>
+                      </span>
+                      <span className="block truncate text-xs text-zinc-600 dark:text-zinc-400">@{teammate.username}</span>
+                    </span>
+                  </Link>
                   {canKick && (
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 hover:bg-red-100 cursor-pointer"
-                      title={`Kick ${teammate.name} ${teammate.lastname} from team`}
-                      onClick={(e) =>
-                        handleKickClick(
-                          e,
-                          teammate._id,
-                          `${teammate.name} ${teammate.lastname}`
-                        )
-                      }
+                      className="size-9 text-zinc-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40"
+                      aria-label={`Remove ${fullName} from team`}
+                      onClick={() => {
+                        setMemberToKick({ userId: teammate._id, name: fullName });
+                        setShowKickMember(true);
+                      }}
                     >
-                      <UserMinus className="h-4 w-4 text-destructive" />
+                      <UserMinus />
                     </Button>
                   )}
-                </div>
+                </li>
               );
             })}
-          </div>
+          </ul>
         </DialogContent>
       </Dialog>
 
@@ -151,9 +133,9 @@ export function TeamMembersDialog({
         <ConfirmDialog
           open={showKickMember}
           onOpenChange={setShowKickMember}
-          title="Kick Member"
-          description={`Are you sure you want to kick "${memberToKick.name}" from "${teamName}"? They will no longer be able to access this team.`}
-          confirmText="Kick"
+          title="Remove from team?"
+          description={`${memberToKick.name} will lose access to ${teamName} and its chat.`}
+          confirmText="Remove"
           variant="destructive"
           onConfirm={handleKickConfirm}
         />

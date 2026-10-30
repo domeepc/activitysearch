@@ -1,62 +1,66 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatusDot } from "@/components/chat/ActiveStatus";
 import { Id } from "@/convex/_generated/dataModel";
 
-interface Friend {
+export interface ProfileFriend {
   _id: Id<"users">;
   username: string;
+  name?: string;
+  lastname?: string;
+  avatar?: string;
 }
 
 interface FriendListProps {
-  friends: Friend[] | undefined;
+  friends: ProfileFriend[] | undefined;
   friendIds: Id<"users">[];
-  isLoading?: boolean;
+  emptyText?: string;
+  showPresence?: boolean;
 }
 
-export function FriendList({
-  friends,
-  friendIds,
-  isLoading = false,
-}: FriendListProps) {
-  const router = useRouter();
-
-  if (isLoading) {
+export function FriendList({ friends, friendIds, emptyText = "No friends yet", showPresence = false }: FriendListProps) {
+  if (friends === undefined && friendIds.length > 0) {
     return (
-      <div className="space-y-3">
-        <Skeleton className="h-3 w-24" />
-        <div className="flex flex-wrap gap-2">
-          <Skeleton className="h-7 w-20 rounded-full" />
-          <Skeleton className="h-7 w-24 rounded-full" />
-          <Skeleton className="h-7 w-16 rounded-full" />
-        </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {[0, 1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-16 rounded-2xl" />
+        ))}
       </div>
     );
   }
 
-  const count = friends?.length ?? friendIds.length;
+  if (!friends || friends.length === 0) {
+    return <p className="py-8 text-center text-sm text-zinc-600 dark:text-zinc-400">{emptyText}</p>;
+  }
 
   return (
-    <div className="space-y-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Friends ({count})
-      </p>
-      {friends && friends.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {friends.map((friend) => (
-            <button
-              key={friend._id}
-              onClick={() => router.push(`/profile/${friend._id}`)}
-              className="rounded-full border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-1 text-sm text-zinc-700 dark:text-zinc-300 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-700 hover:text-zinc-900 dark:hover:text-zinc-50"
+    <ul className="grid gap-2 sm:grid-cols-2">
+      {friends.map((friend) => {
+        const fullName = [friend.name, friend.lastname].filter(Boolean).join(" ") || `@${friend.username}`;
+        return (
+          <li key={friend._id}>
+            <Link
+              href={`/profile/${friend._id}`}
+              className="flex items-center gap-3 rounded-2xl border border-zinc-200 p-3 transition-colors hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/60"
             >
-              @{friend.username}
-            </button>
-          ))}
-        </div>
-      ) : (
-        <p className="text-sm text-muted-foreground">No friends yet</p>
-      )}
-    </div>
+              <span className="relative shrink-0">
+                <Avatar className="size-10">
+                  <AvatarImage src={friend.avatar} alt="" />
+                  <AvatarFallback className="text-xs font-bold">{fullName.replace("@", "")[0]?.toUpperCase()}</AvatarFallback>
+                </Avatar>
+                {showPresence && <StatusDot userId={friend._id} />}
+              </span>
+              <span className="min-w-0">
+                <b className="block truncate text-sm font-semibold">{fullName}</b>
+                <span className="block truncate text-xs text-zinc-600 dark:text-zinc-400">@{friend.username}</span>
+              </span>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
