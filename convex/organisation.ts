@@ -66,7 +66,7 @@ export const updateOrganisation = mutation({
   },
 });
 
-export const getUserByExternalId = query({
+export const getUserByExternalId = internalQuery({
   args: { externalId: v.string() },
   handler: async (ctx, args) => {
     const user = await ctx.db

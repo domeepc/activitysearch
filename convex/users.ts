@@ -9,7 +9,7 @@ import {
 import { UserJSON, createClerkClient } from "@clerk/backend";
 import { v, Validator } from "convex/values";
 import { api, internal } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 import { progressionFromTotalExp } from "../lib/gamification/levels";
 
 // Helper function to generate URL-safe slug from username
@@ -395,7 +395,26 @@ export const getCurrentUserProfile = query({
   },
 });
 
+/**
+ * Profile lookups are reachable without auth (profile layouts fetch metadata server-side),
+ * so private fields are stripped unless the caller is viewing their own record.
+ */
+async function toProfileView(ctx: QueryCtx, user: Doc<"users"> | null) {
+  if (!user) return null;
+  const identity = await ctx.auth.getUserIdentity();
+  if (identity?.subject === user.externalId) return user;
+  // Keep the document shape for callers, but blank fields only the owner may see.
+  return { ...user, email: "", externalId: "" };
+}
+
 export const getUserById = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    return await toProfileView(ctx, await ctx.db.get(userId));
+  },
+});
+
+export const getUserByIdInternal = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
     return await ctx.db.get(userId);
@@ -405,10 +424,11 @@ export const getUserById = query({
 export const getUserByUsername = query({
   args: { username: v.string() },
   handler: async (ctx, { username }) => {
-    return await ctx.db
+    const user = await ctx.db
       .query("users")
       .withIndex("byUsername", (q) => q.eq("username", username))
       .first();
+    return await toProfileView(ctx, user);
   },
 });
 

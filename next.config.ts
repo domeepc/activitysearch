@@ -39,6 +39,13 @@ const nextConfig: NextConfig = {
             key: "Permissions-Policy",
             value: "payment=(self \"https://js.stripe.com\" \"https://m.stripe.network\")",
           },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains",
+          },
         ],
       },
     ];
