@@ -82,10 +82,10 @@ function SectionLabel({
 }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
-      <span className="text-xs text-zinc-400 dark:text-zinc-500">
+      <span className="text-xs text-muted-foreground">
         {completed}/{total}
       </span>
     </div>
@@ -99,10 +99,10 @@ export function MyQuestsSection() {
     return (
       <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-5">
         <div className="flex items-center gap-2 mb-4">
-          <Trophy className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+          <Trophy className="h-4 w-4 text-muted-foreground" />
           <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Quests</h3>
         </div>
-        <p className="text-sm text-zinc-400 dark:text-zinc-500">Loading…</p>
+        <p className="text-sm text-muted-foreground">Loading…</p>
       </div>
     );
   }
@@ -114,10 +114,10 @@ export function MyQuestsSection() {
     return (
       <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-5">
         <div className="flex items-center gap-2 mb-3">
-          <Trophy className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+          <Trophy className="h-4 w-4 text-muted-foreground" />
           <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Quests</h3>
         </div>
-        <p className="text-sm text-zinc-400 dark:text-zinc-500">
+        <p className="text-sm text-muted-foreground">
           Complete quests to earn XP and level up. Join an activity to see
           organiser quests.
         </p>

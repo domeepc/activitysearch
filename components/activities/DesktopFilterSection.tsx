@@ -22,6 +22,7 @@ interface DesktopFilterSectionProps {
   onClearSelection?: () => void;
   onAddActivity: () => void;
   isOrganiser: boolean;
+  resultCount: number;
 }
 
 export default function DesktopFilterSection({
@@ -32,11 +33,13 @@ export default function DesktopFilterSection({
   onClearSelection,
   onAddActivity,
   isOrganiser,
+  resultCount,
 }: DesktopFilterSectionProps) {
+  const isFiltered = selectedCategories.length > 0;
   const uniqueCategories = getUniqueCategories(activities);
 
   return (
-    <section className="hidden md:block" style={{ position: "relative", zIndex: 10, margin: "1.5rem" }}>
+    <section className="hidden md:block animate-in fade-in slide-in-from-left-2 duration-300" style={{ position: "relative", zIndex: 10, margin: "1.5rem" }}>
       <div
         className={cn(
           "w-72 flex flex-col",
@@ -55,8 +58,10 @@ export default function DesktopFilterSection({
               Find Activities
             </h2>
           </div>
-          <p className="text-[11px] text-muted-foreground pl-9">
-            {activities.length} {activities.length === 1 ? "activity" : "activities"} available
+          <p className="text-[11px] text-muted-foreground pl-9 tabular-nums" aria-live="polite">
+            {isFiltered
+              ? `${resultCount} of ${activities.length} shown`
+              : `${activities.length} ${activities.length === 1 ? "activity" : "activities"} available`}
           </p>
         </div>
 
@@ -79,10 +84,19 @@ export default function DesktopFilterSection({
 
         {/* Categories */}
         <div className="px-4 pt-3 pb-4">
-          <label className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
             <span className="size-3 rounded-full border-2 border-zinc-300 inline-block" />
             Category
-          </label>
+            {isFiltered && (
+              <button
+                type="button"
+                onClick={() => onCategoryChange([])}
+                className="ml-auto normal-case tracking-normal font-medium text-blue-600 hover:underline animate-in fade-in duration-150"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
           <MultiSelect
             values={selectedCategories}
             onValuesChange={onCategoryChange}

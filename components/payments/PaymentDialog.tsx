@@ -75,15 +75,6 @@ function PaymentForm({
 
   const totalAmount = perPersonAmount * personsToPayFor;
 
-  // Show error if Stripe or Elements are not available
-  useEffect(() => {
-    if (!stripe || !elements) {
-      setError("Payment form is not ready. Please wait a moment and try again.");
-    } else {
-      setError(null);
-    }
-  }, [stripe, elements]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
