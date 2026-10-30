@@ -9,7 +9,7 @@ import Map, {
   type MapLayerMouseEvent,
   type MapRef,
 } from "react-map-gl/maplibre";
-import type { GeoJSONSource } from "maplibre-gl";
+import { getVersion, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
 import type { FeatureCollection, Point } from "geojson";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useTheme } from "next-themes";
@@ -28,6 +28,10 @@ const MAP_STYLE = {
     process.env.NEXT_PUBLIC_MAP_STYLE_DARK ??
     "https://tiles.openfreemap.org/styles/dark",
 };
+
+// Worker is copied to /public on install (scripts/copy-maplibre-worker.mjs); the
+// default lookup next to maplibre's own script breaks once it is bundled.
+setWorkerUrl(`/maplibre-gl-worker.mjs?v=${getVersion()}`);
 
 const DEFAULT_CENTER = { latitude: 43.5113657, longitude: 16.4688471 };
 const SOURCE_ID = "activities";
