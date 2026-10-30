@@ -33,7 +33,7 @@ export function HeroSection() {
             and earn XP for every adventure.
           </p>
           <form
-            action="/sign-up"
+            action="/sign-in"
             method="GET"
             className="flex w-full max-w-xl gap-1.5 rounded-full border border-zinc-800 bg-zinc-900 p-1.5"
           >
@@ -66,7 +66,7 @@ export function HeroSection() {
         <HeroTile src="/images/team_sports.jpg" label="Team Sports" className="h-44 md:col-span-3 md:h-[220px]" />
         <HeroTile src="/images/high-energy.jpg" label="High Energy" className="hidden md:col-span-2 md:block md:h-[260px]" />
         <Link
-          href="/sign-up"
+          href="/sign-in"
           className="col-span-2 flex h-56 flex-col justify-end gap-2 rounded-[22px] bg-violet-950 p-5 transition-transform hover:-translate-y-1 md:col-span-3 md:h-[320px]"
         >
           <span className="text-xs uppercase tracking-[0.08em] text-violet-200">Quest</span>

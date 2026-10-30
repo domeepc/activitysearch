@@ -22,7 +22,7 @@ export function TopRatedSection({ items }: TopRatedSectionProps) {
       />
       <div className="mt-7 grid gap-3 md:grid-cols-12">
         <Link
-          href="/sign-up"
+          href="/sign-in"
           className="group relative flex h-[420px] flex-col justify-between overflow-hidden rounded-3xl bg-zinc-900 p-6 md:col-span-6 md:h-[460px]"
         >
           {featured.imageUrl ? (
@@ -58,7 +58,7 @@ export function TopRatedSection({ items }: TopRatedSectionProps) {
         {rest.map((activity) => (
           <Link
             key={activity.title}
-            href="/sign-up"
+            href="/sign-in"
             className="group flex h-[420px] flex-col overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 transition-colors hover:border-zinc-700 md:col-span-3 md:h-[460px]"
           >
             <span className="relative flex-1 overflow-hidden bg-zinc-800">

@@ -29,7 +29,7 @@ export function QuestsSection({ items }: QuestsSectionProps) {
             Complete simple challenges as you book and join activities. Earn XP, unlock badges and climb levels.
           </p>
           <Link
-            href="/sign-up"
+            href="/sign-in"
             className="mt-2 inline-flex h-12 items-center self-start rounded-full bg-zinc-950 px-6 text-[15px] font-semibold text-zinc-50 transition hover:bg-zinc-800 active:scale-[0.97]"
           >
             Start exploring
