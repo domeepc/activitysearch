@@ -2,10 +2,8 @@
 
 import {
   Dialog,
-  DialogContent,
   DialogPortal,
   DialogOverlay,
-  DialogClose,
 } from "@/components/ui/dialog";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Search, SlidersHorizontal, X } from "lucide-react";

@@ -8,14 +8,13 @@ import { useEffect, useState, useRef } from "react";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Star, MapPin, Clock, DollarSign, Users, Calendar } from "lucide-react";
+import { Star, MapPin, Clock, Calendar } from "lucide-react";
 import { getTagColorScheme, getDifficultyColorScheme } from "@/lib/tagColors";
 import { ReservationDialog } from "@/components/activities/ReservationDialog";
 import { useMyTeamsAsCreator } from "@/lib/hooks/useReservations";
@@ -83,6 +82,16 @@ export default function ActivityCard({
   // Carousel auto-rotation
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [activeSlide, setActiveSlide] = useState(0);
+
+  useEffect(() => {
+    if (!carouselApi) return;
+    const onSelect = () => setActiveSlide(carouselApi.selectedScrollSnap());
+    carouselApi.on("select", onSelect);
+    return () => {
+      carouselApi.off("select", onSelect);
+    };
+  }, [carouselApi]);
 
   useEffect(() => {
     if (!carouselApi || images.length <= 1) return;
@@ -130,7 +139,7 @@ export default function ActivityCard({
 
   return (
     <Card
-      className={`${cardWidth} relative border-2 border-border shadow-xl transition-all duration-200  pointer-events-auto`}
+      className={`${cardWidth} relative border-2 border-border shadow-xl pointer-events-auto animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200`}
     >
       <button
         className="!absolute top-2 right-2 z-50 bg-background w-8 h-8 flex justify-center items-center rounded-full p-1.5 hover:bg-muted shadow-md focus:outline-none transition-colors pointer-events-auto cursor-pointer"
@@ -160,40 +169,91 @@ export default function ActivityCard({
         </svg>
       </button>
       {images.length > 0 && (
-        <>
-          <div className="z-0 w-full h-48 overflow-hidden rounded-t-xl -mt-6 mb-0 relative">
-            <Carousel setApi={setCarouselApi} noManualControl className="w-full h-full">
-              <CarouselContent className="h-full ml-0!">
-                {images.map((image, index) => (
-                  <CarouselItem key={index} className="h-full pl-0 basis-full">
-                    <div className="relative w-full h-full">
-                      <Image
-                        src={image}
-                        alt={`${activity.title} - Image ${index + 1}`}
-                        fill
-                        className="object-cover z-0"
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                        }}
-                      />
-                    </div>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-            </Carousel>
-          </div>
-        </>
+        <div className="group/media z-0 w-full h-44 overflow-hidden rounded-t-xl -mt-6 mb-0 relative">
+          <Carousel setApi={setCarouselApi} noManualControl className="w-full h-full">
+            <CarouselContent className="h-full ml-0!">
+              {images.map((image, index) => (
+                <CarouselItem key={index} className="h-full pl-0 basis-full">
+                  <div className="relative w-full h-full">
+                    <Image
+                      src={image}
+                      alt={`${activity.title} - Image ${index + 1}`}
+                      fill
+                      className="object-cover z-0 transition-transform duration-500 ease-out motion-safe:group-hover/media:scale-105"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                  </div>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+          </Carousel>
+          {images.length > 1 && (
+            <div className="absolute bottom-2 inset-x-0 flex justify-center gap-1">
+              {images.map((_, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  aria-label={`Show image ${index + 1}`}
+                  onClick={() => carouselApi?.scrollTo(index)}
+                  className={`h-1.5 rounded-full bg-white shadow transition-all duration-300 ${
+                    index === activeSlide ? "w-4 opacity-100" : "w-1.5 opacity-60"
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
-      <CardHeader className="px-4 pt-1 pb-3">
+      <CardHeader className="px-4 pt-1 pb-2">
         <CardTitle className="text-base leading-tight line-clamp-2">
           {activity.title}
         </CardTitle>
-        <CardDescription className="text-xs line-clamp-2 mt-1">
-          {activity.description}
-        </CardDescription>
+        <div className="flex items-center gap-1 text-xs mt-1">
+          <Star className="h-3.5 w-3.5 text-yellow-500 fill-yellow-500 shrink-0" />
+          <span className="font-medium">{activity.rating.toFixed(1)}</span>
+          <span className="text-muted-foreground">
+            ({activity.reviewCount}{" "}
+            {activity.reviewCount === 1 ? "review" : "reviews"})
+          </span>
+        </div>
       </CardHeader>
       <CardContent className="px-4 space-y-3">
+        {/* Key facts on one line, scannable like marketplace listing cards */}
+        <div className="space-y-1.5 text-xs text-muted-foreground">
+          {address && (
+            <div className="flex items-start gap-1.5">
+              <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span className="flex-1 line-clamp-1">{address}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5 shrink-0" />
+            <span>{activity.duration}</span>
+            <span aria-hidden>·</span>
+            {(() => {
+              const difficultyColorScheme = getDifficultyColorScheme(
+                activity.difficulty
+              );
+              return (
+                <Badge
+                  variant="secondary"
+                  className="capitalize text-xs px-1.5 py-0"
+                  style={{
+                    backgroundColor: difficultyColorScheme.bgHex,
+                    color: difficultyColorScheme.textHex,
+                    borderColor: difficultyColorScheme.bgHex,
+                  }}
+                >
+                  {activity.difficulty}
+                </Badge>
+              );
+            })()}
+          </div>
+        </div>
+
         {/* Tags */}
         {allTags.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
@@ -224,81 +284,18 @@ export default function ActivityCard({
 
         <Separator className="my-2" />
 
-        {/* Activity Details */}
-        <div className="space-y-1.5 text-xs">
-          {address && (
-            <div className="flex items-start gap-1.5">
-              <MapPin className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
-              <span className="text-muted-foreground flex-1 line-clamp-1 text-xs">
-                {address}
-              </span>
-            </div>
-          )}
-
-          <div className="flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span className="text-muted-foreground text-xs">Duration:</span>
-            <span className="font-medium text-xs">{activity.duration}</span>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span className="text-muted-foreground text-xs">Difficulty:</span>
-            {(() => {
-              const difficultyColorScheme = getDifficultyColorScheme(
-                activity.difficulty
-              );
-              return (
-                <Badge
-                  variant="secondary"
-                  className="capitalize text-xs px-1.5 py-0"
-                  style={{
-                    backgroundColor: difficultyColorScheme.bgHex,
-                    color: difficultyColorScheme.textHex,
-                    borderColor: difficultyColorScheme.bgHex,
-                  }}
-                >
-                  {activity.difficulty}
-                </Badge>
-              );
-            })()}
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <DollarSign className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span className="text-muted-foreground text-xs">Price:</span>
-            <span className="font-semibold text-green-600 text-xs">
+        {/* Price + actions */}
+        <div className="flex items-center gap-2">
+          <div className="flex-1 leading-tight">
+            <span className="block text-[10px] text-muted-foreground">From</span>
+            <span className="text-sm font-bold text-foreground">
               {activity.price.amount} {activity.price.currency}
             </span>
           </div>
-
-          <div className="flex items-center gap-1.5">
-            <Star className="h-3.5 w-3.5 text-yellow-500 fill-yellow-500 shrink-0" />
-            <span className="font-medium text-xs">
-              {activity.rating.toFixed(1)}
-            </span>
-            <span className="text-muted-foreground text-[10px]">
-              ({activity.reviewCount}{" "}
-              {activity.reviewCount === 1 ? "review" : "reviews"})
-            </span>
-          </div>
-        </div>
-
-        <Separator className="my-2" />
-
-        {/* Visit Button and Reservation Button */}
-        <div className="flex gap-2">
-          <Button
-            onClick={handleVisitPage}
-            className="flex-1 h-8 text-xs"
-            variant="default"
-          >
-            Visit Activity Page
-          </Button>
           {hasTeams && !isOrganiserOfActivity && (
             <Button
               onClick={() => setIsReservationDialogOpen(true)}
-              className="h-8 w-8 p-0 border border-border"
+              className="h-8 w-8 p-0 border border-border transition-transform active:scale-95"
               variant="outline"
               size="icon"
               aria-label="Reserve activity"
@@ -306,6 +303,13 @@ export default function ActivityCard({
               <Calendar className="h-4 w-4" />
             </Button>
           )}
+          <Button
+            onClick={handleVisitPage}
+            className="h-8 text-xs transition-transform active:scale-95"
+            variant="default"
+          >
+            View details
+          </Button>
         </div>
       </CardContent>
 
