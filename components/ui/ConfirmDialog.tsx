@@ -56,7 +56,7 @@ export function ConfirmDialog({
         <DialogFooter>
           <Button
             variant="outline"
-            className="rounded-full border-zinc-200"
+            className="rounded-full border-zinc-200 dark:border-zinc-700"
             onClick={() => onOpenChange(false)}
             disabled={isLoading}
           >

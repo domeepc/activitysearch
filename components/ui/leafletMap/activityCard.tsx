@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Star, MapPin, Clock, Calendar } from "lucide-react";
 import { getTagColorScheme, getDifficultyColorScheme } from "@/lib/tagColors";
+import { formatPrice } from "@/lib/utils";
 import { ReservationDialog } from "@/components/activities/ReservationDialog";
 import { useMyTeamsAsCreator } from "@/lib/hooks/useReservations";
 import { Id } from "@/convex/_generated/dataModel";
@@ -289,7 +290,7 @@ export default function ActivityCard({
           <div className="flex-1 leading-tight">
             <span className="block text-[10px] text-muted-foreground">From</span>
             <span className="text-sm font-bold text-foreground">
-              {activity.price.amount} {activity.price.currency}
+              {formatPrice(activity.price.amount)}
             </span>
           </div>
           {hasTeams && !isOrganiserOfActivity && (

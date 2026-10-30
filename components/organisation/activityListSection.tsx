@@ -34,12 +34,12 @@ export default function ActivityListSection({ activityIDs, onEdit }: ActivityLis
     return (
       <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
         <div className="flex items-center gap-2 border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 md:px-6">
-          <LayoutGrid className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+          <LayoutGrid className="h-4 w-4 text-muted-foreground" />
           <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Activities</h2>
         </div>
         <div className="flex flex-col items-center justify-center py-12 text-center px-5">
           <LayoutGrid className="h-10 w-10 text-zinc-200 dark:text-zinc-700 mb-3" />
-          <p className="text-sm text-zinc-400 dark:text-zinc-500">No activities yet.</p>
+          <p className="text-sm text-muted-foreground">No activities yet.</p>
           <p className="text-xs text-zinc-300 dark:text-zinc-600 mt-1">Create your first activity to get started.</p>
         </div>
       </div>
@@ -50,7 +50,7 @@ export default function ActivityListSection({ activityIDs, onEdit }: ActivityLis
     return (
       <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
         <div className="flex items-center gap-2 border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 md:px-6">
-          <LayoutGrid className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+          <LayoutGrid className="h-4 w-4 text-muted-foreground" />
           <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Activities</h2>
         </div>
         <div className="flex flex-row flex-wrap gap-4 p-5 md:p-6">
@@ -73,10 +73,10 @@ export default function ActivityListSection({ activityIDs, onEdit }: ActivityLis
     <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
       <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 md:px-6">
         <div className="flex items-center gap-2">
-          <LayoutGrid className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+          <LayoutGrid className="h-4 w-4 text-muted-foreground" />
           <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Activities</h2>
         </div>
-        <span className="text-xs text-zinc-400 dark:text-zinc-500">{activities.length} total</span>
+        <span className="text-xs text-muted-foreground">{activities.length} total</span>
       </div>
       <div className="flex flex-row flex-wrap gap-4 p-5 md:p-6">
         {activities.map((activity) => (

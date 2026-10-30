@@ -61,12 +61,12 @@ export function ChatHeader({
             profileUserId ? (
               <Link
                 href={`/profile/${profileUserId}`}
-                className="block truncate text-[11px] md:text-sm text-zinc-400 dark:text-zinc-500 underline-offset-2 hover:text-zinc-700 dark:hover:text-zinc-300 hover:underline"
+                className="block truncate text-[11px] md:text-sm text-muted-foreground underline-offset-2 hover:text-zinc-700 dark:hover:text-zinc-300 hover:underline"
               >
                 @{username}
               </Link>
             ) : (
-              <p className="truncate text-[11px] md:text-sm text-zinc-400 dark:text-zinc-500">
+              <p className="truncate text-[11px] md:text-sm text-muted-foreground">
                 @{username}
               </p>
             )

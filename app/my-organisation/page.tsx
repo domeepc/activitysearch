@@ -23,7 +23,7 @@ import { Building2, Pencil } from "lucide-react";
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-0.5 py-3 sm:flex-row sm:gap-4">
-      <span className="w-36 shrink-0 text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+      <span className="w-36 shrink-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </span>
       <span className="text-sm text-zinc-700 dark:text-zinc-300">{value}</span>
@@ -42,7 +42,7 @@ function EditRow({
 }) {
   return (
     <div className="py-3 space-y-1.5">
-      <label className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </label>
       {children}
@@ -180,7 +180,7 @@ export default function MyOrganisationPage() {
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm p-6 text-center space-y-3">
           <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Access Denied</p>
-          <p className="text-sm text-zinc-400 dark:text-zinc-500">You must be an organiser to access this page.</p>
+          <p className="text-sm text-muted-foreground">You must be an organiser to access this page.</p>
           <Button size="sm" className="rounded-full" onClick={() => router.push(SIGNED_IN_HOME_HREF)}>
             Go to Home
           </Button>
@@ -194,7 +194,7 @@ export default function MyOrganisationPage() {
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm p-6 text-center space-y-3">
           <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Setting Up</p>
-          <p className="text-sm text-zinc-400 dark:text-zinc-500">Your account is being set up. Please wait a moment and refresh.</p>
+          <p className="text-sm text-muted-foreground">Your account is being set up. Please wait a moment and refresh.</p>
           <Button size="sm" className="rounded-full" onClick={() => router.push(SIGNED_IN_HOME_HREF)}>
             Go to Home
           </Button>
@@ -208,7 +208,7 @@ export default function MyOrganisationPage() {
       <div className="container mx-auto p-4 md:p-6 max-w-4xl">
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm p-6 text-center space-y-3">
           <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">No Organisation Found</p>
-          <p className="text-sm text-zinc-400 dark:text-zinc-500">You don&apos;t have an organisation associated with your account.</p>
+          <p className="text-sm text-muted-foreground">You don&apos;t have an organisation associated with your account.</p>
           <Button size="sm" className="rounded-full" onClick={() => router.push(SIGNED_IN_HOME_HREF)}>
             Go to Home
           </Button>
@@ -224,10 +224,10 @@ export default function MyOrganisationPage() {
         {/* Header */}
         <div className="flex flex-col gap-3 border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
           <div className="flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+            <Building2 className="h-4 w-4 text-muted-foreground" />
             <div>
               <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">My Organisation</h2>
-              <p className="text-xs text-zinc-400 dark:text-zinc-500">Manage your organisation information</p>
+              <p className="text-xs text-muted-foreground">Manage your organisation information</p>
             </div>
           </div>
           <div className="flex gap-2">
