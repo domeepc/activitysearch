@@ -1,12 +1,13 @@
 "use client";
 
-import { useOrganiserReservations, useUnreadReservationCount, useMarkReservationsAsRead } from "@/lib/hooks/useReservations";
+import { useOrganiserReservations, useMarkReservationsAsRead } from "@/lib/hooks/useReservations";
 import { ReservationTable } from "@/components/reservations/ReservationTable";
 import { PaymentSection } from "@/components/reservations/PaymentSection";
-import { Badge } from "@/components/ui/badge";
-import { Inbox, Filter, CreditCard } from "lucide-react";
+import { Inbox, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { OrganiserNav } from "@/components/organisation/OrganiserNav";
 import { useOrganiser } from "@/lib/hooks/useOrganiser";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -14,12 +15,19 @@ type StatusFilter = "all" | "active" | "cancelled";
 type ViewMode = "reservations" | "payments";
 
 export default function ReservationsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ReservationsContent />
+    </Suspense>
+  );
+}
+
+function ReservationsContent() {
   const { isOrganiser } = useOrganiser();
   const { reservations, isLoading } = useOrganiserReservations();
-  const { count: unreadCount } = useUnreadReservationCount();
   const { markReservationsAsRead } = useMarkReservationsAsRead();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [viewMode, setViewMode] = useState<ViewMode>("reservations");
+  const viewMode: ViewMode = useSearchParams().get("view") === "payments" ? "payments" : "reservations";
   const hasMarkedAsRead = useRef(false);
 
   // Mark reservations as read when page loads (only once)
@@ -58,57 +66,20 @@ export default function ReservationsPage() {
   }
 
   return (
-    <div className="container mx-auto py-4 sm:py-8 px-4 max-w-7xl">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Inbox className="h-5 w-5 sm:h-6 sm:w-6" />
-            {unreadCount > 0 && (
-              <Badge
-                variant="destructive"
-                className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 h-4 w-4 sm:h-5 sm:w-5 rounded-full p-0 flex items-center justify-center text-[10px] sm:text-xs"
-              >
-                {unreadCount > 99 ? "99+" : unreadCount}
-              </Badge>
-            )}
-          </div>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Reservations</h1>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              Manage activity reservations
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* View Mode Toggle */}
-      <div className="mb-4 flex items-center gap-1 rounded-xl bg-zinc-100 dark:bg-zinc-800 p-1 w-fit sm:mb-6">
-        {([
-          { key: "reservations", label: "Reservations", icon: Inbox },
-          { key: "payments", label: "Payments", icon: CreditCard },
-        ] as const).map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setViewMode(key)}
-            className={cn(
-              "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-              viewMode === key
-                ? "bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 shadow-sm"
-                : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50"
-            )}
-          >
-            <Icon className="h-3.5 w-3.5" />
-            {label}
-          </button>
-        ))}
-      </div>
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-6 md:px-6 md:py-8">
+      <OrganiserNav />
+      <header>
+        <p className="text-sm text-muted-foreground">Organiser dashboard</p>
+        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+          {viewMode === "payments" ? "Payments & payouts" : "Reservations"}
+        </h1>
+      </header>
 
       {/* Reservations View */}
       {viewMode === "reservations" && (
         <>
           {/* Filters */}
-          <div className="mb-4 flex flex-wrap gap-1.5 sm:mb-6">
+          <div className="flex flex-wrap gap-1.5">
             {([
               { key: "all" as const, label: "All", count: reservations.length },
               { key: "active" as const, label: "Active", count: reservations.filter((r) => !r.cancelledAt).length },

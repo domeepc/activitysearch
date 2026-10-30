@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { usePostHog } from "@posthog/react";
@@ -18,12 +18,14 @@ import ActivityListSection from "@/components/organisation/activityListSection";
 import { StripeConnectButton } from "@/components/organisation/StripeConnectButton";
 import DialogAddActivity from "@/components/activities/DialogAddActivity";
 import { useAction } from "convex/react";
-import { Building2, Pencil } from "lucide-react";
+import { Building2, Pencil, Plus } from "lucide-react";
+import { OrganiserNav } from "@/components/organisation/OrganiserNav";
+import { OrganiserStats } from "@/components/organisation/OrganiserStats";
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col gap-0.5 py-3 sm:flex-row sm:gap-4">
-      <span className="w-36 shrink-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className="flex flex-col gap-0.5 py-3">
+      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </span>
       <span className="text-sm text-zinc-700 dark:text-zinc-300">{value}</span>
@@ -218,83 +220,111 @@ export default function MyOrganisationPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6 max-w-4xl space-y-4">
-      {/* Organisation card */}
-      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
-        {/* Header */}
-        <div className="flex flex-col gap-3 border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
-          <div className="flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-            <div>
-              <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">My Organisation</h2>
-              <p className="text-xs text-muted-foreground">Manage your organisation information</p>
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-6 md:px-6 md:py-8">
+      <Suspense fallback={null}>
+        <OrganiserNav />
+      </Suspense>
+
+      <header className="flex flex-wrap items-end gap-4">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-muted-foreground">Organiser dashboard</p>
+          <h1 className="truncate text-2xl font-bold tracking-tight md:text-3xl">
+            {organisation.organisationName}
+          </h1>
+        </div>
+        <Button
+          className="rounded-xl bg-blue-600 hover:bg-blue-500"
+          onClick={() => {
+            setEditingActivityId(null);
+            setEditDialogOpen(true);
+          }}
+        >
+          <Plus className="size-4" aria-hidden="true" />
+          New activity
+        </Button>
+      </header>
+
+      <OrganiserStats activityIDs={organisation.activityIDs || []} />
+
+      <div className="flex flex-wrap items-start gap-5">
+        <div className="min-w-0 flex-[999_1_560px]">
+          <ActivityListSection
+            activityIDs={organisation.activityIDs || []}
+            onEdit={(id) => {
+              setEditingActivityId(id as Id<"activities">);
+              setEditDialogOpen(true);
+            }}
+          />
+        </div>
+        <aside className="flex min-w-0 flex-[1_1_320px] flex-col gap-5">
+          <StripeConnectButton organisationId={organisation._id} />
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
+            {/* Header */}
+            <div className="flex flex-col gap-3 border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Organisation details</h2>
+                  <p className="text-xs text-muted-foreground">Manage your organisation information</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {isEditing ? (
+                  <>
+                    <Button size="sm" variant="outline" className="rounded-full border-zinc-200 dark:border-zinc-700" onClick={handleCancel}>
+                      Cancel
+                    </Button>
+                    <Button size="sm" className="rounded-full" onClick={handleSave} disabled={hasErrors}>
+                      Save Changes
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-full border-zinc-200 dark:border-zinc-700"
+                    onClick={() => { setEditedFormData(organisationFormData); setIsEditing(true); }}
+                  >
+                    <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                    Edit
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Fields */}
+            <div className={`px-5 md:px-6 ${isEditing ? "py-4 space-y-0 divide-y divide-zinc-100 dark:divide-zinc-800" : "py-2 divide-y divide-zinc-100 dark:divide-zinc-800"}`}>
+              {isEditing ? (
+                <>
+                  <EditRow label="Organisation Name" error={errors.name}>
+                    <Input id="name" name="name" value={formData.name} onChange={handleChange} aria-invalid={!!errors.name} />
+                  </EditRow>
+                  <EditRow label="Email" error={errors.email}>
+                    <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} aria-invalid={!!errors.email} />
+                  </EditRow>
+                  <EditRow label="Description">
+                    <Textarea id="description" name="description" value={formData.description} onChange={handleChange} rows={4} className="resize-none" />
+                  </EditRow>
+                  <EditRow label="Address" error={errors.address}>
+                    <Input id="address" name="address" value={formData.address} onChange={handleChange} aria-invalid={!!errors.address} />
+                  </EditRow>
+                  <EditRow label="IBAN" error={errors.IBAN}>
+                    <Input id="IBAN" name="IBAN" value={formData.IBAN} onChange={handleChange} aria-invalid={!!errors.IBAN} />
+                  </EditRow>
+                </>
+              ) : (
+                <>
+                  <InfoRow label="Name" value={formData.name || "No organisation name"} />
+                  <InfoRow label="Email" value={formData.email || "No email"} />
+                  <InfoRow label="Description" value={formData.description || "No description provided"} />
+                  <InfoRow label="Address" value={formData.address || "No address"} />
+                  <InfoRow label="IBAN" value={formData.IBAN || "No IBAN"} />
+                </>
+              )}
             </div>
           </div>
-          <div className="flex gap-2">
-            {isEditing ? (
-              <>
-                <Button size="sm" variant="outline" className="rounded-full border-zinc-200 dark:border-zinc-700" onClick={handleCancel}>
-                  Cancel
-                </Button>
-                <Button size="sm" className="rounded-full" onClick={handleSave} disabled={hasErrors}>
-                  Save Changes
-                </Button>
-              </>
-            ) : (
-              <Button
-                size="sm"
-                variant="outline"
-                className="rounded-full border-zinc-200 dark:border-zinc-700"
-                onClick={() => { setEditedFormData(organisationFormData); setIsEditing(true); }}
-              >
-                <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                Edit
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Fields */}
-        <div className={`px-5 md:px-6 ${isEditing ? "py-4 space-y-0 divide-y divide-zinc-100 dark:divide-zinc-800" : "py-2 divide-y divide-zinc-100 dark:divide-zinc-800"}`}>
-          {isEditing ? (
-            <>
-              <EditRow label="Organisation Name" error={errors.name}>
-                <Input id="name" name="name" value={formData.name} onChange={handleChange} aria-invalid={!!errors.name} />
-              </EditRow>
-              <EditRow label="Email" error={errors.email}>
-                <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} aria-invalid={!!errors.email} />
-              </EditRow>
-              <EditRow label="Description">
-                <Textarea id="description" name="description" value={formData.description} onChange={handleChange} rows={4} className="resize-none" />
-              </EditRow>
-              <EditRow label="Address" error={errors.address}>
-                <Input id="address" name="address" value={formData.address} onChange={handleChange} aria-invalid={!!errors.address} />
-              </EditRow>
-              <EditRow label="IBAN" error={errors.IBAN}>
-                <Input id="IBAN" name="IBAN" value={formData.IBAN} onChange={handleChange} aria-invalid={!!errors.IBAN} />
-              </EditRow>
-            </>
-          ) : (
-            <>
-              <InfoRow label="Name" value={formData.name || "No organisation name"} />
-              <InfoRow label="Email" value={formData.email || "No email"} />
-              <InfoRow label="Description" value={formData.description || "No description provided"} />
-              <InfoRow label="Address" value={formData.address || "No address"} />
-              <InfoRow label="IBAN" value={formData.IBAN || "No IBAN"} />
-            </>
-          )}
-        </div>
+        </aside>
       </div>
-
-      <StripeConnectButton organisationId={organisation._id} />
-
-      <ActivityListSection
-        activityIDs={organisation.activityIDs || []}
-        onEdit={(id) => {
-          setEditingActivityId(id as Id<"activities">);
-          setEditDialogOpen(true);
-        }}
-      />
 
       <DialogAddActivity
         showDialog={editDialogOpen}

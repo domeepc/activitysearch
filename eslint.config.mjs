@@ -13,6 +13,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "convex/_generated/**",
+    // Static/vendored files (e.g. the MapLibre worker copied in by postinstall)
+    "public/**",
   ]),
 ]);
 
