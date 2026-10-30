@@ -197,4 +197,10 @@ export default defineSchema({
     availableTimeSlots: v.optional(v.array(v.string())),
     organisationId: v.optional(v.id("organisations")),
   }),
+
+  // One row per user, bumped by the client heartbeat while a tab is visible.
+  presence: defineTable({
+    userId: v.id("users"),
+    lastSeen: v.number(),
+  }).index("by_userId", ["userId"]),
 });

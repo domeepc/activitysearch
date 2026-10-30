@@ -7,7 +7,6 @@ import { Id } from "@/convex/_generated/dataModel";
 import { MessageBubble } from "./MessageBubble";
 import { ChatInput } from "./ChatInput";
 import { useChatHeaderState } from "./ChatHeaderState";
-import { useUpdatePresence } from "@/lib/hooks/usePresence";
 import { useEncryptionWithUser } from "@/lib/hooks/useEncryption";
 import { extractErrorMessage } from "@/lib/errors";
 import { toast } from "sonner";
@@ -69,7 +68,6 @@ export function ChatView({
   const migrateTeamMessageToEncrypted = useMutation(
     api.teams.migrateTeamMessageToEncrypted
   );
-  const { updatePresence } = useUpdatePresence();
   const { setHeaderData, clearHeaderData } = useChatHeaderState();
 
   // Get current user for encryption
@@ -245,8 +243,6 @@ export function ChatView({
         } else if (type === "team" && teamId) {
           await markTeamConversationAsRead({ teamId });
         }
-        // Update presence when messages are read
-        updatePresence("online");
       } catch {
         // Best-effort; fail silently
       }
@@ -262,7 +258,6 @@ export function ChatView({
     messages.length,
     markConversationAsRead,
     markTeamConversationAsRead,
-    updatePresence,
   ]);
 
   const handleSend = async (text: string) => {
@@ -293,8 +288,6 @@ export function ChatView({
           ...(encryptedText ? { encryptedText, encryptionVersion } : { text: messageText }),
         });
       }
-      // Update presence when message is sent
-      updatePresence("online");
       // Scroll to bottom after sending message
       setTimeout(() => {
         scrollToBottom();

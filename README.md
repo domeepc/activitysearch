@@ -19,8 +19,8 @@ A modern platform for discovering, booking, and managing activities. Connect wit
 - **Backend**: Convex (real-time database and serverless functions)
 - **Authentication**: Clerk
 - **Payments**: Stripe
-- **Real-time**: Ably
-- **Maps**: Leaflet
+- **Real-time**: Convex (presence via heartbeat)
+- **Maps**: MapLibre GL + OpenFreeMap (no API key)
 - **Styling**: Tailwind CSS, Radix UI
 
 ## Prerequisites
@@ -30,7 +30,6 @@ A modern platform for discovering, booking, and managing activities. Connect wit
 - Clerk account ([sign up here](https://clerk.com))
 - Convex account ([sign up here](https://convex.dev))
 - Stripe account ([sign up here](https://stripe.com))
-- Ably account ([sign up here](https://ably.com))
 
 ## Getting Started
 
@@ -64,9 +63,6 @@ NEXT_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
-
-# Ably Real-time Communication
-NEXT_PUBLIC_ABLY_API_KEY=your-ably-api-key
 
 # Sentry (Error Monitoring and Session Replay)
 NEXT_PUBLIC_SENTRY_DSN=https://...@sentry.io/...
@@ -119,25 +115,19 @@ Do **not** point Clerk at a non-existent Next.js route such as `/api/webhooks/cl
    - Webhook URL: `https://your-convex-deployment.convex.site/stripe-webhook`
    - Events: `payment_intent.succeeded`, `account.updated`, etc.
 
-### 7. Set up Ably
-
-1. Create an Ably account
-2. Create a new app and get your API key
-3. Add to `.env.local` as `NEXT_PUBLIC_ABLY_API_KEY`
-
-### 8. Set up Sentry (optional)
+### 7. Set up Sentry (optional)
 
 1. Create a project at [sentry.io](https://sentry.io) and copy the DSN
 2. Add `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN` to `.env.local`
 3. `SENTRY_AUTH_TOKEN` is used at build time for source map uploads
 
-### 9. Set up PostHog (optional)
+### 8. Set up PostHog (optional)
 
 1. Create a project at [posthog.com](https://posthog.com) and copy the Project API key
 2. Add `NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_POSTHOG_HOST` to `.env.local`
 3. With the built-in proxy, set `NEXT_PUBLIC_POSTHOG_HOST` to your app origin (e.g. `http://localhost:3000` in dev, `https://yourdomain.com` in production); `/ingest` is appended automatically. For direct ingest, set it to `https://us.i.posthog.com` or `https://eu.i.posthog.com`.
 
-### 10. Run the development server
+### 9. Run the development server
 
 ```bash
 pnpm dev
