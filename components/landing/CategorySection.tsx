@@ -1,109 +1,58 @@
-import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { categories, type CategoryItem } from "@/components/landing/data";
+import { ArrowRight } from "lucide-react";
+import { categories, CategoryItem } from "@/components/landing/data";
+import { Accent, SectionHeading } from "./SectionHeading";
 
 interface CategorySectionProps {
   items?: CategoryItem[];
 }
 
-function CategoryTile({ category, paddingClass }: { category: CategoryItem; paddingClass: string }) {
-  const hasImage = Boolean(category.imageUrl);
-
-  return (
-    <article className="group relative min-h-[120px] overflow-hidden rounded-2xl border border-border text-white shadow-sm">
-      {hasImage ? (
-        <>
-          <Image
-            src={category.imageUrl!}
-            alt={category.title}
-            fill
-            loading="eager"
-            sizes="(max-width: 768px) 100vw, 33vw"
-            className="object-cover transition duration-300 group-hover:scale-[1.02]"
-          />
-          <div className="absolute inset-0 bg-linear-to-t from-black/75 via-black/40 to-black/25" />
-        </>
-      ) : (
-        <div
-          className={`absolute inset-0 bg-linear-to-br ${category.tone}`}
-          aria-hidden
-        />
-      )}
-      <div className={`relative z-10 flex h-full flex-col justify-end ${paddingClass}`}>
-        <h4 className="text-base font-semibold">{category.title}</h4>
-        <p className="mt-1 text-xs text-white/80">{category.subtitle}</p>
-      </div>
-    </article>
-  );
-}
-
 export function CategorySection({ items }: CategorySectionProps) {
-  const displayCategories = items && items.length >= 4 ? items : categories;
-  const featured = displayCategories[0];
-  const rest = displayCategories.slice(1);
+  const displayItems = items && items.length > 0 ? items : categories;
 
   return (
-    <section className="bg-background py-14">
-      <div className="mx-auto w-full max-w-6xl space-y-6 px-4 md:px-6">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <div className="border-l-4 border-blue-600 pl-4">
-              <h2 className="text-3xl font-semibold tracking-tight text-foreground">
-                Explore by Category
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Browse experiences by vibe and energy level.
-              </p>
-            </div>
-          </div>
+    <section id="explore" aria-labelledby="explore-h" className="mx-auto w-full max-w-[1440px] scroll-mt-20 px-4 pt-28 md:px-10">
+      <SectionHeading
+        id="explore-h"
+        index="01"
+        eyebrow="Explore"
+        title={<>Pick a <Accent>vibe</Accent>.</>}
+        description="Browse experiences by vibe and energy level."
+        action={
           <Link
-            href="/home"
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            href="/sign-in"
+            className="inline-flex h-11 items-center gap-2 rounded-full border border-zinc-700 px-5 text-sm text-zinc-50 transition-colors hover:border-zinc-500"
           >
-            Explore all
-            <ArrowRight className="h-4 w-4" />
+            Explore all <ArrowRight className="size-3.5" aria-hidden="true" />
           </Link>
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-3">
-          <article className="group relative min-h-[320px] overflow-hidden rounded-2xl border border-border shadow-sm md:col-span-2">
-            {featured.imageUrl ? (
-              <>
-                <Image
-                  src={featured.imageUrl}
-                  alt=""
-                  fill
-                  loading="eager"
-                  sizes="(max-width: 768px) 100vw, 66vw"
-                  className="object-cover transition duration-300 group-hover:scale-[1.02]"
-                />
-                <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/45 to-black/30" />
-              </>
-            ) : (
-              <div
-                className={`absolute inset-0 bg-linear-to-br ${featured.tone}`}
-                aria-hidden
+        }
+      />
+      <div className="mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {displayItems.map((category, i) => (
+          <Link
+            key={category.title}
+            href="/sign-in"
+            className="group relative flex h-72 flex-col justify-between overflow-hidden rounded-[22px] bg-zinc-900 p-5 text-zinc-50 md:h-96"
+          >
+            {category.imageUrl ? (
+              <Image
+                src={category.imageUrl}
+                alt=""
+                fill
+                sizes="(min-width: 1024px) 25vw, 50vw"
+                className="object-cover transition-transform duration-700 ease-out motion-safe:group-hover:scale-105"
               />
-            )}
-            <div className="relative z-10 flex h-full flex-col justify-end p-6 text-white">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/70">
-                Featured
-              </p>
-              <h3 className="mt-2 text-3xl font-semibold">{featured.title}</h3>
-              <p className="mt-1 text-sm text-white/75">{featured.subtitle}</p>
-            </div>
-          </article>
-          <div className="grid gap-3">
-            {rest.map((category) => (
-              <CategoryTile
-                key={category.title}
-                category={category}
-                paddingClass="p-4"
-              />
-            ))}
-          </div>
-        </div>
+            ) : null}
+            {/* Scrim keeps white text legible over any photo */}
+            <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/30" />
+            <span className="relative text-[13px] text-zinc-300">0{i + 1}</span>
+            <span className="relative flex flex-col gap-1.5">
+              <span className="text-[30px] font-bold leading-none tracking-[-0.03em]">{category.title}</span>
+              <span className="text-sm text-zinc-300">{category.subtitle}</span>
+            </span>
+          </Link>
+        ))}
       </div>
     </section>
   );

@@ -1,34 +1,21 @@
 import Link from "next/link";
+import Image from "next/image";
 
-const linkClass =
-  "font-medium text-foreground underline-offset-4 hover:underline";
+const linkClass = "text-zinc-400 underline-offset-4 transition-colors hover:text-zinc-50 hover:underline";
 
 export function LandingFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t bg-background py-10">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:px-6">
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6">
-          <p>© {year} ActivitySearch. All rights reserved.</p>
-          <nav
-            className="flex flex-wrap gap-x-4 gap-y-1"
-            aria-label="Legal"
-          >
-            <Link href="/terms" className={linkClass}>
-              Terms of Service
-            </Link>
-            <Link href="/privacy" className={linkClass}>
-              Privacy Policy
-            </Link>
-          </nav>
-        </div>
-        <p>
-          Support:{" "}
-          <a href="mailto:domagoj.milardovic@activitysearch.eu" className={linkClass}>
-            domagoj.milardovic@activitysearch.eu
-          </a>
-        </p>
+    <footer className="border-t border-zinc-800">
+      <div className="mx-auto flex w-full max-w-[1440px] flex-wrap items-center gap-x-8 gap-y-4 px-4 py-7 text-[13px] text-zinc-400 md:px-10">
+        <Image src="/full-logo-dark.svg" alt="ActivitySearch" width={112} height={28} />
+        <p>© {year} ActivitySearch. All rights reserved.</p>
+        <nav className="flex flex-wrap gap-x-5 gap-y-1 md:ml-auto" aria-label="Legal">
+          <Link href="/terms" className={linkClass}>Terms of Service</Link>
+          <Link href="/privacy" className={linkClass}>Privacy Policy</Link>
+          <a href="mailto:domagoj.milardovic@activitysearch.eu" className={linkClass}>Support</a>
+        </nav>
       </div>
     </footer>
   );

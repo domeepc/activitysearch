@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { OAuthButtons } from "@/components/auth/OAuthButtons";
 import { EmailVerificationDialog } from "@/components/auth/EmailVerificationDialog";
 import { AuthFormShell, authFormStyles } from "@/components/auth/AuthFormShell";
+import { AccountTypeSwitch } from "@/components/auth/AccountTypeSwitch";
 import { extractErrorMessage } from "@/lib/errors";
 import { SIGNED_IN_HOME_HREF } from "@/lib/routes";
 import { Eye, EyeOff } from "lucide-react";
@@ -157,13 +158,14 @@ export default function CustomSignUp() {
     <AuthFormShell containerClassName="items-center">
       <CardHeader className={authFormStyles.header}>
         <CardTitle className={authFormStyles.title}>
-            Create an account
+            Create your account
         </CardTitle>
         <CardDescription className={authFormStyles.description}>
-            Choose your preferred sign up method
+            Takes under a minute.
         </CardDescription>
       </CardHeader>
       <CardContent className={authFormStyles.content}>
+          <AccountTypeSwitch active="participant" />
           <OAuthButtons
             onGoogleClick={() => signUpWith("oauth_google")}
             onMicrosoftClick={() => signUpWith("oauth_microsoft")}
@@ -303,11 +305,6 @@ export default function CustomSignUp() {
             <Link href="/sign-in" className="text-primary hover:underline">
               Sign in
             </Link>
-        </div>
-        <div className="text-center text-sm">
-          <Link href={"/sign-up/organisator-sign-up"} className="text-primary hover:underline">
-            Become an organisator
-          </Link>
         </div>
       </CardFooter>
     </AuthFormShell>

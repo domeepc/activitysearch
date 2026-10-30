@@ -1,72 +1,58 @@
 import Link from "next/link";
-import { Trophy, ArrowRight } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Star } from "lucide-react";
 import { landingQuests, QuestItem } from "@/components/landing/data";
-import { cn } from "@/lib/utils";
+import { Accent } from "./SectionHeading";
 
 interface QuestsSectionProps {
   items?: QuestItem[];
 }
 
+const QUEST_TINTS = [
+  "bg-violet-100 text-violet-700",
+  "bg-blue-100 text-blue-700",
+  "bg-emerald-100 text-emerald-700",
+  "bg-orange-100 text-orange-700",
+];
+
 export function QuestsSection({ items }: QuestsSectionProps) {
   const displayQuests = items && items.length > 0 ? items : landingQuests;
 
   return (
-    <section className="bg-background py-14">
-      <div className="mx-auto w-full max-w-6xl space-y-6 px-4 md:px-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="mb-2 inline-flex items-center gap-2 text-blue-600">
-              <Trophy className="h-5 w-5" />
-              <span className="text-xs font-semibold uppercase tracking-wider">
-                Quests
-              </span>
-            </div>
-            <h2 className="text-3xl font-semibold tracking-tight text-foreground">
-              Level up as you go
-            </h2>
-            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-              Complete simple challenges as you book and join activities. Earn
-              recognition and discover new experiences along the way.
-            </p>
-          </div>
-          <Button asChild variant="ghost" className="shrink-0 rounded-full">
-            <Link href="/home">
-              Start exploring
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
+    <section id="quests" aria-labelledby="quests-h" className="mx-auto w-full max-w-[1440px] scroll-mt-20 px-4 pt-28 md:px-10">
+      <div className="flex flex-wrap gap-10 rounded-[32px] bg-zinc-50 p-6 text-zinc-950 md:p-12">
+        <div className="flex min-w-[280px] flex-1 flex-col gap-4">
+          <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-blue-700">03 — Quests</p>
+          <h2 id="quests-h" className="text-[clamp(2.5rem,5vw,4.25rem)] font-extrabold leading-[0.95] tracking-[-0.045em]">
+            Level up <Accent className="text-blue-600">as you go</Accent>.
+          </h2>
+          <p className="max-w-sm text-base leading-relaxed text-zinc-700">
+            Complete simple challenges as you book and join activities. Earn XP, unlock badges and climb levels.
+          </p>
+          <Link
+            href="/sign-in"
+            className="mt-2 inline-flex h-12 items-center self-start rounded-full bg-zinc-950 px-6 text-[15px] font-semibold text-zinc-50 transition hover:bg-zinc-800 active:scale-[0.97]"
+          >
+            Start exploring
+          </Link>
         </div>
-
-        {/* decorative divider */}
-        <div className="flex items-center gap-4">
-          <div className="h-px flex-1 bg-border" />
-          <Trophy className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
-          <div className="h-px flex-1 bg-border" />
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {displayQuests.map((quest) => (
-            <article
-              key={quest.title}
-              className={cn(
-                "relative flex min-h-full flex-col justify-end overflow-hidden rounded-2xl border border-border p-5 text-white shadow-sm",
-                "bg-linear-to-br",
-                quest.tone
-              )}
-            >
-              <div className="relative z-10 flex flex-col">
-                {quest.badge ? (
-                  <Badge className="mb-3 w-fit border-0 bg-white/20 text-xs text-white hover:bg-white/25">
-                    {quest.badge}
-                  </Badge>
-                ) : null}
-                <h3 className="text-lg font-semibold leading-snug">{quest.title}</h3>
-                <p className="mt-2 text-sm text-white/85">{quest.subtitle}</p>
-              </div>
-            </article>
-          ))}
+        <div className="grid min-w-0 flex-[2_1_520px] gap-3 sm:grid-cols-2">
+          {displayQuests.map((quest, i) => {
+            const tint = QUEST_TINTS[i % QUEST_TINTS.length];
+            return (
+              <article key={quest.title} className="flex flex-col gap-2.5 rounded-[20px] border border-zinc-200 bg-white p-5">
+                <span className="flex items-center justify-between">
+                  <span className={`inline-flex size-10 items-center justify-center rounded-xl ${tint}`}>
+                    <Star className="size-5" aria-hidden="true" />
+                  </span>
+                  {quest.badge ? (
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${tint}`}>{quest.badge}</span>
+                  ) : null}
+                </span>
+                <h3 className="text-lg font-bold tracking-[-0.01em]">{quest.title}</h3>
+                <p className="text-sm leading-relaxed text-zinc-600">{quest.subtitle}</p>
+              </article>
+            );
+          })}
         </div>
       </div>
     </section>
