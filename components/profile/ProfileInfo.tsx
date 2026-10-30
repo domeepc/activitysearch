@@ -15,7 +15,7 @@ interface ProfileInfoProps {
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-0.5 py-3 sm:flex-row sm:gap-4">
-      <span className="w-28 shrink-0 text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+      <span className="w-28 shrink-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </span>
       <span className="text-sm text-zinc-700 dark:text-zinc-300">{value}</span>

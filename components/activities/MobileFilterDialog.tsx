@@ -2,10 +2,8 @@
 
 import {
   Dialog,
-  DialogContent,
   DialogPortal,
   DialogOverlay,
-  DialogClose,
 } from "@/components/ui/dialog";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Search, SlidersHorizontal, X } from "lucide-react";
@@ -88,7 +86,7 @@ export default function MobileFilterDialog({
                 <DialogPrimitive.Title className="text-lg font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">
                   Find activities
                 </DialogPrimitive.Title>
-                <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {activities.length} activities available
                 </p>
               </div>

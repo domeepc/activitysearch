@@ -38,7 +38,7 @@ export function ProfileHeader({
         <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
           {isOwnProfile ? "My Profile" : userName}
         </h2>
-        <p className="text-sm text-zinc-400 dark:text-zinc-500">@{username}</p>
+        <p className="text-sm text-muted-foreground">@{username}</p>
       </div>
 
       <div className="flex flex-wrap gap-2">

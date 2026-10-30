@@ -106,7 +106,7 @@ export function StripeConnectButton({ organisationId }: StripeConnectButtonProps
         </div>
         <div>
           <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Stripe Payment Setup</h2>
-          <p className="text-xs text-zinc-400 dark:text-zinc-500">Connect your Stripe account to receive payments</p>
+          <p className="text-xs text-muted-foreground">Connect your Stripe account to receive payments</p>
         </div>
       </div>
 
@@ -162,7 +162,7 @@ export function StripeConnectButton({ organisationId }: StripeConnectButtonProps
                 <><AlertTriangle className="h-4 w-4 mr-2" />Complete Setup Now</>
               )}
             </Button>
-            <p className="text-xs text-center text-zinc-400 dark:text-zinc-500">
+            <p className="text-xs text-center text-muted-foreground">
               Click the button above to provide the required information to Stripe
             </p>
           </div>

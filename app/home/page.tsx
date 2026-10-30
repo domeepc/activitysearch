@@ -110,6 +110,7 @@ export default function Home() {
         onClearSelection={() => setSelectedActivity(null)}
         onAddActivity={() => setShowAddDialog(true)}
         isOrganiser={isOrganiser}
+        resultCount={filteredActivities.length}
       />
       <MobileFilterDialog
         activities={activities}

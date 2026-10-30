@@ -30,7 +30,7 @@ export function ActivityDetailReviews({ reviews }: ActivityDetailReviewsProps) {
           <Skeleton className="h-20 w-full rounded-xl" />
         </div>
       ) : reviews.length === 0 ? (
-        <p className="text-sm text-zinc-400 dark:text-zinc-500">No reviews yet</p>
+        <p className="text-sm text-muted-foreground">No reviews yet</p>
       ) : (
         <div className="space-y-3">
           {reviews.map((r) => (
@@ -62,7 +62,7 @@ export function ActivityDetailReviews({ reviews }: ActivityDetailReviewsProps) {
                 </div>
                 <p className="text-sm text-zinc-500 dark:text-zinc-400">{r.text}</p>
                 {r._creationTime != null ? (
-                  <p className="text-xs text-zinc-400 dark:text-zinc-500">
+                  <p className="text-xs text-muted-foreground">
                     {formatDistanceToNow(r._creationTime, { addSuffix: true })}
                   </p>
                 ) : null}

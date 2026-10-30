@@ -46,7 +46,7 @@ export function ProfileStats({
             <span className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
               {progression.level}
             </span>
-            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Level
             </span>
           </div>
@@ -55,7 +55,7 @@ export function ProfileStats({
           </span>
         </div>
         <Progress value={pct} className="h-2" />
-        <div className="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>{Math.round(pct)}% to level {progression.level + 1}</span>
           <span>{progression.totalExp} XP total</span>
         </div>

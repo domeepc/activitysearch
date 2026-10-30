@@ -39,7 +39,7 @@ export function FriendList({
 
   return (
     <div className="space-y-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         Friends ({count})
       </p>
       {friends && friends.length > 0 ? (
@@ -55,7 +55,7 @@ export function FriendList({
           ))}
         </div>
       ) : (
-        <p className="text-sm text-zinc-400 dark:text-zinc-500">No friends yet</p>
+        <p className="text-sm text-muted-foreground">No friends yet</p>
       )}
     </div>
   );

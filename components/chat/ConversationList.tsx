@@ -284,7 +284,7 @@ export function ConversationList({
         <div className="mb-4">
           {(!searchQuery.trim() || filteredFriendsList.length > 0) && (
             <div className="mb-2 flex items-center justify-between px-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Friends {!searchQuery.trim() && friendCount > 0 ? `(${friendCount})` : ""}
               </span>
               {!searchQuery.trim() && onAddFriend && filteredFriendsList.length > 0 && (
@@ -411,7 +411,7 @@ export function ConversationList({
                             onClick={(e) => e.stopPropagation()}
                           >
                             <button className="h-6 w-6 flex items-center justify-center rounded-lg transition-colors hover:bg-blue-100 cursor-pointer">
-                              <MoreVertical className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+                              <MoreVertical className="h-4 w-4 text-muted-foreground" />
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
@@ -481,7 +481,7 @@ export function ConversationList({
           {(!searchQuery.trim() ||
             (filteredTeams && filteredTeams.length > 0)) && (
               <div className="mb-2 flex items-center justify-between px-1">
-                <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">Teams</span>
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Teams</span>
                 {!searchQuery.trim() && filteredTeams && filteredTeams.length > 0 && onCreateTeam && (
                   <button
                     onClick={onCreateTeam}
@@ -576,7 +576,7 @@ export function ConversationList({
                             onClick={(e) => e.stopPropagation()}
                           >
                             <button className="h-6 w-6 flex items-center justify-center rounded-lg transition-colors hover:bg-blue-100 cursor-pointer">
-                              <MoreVertical className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+                              <MoreVertical className="h-4 w-4 text-muted-foreground" />
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
