@@ -37,17 +37,10 @@ export function ProfileForm({
     !!usernameError || !!errors.name || !!errors.lastname || hasEmailError;
 
   return (
-    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 shadow-sm">
-      <div className="flex flex-col gap-3 border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
-        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Edit Profile</h2>
-        <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" size="sm" className="rounded-full border-zinc-200 dark:border-zinc-700" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button size="sm" onClick={onSave} disabled={hasErrors} className="rounded-full">
-            Save Changes
-          </Button>
-        </div>
+    <section id="profile" aria-labelledby="profile-h" className="scroll-mt-24 rounded-2xl border border-border bg-white shadow-sm dark:bg-zinc-900">
+      <div className="border-b border-border px-5 py-4 md:px-6">
+        <h2 id="profile-h" className="text-[17px] font-semibold text-zinc-900 dark:text-zinc-50">Profile</h2>
+        <p className="text-sm text-muted-foreground">How friends and teams see you.</p>
       </div>
       <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
         {/* Avatar */}
@@ -69,7 +62,15 @@ export function ProfileForm({
           clerkUser={clerkUser}
         />
       </div>
-    </div>
+      <div className="flex justify-end gap-2 border-t border-border px-5 py-4 md:px-6">
+        <Button variant="outline" className="rounded-xl" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button onClick={onSave} disabled={hasErrors} className="rounded-xl">
+          Save changes
+        </Button>
+      </div>
+    </section>
   );
 }
 

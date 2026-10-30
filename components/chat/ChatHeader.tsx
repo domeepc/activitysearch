@@ -35,17 +35,17 @@ export function ChatHeader({
 
   return (
     <div
-      className={`${sticky ? "sticky top-(--app-navbar-height) z-40" : ""} border-b border-zinc-100 dark:border-zinc-800 px-4 py-1.5 md:px-8 md:py-4 shrink-0 bg-white dark:bg-zinc-950`}
+      className={`${sticky ? "sticky top-(--app-navbar-height) z-40" : ""} border-b border-border px-3 py-2.5 md:px-5 md:py-3 shrink-0 bg-white dark:bg-zinc-900`}
     >
       <div className="flex items-center gap-2 md:gap-3">
         {/* Back button - only visible on mobile */}
         {isMobile && (
           <button
             onClick={handleBack}
-            className="md:hidden p-1 hover:bg-muted rounded-full transition-colors"
+            className="md:hidden flex size-10 items-center justify-center hover:bg-muted rounded-xl transition-colors"
             aria-label="Back to conversations"
           >
-            <ArrowLeft className="h-3.5 w-3.5" />
+            <ArrowLeft className="h-4 w-4" />
           </button>
         )}
         {isTeam && teamId && (
@@ -56,7 +56,7 @@ export function ChatHeader({
           />
         )}
         <div className="min-w-0">
-          <h2 className="text-sm md:text-lg font-semibold truncate text-zinc-900 dark:text-zinc-50">{displayName}</h2>
+          <h2 className="text-[15px] md:text-base font-semibold truncate text-zinc-900 dark:text-zinc-50">{displayName}</h2>
           {username ? (
             profileUserId ? (
               <Link

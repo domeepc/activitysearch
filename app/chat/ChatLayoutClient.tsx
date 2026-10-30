@@ -105,11 +105,11 @@ function ChatLayoutClientContent({
 
   return (
     <>
-      <div className="flex h-[calc(100vh-var(--app-navbar-height))] overflow-hidden">
+      <div className="flex h-[calc(100vh-var(--app-navbar-height))] overflow-hidden bg-zinc-100 md:gap-3 md:p-3 dark:bg-zinc-950">
         {/* Conversation List - Desktop: always visible, Mobile: only on /chat */}
         <div
           className={`${isOnChatListPage ? "block" : "hidden"
-            } md:block w-full md:w-80 shrink-0 overflow-hidden flex flex-col`}
+            } md:block w-full md:w-[340px] shrink-0 overflow-hidden flex flex-col md:rounded-2xl md:border md:border-border`}
         >
           <ConversationList
             currentChatType={chatInfo.type}
@@ -125,7 +125,7 @@ function ChatLayoutClientContent({
         {/* Chat View - Desktop: always visible, Mobile: only when in conversation */}
         <div
           className={`${!isOnChatListPage ? "block" : "hidden"
-            } md:flex flex-1 flex flex-col min-h-0 overflow-hidden`}
+            } md:flex flex-1 flex flex-col min-h-0 overflow-hidden bg-white md:rounded-2xl md:border md:border-border dark:bg-zinc-900`}
         >
           {headerData && (
             <ChatHeader

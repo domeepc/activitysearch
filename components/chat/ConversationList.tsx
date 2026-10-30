@@ -263,7 +263,8 @@ export function ConversationList({
   const reservationCount = filteredReservationConversations.length;
 
   return (
-    <div className="flex flex-col h-full px-3 py-4 md:px-4 border-r-0 md:border-r border-zinc-100 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-950">
+    <div className="flex flex-col h-full px-3 py-4 overflow-hidden bg-white dark:bg-zinc-900">
+      <h1 className="mb-3 px-1 text-xl font-bold tracking-tight">Messages</h1>
       {/* Search Bar */}
       <div className="mb-4">
         <div className="relative">
@@ -273,7 +274,7 @@ export function ConversationList({
             placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
+            className="h-10 rounded-xl border-transparent bg-zinc-100 pl-9 focus-visible:bg-background dark:bg-zinc-800"
           />
         </div>
       </div>
@@ -290,7 +291,7 @@ export function ConversationList({
               {!searchQuery.trim() && onAddFriend && filteredFriendsList.length > 0 && (
                 <button
                   onClick={onAddFriend}
-                  className="h-5 w-5 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors shrink-0"
+                  className="h-7 w-7 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-foreground flex items-center justify-center transition-colors shrink-0 dark:bg-zinc-800 dark:hover:bg-zinc-700"
                   title="Add friend"
                 >
                   <Plus className="h-3 w-3" />
@@ -351,12 +352,12 @@ export function ConversationList({
                       }
                     }}
                     className={cn(
-                      "w-full px-3 py-2.5 cursor-pointer mb-2 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors text-left flex items-center gap-3 rounded-xl border border-transparent",
-                      isSelected ? "bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800" : "bg-zinc-50 dark:bg-zinc-900"
+                      "w-full px-2.5 py-2 cursor-pointer mb-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-left flex items-center gap-3 rounded-2xl",
+                      isSelected ? "bg-blue-50 dark:bg-blue-950/60" : "bg-transparent"
                     )}
                   >
                     <div className="relative shrink-0">
-                      <Avatar className="h-12 w-12">
+                      <Avatar className="h-11 w-11">
                         <AvatarImage src={friend.avatar} alt={friend.name} />
                         <AvatarFallback>
                           {friend.name[0]}
@@ -367,7 +368,7 @@ export function ConversationList({
                     </div>
                     <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate text-xs md:text-sm">
+                        <h3 className="font-semibold truncate text-sm">
                           {friend.name} {friend.lastname}
                         </h3>
                         <p className="text-xs text-muted-foreground truncate">
@@ -407,7 +408,7 @@ export function ConversationList({
                             asChild
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <button className="h-6 w-6 flex items-center justify-center rounded-lg transition-colors hover:bg-blue-100 cursor-pointer">
+                            <button aria-label="More options" className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-700 cursor-pointer">
                               <MoreVertical className="h-4 w-4 text-muted-foreground" />
                             </button>
                           </DropdownMenuTrigger>
@@ -459,7 +460,7 @@ export function ConversationList({
               <div className="py-2">
                 <Button
                   onClick={onAddFriend}
-                  className="w-full rounded-full bg-blue-500 hover:bg-blue-600 text-white"
+                  className="h-10 w-full rounded-xl bg-blue-600 text-white hover:bg-blue-500"
                   size="sm"
                 >
                   <div className="flex items-center gap-2">
@@ -482,7 +483,7 @@ export function ConversationList({
                 {!searchQuery.trim() && filteredTeams && filteredTeams.length > 0 && onCreateTeam && (
                   <button
                     onClick={onCreateTeam}
-                    className="h-5 w-5 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors shrink-0"
+                    className="h-7 w-7 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-foreground flex items-center justify-center transition-colors shrink-0 dark:bg-zinc-800 dark:hover:bg-zinc-700"
                     title="Create team"
                   >
                     <Plus className="h-3 w-3" />
@@ -502,27 +503,27 @@ export function ConversationList({
                       onSelectTeam(team.slug);
                     }}
                     className={cn(
-                      "w-full px-3 py-2.5 mb-2 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors flex items-center gap-3 rounded-xl border border-transparent cursor-pointer",
-                      isSelected ? "bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800" : "bg-zinc-50 dark:bg-zinc-900"
+                      "w-full px-2.5 py-2 mb-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-3 rounded-2xl cursor-pointer",
+                      isSelected ? "bg-blue-50 dark:bg-blue-950/60" : "bg-transparent"
                     )}
                   >
                     <div className="relative shrink-0">
                       {team.icon ? (
-                        <Avatar className="h-12 w-12">
+                        <Avatar className="h-11 w-11">
                           <AvatarImage src={team.icon} alt={team.teamName} />
                           <AvatarFallback>
                             <Users className="h-6 w-6 text-primary" />
                           </AvatarFallback>
                         </Avatar>
                       ) : (
-                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                           <Users className="h-6 w-6 text-primary" />
                         </div>
                       )}
                     </div>
                     <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate text-xs md:text-sm">
+                        <h3 className="font-semibold truncate text-sm">
                           {team.teamName}
                         </h3>
                         <p className="text-xs text-muted-foreground truncate">
@@ -561,7 +562,7 @@ export function ConversationList({
                               e.stopPropagation();
                               onInviteToTeam(team.slug);
                             }}
-                            className="h-6 w-6 cursor-pointer rounded-lg text-blue-500 hover:bg-blue-100 flex items-center justify-center transition-colors shrink-0"
+                            className="h-8 w-8 cursor-pointer rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 flex items-center justify-center transition-colors shrink-0"
                             title="Invite friends"
                           >
                             <UserRoundPlus className="h-4 w-4" />
@@ -572,7 +573,7 @@ export function ConversationList({
                             asChild
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <button className="h-6 w-6 flex items-center justify-center rounded-lg transition-colors hover:bg-blue-100 cursor-pointer">
+                            <button aria-label="More options" className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-700 cursor-pointer">
                               <MoreVertical className="h-4 w-4 text-muted-foreground" />
                             </button>
                           </DropdownMenuTrigger>
@@ -665,7 +666,7 @@ export function ConversationList({
               <div className="py-2">
                 <Button
                   onClick={onCreateTeam}
-                  className="w-full rounded-full bg-blue-500 hover:bg-blue-600 text-white"
+                  className="h-10 w-full rounded-xl bg-blue-600 text-white hover:bg-blue-500"
                   size="sm"
                 >
                   <div className="flex items-center gap-2">
@@ -708,12 +709,12 @@ export function ConversationList({
                     }
                   }}
                   className={cn(
-                    "w-full px-3 py-2.5 hover:bg-violet-50 dark:hover:bg-violet-950 transition-colors text-left flex items-center gap-3 rounded-xl border border-transparent cursor-pointer mb-2",
-                    isSelected ? "bg-violet-50 dark:bg-violet-950 border-violet-200 dark:border-violet-800" : "bg-zinc-50 dark:bg-zinc-900"
+                    "w-full px-2.5 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-left flex items-center gap-3 rounded-2xl cursor-pointer mb-0.5",
+                    isSelected ? "bg-violet-50 dark:bg-violet-950/60" : "bg-transparent"
                   )}
                 >
                   <div className="relative shrink-0">
-                    <Avatar className="h-12 w-12">
+                    <Avatar className="h-11 w-11">
                       <AvatarImage src={conv.avatar} alt={conv.name} />
                       <AvatarFallback>
                         {conv.name[0]}
@@ -724,7 +725,7 @@ export function ConversationList({
                   </div>
                   <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold truncate text-xs md:text-sm">
+                      <h3 className="font-semibold truncate text-sm">
                         {conv.name} {conv.lastname}
                       </h3>
                       {conv.activityName && (
