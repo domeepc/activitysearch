@@ -332,10 +332,16 @@ export function ChatView({
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden relative">
       {/* Messages - Scrollable */}
 
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 min-h-0 bg-gray-200 dark:bg-zinc-700 relative">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 min-h-0 bg-zinc-50 dark:bg-zinc-950 relative">
+        {isEncryptionAvailable && (
+          <p className="mx-auto mb-4 flex w-fit select-none items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+            <Lock className="h-3 w-3" aria-hidden="true" />
+            Messages are end-to-end encrypted
+          </p>
+        )}
         {messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-muted-foreground">
-            <p>No messages yet. Start the conversation!</p>
+          <div className="flex items-center justify-center h-[80%] text-sm text-muted-foreground">
+            <p>No messages yet. Say hi!</p>
           </div>
         ) : (
           <div>
@@ -369,12 +375,6 @@ export function ChatView({
       {/* Message Input Section with E2E Encryption Badge */}
       <div className="relative shrink-0">
 
-        {isEncryptionAvailable && (
-          <div className="absolute -top-1/2 left-1/2 transform -translate-x-1/2 cursor-default select-none flex items-center gap-1.5 text-xs text-muted-foreground/60 bg-background/80 px-2 py-1 rounded-full backdrop-blur-sm">
-            <Lock className="h-3 w-3" />
-            <span>End-to-end encrypted</span>
-          </div>
-        )}
         <ChatInput onSend={handleSend} />
       </div>
     </div>

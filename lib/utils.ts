@@ -5,14 +5,19 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-const priceFormatter = new Intl.NumberFormat("en-IE", {
+const wholePriceFormatter = new Intl.NumberFormat("en-IE", {
   style: "currency",
   currency: "EUR",
-  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+});
+const centsPriceFormatter = new Intl.NumberFormat("en-IE", {
+  style: "currency",
+  currency: "EUR",
+  minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
 
-/** Single place for how activity prices read across the app (all prices are EUR). */
+/** Single place for how activity prices read across the app (all prices are EUR): €45, €65.50. */
 export function formatPrice(amount: number) {
-  return priceFormatter.format(amount);
+  return (Number.isInteger(amount) ? wholePriceFormatter : centsPriceFormatter).format(amount);
 }

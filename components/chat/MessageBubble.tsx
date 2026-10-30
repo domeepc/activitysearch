@@ -271,16 +271,16 @@ export function MessageBubble({
           ) : null}
           <div
             className={cn(
-              "rounded-2xl px-4 py-2.5",
+              "rounded-[18px] px-3.5 py-2.5",
               isFromCurrentUser
-                ? "bg-blue-500 text-white"
-                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50",
+                ? "rounded-br-md bg-blue-600 text-white"
+                : "rounded-bl-md border border-zinc-200 bg-white text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50",
               decryptionError && "opacity-75"
             )}
           >
             <p
               className={cn(
-                "text-xs md:text-sm whitespace-pre-wrap wrap-break-word",
+                "text-sm leading-relaxed whitespace-pre-wrap wrap-break-word",
                 decryptionError && "italic text-muted-foreground"
               )}
             >

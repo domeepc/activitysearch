@@ -25,28 +25,30 @@ export function ChatInput({ onSend, disabled = false }: ChatInputProps) {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       handleSend();
     }
   };
 
   return (
-    <div className="border-t border-zinc-100 dark:border-zinc-800 px-4 py-3 shrink-0 bg-white dark:bg-zinc-950">
+    <div className="border-t border-border px-3 py-3 shrink-0 bg-white md:px-4 dark:bg-zinc-900">
       <div className="flex items-end gap-2">
         <Textarea
           value={messageText}
           onChange={(e) => setMessageText(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="Type a message..."
-          className="min-h-[44px] max-h-32 resize-none rounded-2xl border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 text-sm"
+          onKeyDown={handleKeyPress}
+          placeholder="Write a message…"
+          aria-label="Message"
+          className="min-h-[44px] max-h-32 resize-none rounded-xl border-zinc-200 bg-zinc-50 py-3 text-sm focus-visible:bg-background dark:border-zinc-700 dark:bg-zinc-800"
           disabled={disabled}
         />
         <Button
           onClick={handleSend}
           disabled={!messageText.trim() || disabled}
           size="icon"
-          className="shrink-0 h-10 w-10 rounded-full bg-blue-500 hover:bg-blue-600"
+          aria-label="Send message"
+          className="shrink-0 h-11 w-11 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 transition-transform"
         >
           <Send className="h-4 w-4" />
         </Button>

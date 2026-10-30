@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { EmailVerificationSection } from "@/components/profile/EmailVerificationSection";
 import { PasswordSection } from "@/components/profile/PasswordSection";
+import { ThemePreference } from "@/components/profile/ThemePreference";
 import { OAuthProvidersSection } from "@/components/profile/OAuthProvidersSection";
 import { DeleteAccountDialog } from "@/components/profile/dialogs/DeleteAccountDialog";
 import { EmailVerificationDialog } from "@/components/profile/dialogs/EmailVerificationDialog";
@@ -26,6 +27,13 @@ import type { OAuthProvider } from "@/lib/types/profile";
 function looksLikeConvexId(s: string): boolean {
   return /^[a-z0-9]{32}$/.test(s);
 }
+
+const SETTINGS_SECTIONS = [
+  { id: "profile", label: "Profile" },
+  { id: "account", label: "Account & security" },
+  { id: "appearance", label: "Appearance" },
+  { id: "danger", label: "Delete account" },
+] as const;
 
 export default function ProfileSettingsPage({
   params,
@@ -199,7 +207,7 @@ export default function ProfileSettingsPage({
   // Loading state
   if (user === undefined || currentUser === undefined) {
     return (
-      <div className="container mx-auto p-4 md:p-6 max-w-4xl">
+      <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-6 md:py-8">
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
           <div className="border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 md:px-6">
             <Skeleton className="h-6 w-48" />
@@ -232,68 +240,88 @@ export default function ProfileSettingsPage({
   const verificationStatus = getEmailVerificationStatus();
 
   return (
-    <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-      <ProfileForm
-        formData={formData}
-        errors={errors}
-        usernameError={usernameError}
-        usernameAvailable={usernameAvailable}
-        onChange={handleChange}
-        onSave={handleSaveProfile}
-        onCancel={handleCancelEdit}
-        clerkUser={clerkUser || undefined}
-        currentEmail={currentEmail}
-      />
-
-      {/* Account Settings Section */}
-      <div className="mt-4 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
-        <div className="border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 md:px-6">
-          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Account Settings</h2>
+    <div className="mx-auto flex w-full max-w-5xl flex-wrap gap-8 px-4 py-6 md:px-6 md:py-8">
+      <nav aria-label="Settings sections" className="flex w-full flex-col gap-1 md:sticky md:top-[calc(var(--app-navbar-height)+2rem)] md:w-52 md:self-start">
+        <h1 className="mb-3 px-3 text-2xl font-bold tracking-tight">Settings</h1>
+        <div className="flex gap-1 overflow-x-auto md:flex-col">
+          {SETTINGS_SECTIONS.map((section) => (
+            <a
+              key={section.id}
+              href={`#${section.id}`}
+              className="whitespace-nowrap rounded-xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-zinc-100 hover:text-foreground dark:hover:bg-zinc-800"
+            >
+              {section.label}
+            </a>
+          ))}
         </div>
-        <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
-          {/* Email Section */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Email</label>
-            <EmailVerificationSection
-              email={currentEmail}
-              verificationStatus={verificationStatus}
-              onVerifyClick={() => setShowEmailDialog(true)}
-            />
-            {clerkUser?.externalAccounts &&
-              clerkUser.externalAccounts.length > 0 && (
-                <OAuthProvidersSection
-                  externalAccounts={clerkUser.externalAccounts}
-                  onUnlink={handleUnlinkOAuth}
-                />
-              )}
+      </nav>
+
+      <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-4">
+        <ProfileForm
+          formData={formData}
+          errors={errors}
+          usernameError={usernameError}
+          usernameAvailable={usernameAvailable}
+          onChange={handleChange}
+          onSave={handleSaveProfile}
+          onCancel={handleCancelEdit}
+          clerkUser={clerkUser || undefined}
+          currentEmail={currentEmail}
+        />
+
+        <section id="account" aria-labelledby="account-h" className="scroll-mt-24 rounded-2xl border border-border bg-white shadow-sm dark:bg-zinc-900">
+          <div className="border-b border-border px-5 py-4 md:px-6">
+            <h2 id="account-h" className="text-[17px] font-semibold text-zinc-900 dark:text-zinc-50">Account &amp; security</h2>
+            <p className="text-sm text-muted-foreground">Email, sign-in methods and password.</p>
           </div>
-
-          {/* Password Section */}
-          <PasswordSection
-            hasPassword={clerkUser?.passwordEnabled || false}
-            onSetPassword={() => setShowPasswordDialog(true)}
-          />
-
-          {/* Delete Account Section */}
-          <div className="h-px bg-zinc-100 dark:bg-zinc-800" />
-          <div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">Delete Account</p>
-                <p className="text-xs text-muted-foreground">
-                  Permanently delete your account and all associated data
-                </p>
-              </div>
-              <Button
-                variant="destructive"
-                onClick={() => setShowDeleteDialog(true)}
-                className="cursor-pointer"
-              >
-                Delete Account
-              </Button>
+          <div className="divide-y divide-border px-5 md:px-6">
+            <div className="space-y-2 py-5">
+              <p className="text-sm font-medium">Email</p>
+              <EmailVerificationSection
+                email={currentEmail}
+                verificationStatus={verificationStatus}
+                onVerifyClick={() => setShowEmailDialog(true)}
+              />
+              {clerkUser?.externalAccounts &&
+                clerkUser.externalAccounts.length > 0 && (
+                  <OAuthProvidersSection
+                    externalAccounts={clerkUser.externalAccounts}
+                    onUnlink={handleUnlinkOAuth}
+                  />
+                )}
+            </div>
+            <div className="py-5">
+              <PasswordSection
+                hasPassword={clerkUser?.passwordEnabled || false}
+                onSetPassword={() => setShowPasswordDialog(true)}
+              />
             </div>
           </div>
-        </div>
+        </section>
+
+        <section id="appearance" aria-labelledby="appearance-h" className="scroll-mt-24 flex flex-wrap items-center gap-4 rounded-2xl border border-border bg-white px-5 py-5 shadow-sm md:px-6 dark:bg-zinc-900">
+          <div className="min-w-[200px] flex-1">
+            <h2 id="appearance-h" className="text-[17px] font-semibold text-zinc-900 dark:text-zinc-50">Appearance</h2>
+            <p className="text-sm text-muted-foreground">Follow your device, or pick light or dark.</p>
+          </div>
+          <ThemePreference />
+        </section>
+
+        <section id="danger" aria-labelledby="danger-h" className="scroll-mt-24 flex flex-wrap items-center gap-4 rounded-2xl border border-red-200 bg-white px-5 py-5 md:px-6 dark:border-red-900/60 dark:bg-zinc-900">
+          <div className="min-w-[200px] flex-1">
+            <h2 id="danger-h" className="text-[15px] font-semibold text-red-700 dark:text-red-400">Delete account</h2>
+            <p className="text-sm text-muted-foreground">
+              Permanently removes your profile, friends and chat history. This can&apos;t be undone.
+            </p>
+          </div>
+          <Button
+            variant="destructive"
+            onClick={() => setShowDeleteDialog(true)}
+            className="rounded-xl"
+          >
+            Delete account
+          </Button>
+        </section>
       </div>
 
       {/* Dialogs */}
@@ -342,6 +370,6 @@ export default function ProfileSettingsPage({
         open={showUnlinkWarningDialog}
         onOpenChange={setShowUnlinkWarningDialog}
       />
-    </div >
+    </div>
   );
 }

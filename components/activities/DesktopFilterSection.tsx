@@ -1,144 +1,165 @@
 "use client";
 
-import { MapPin, Plus, SlidersHorizontal } from "lucide-react";
+import Image from "next/image";
+import { Plus, Star } from "lucide-react";
 import SearchAutocomplete from "@/components/ui/search-autocomplete";
-import {
-  MultiSelect,
-  MultiSelectTrigger,
-  MultiSelectContent,
-  MultiSelectValue,
-  MultiSelectGroup,
-  MultiSelectItem,
-} from "@/components/ui/multi-select";
 import { ActivityData } from "@/lib/types/activity";
 import { getUniqueCategories } from "@/lib/activities";
-import { cn } from "@/lib/utils";
+import { cn, formatPrice } from "@/lib/utils";
 
 interface DesktopFilterSectionProps {
   activities: ActivityData[];
+  results: ActivityData[];
+  selectedActivityId: string | null;
   selectedCategories: string[];
   onCategoryChange: (categories: string[]) => void;
   onActivitySelect: (activity: ActivityData) => void;
+  onResultSelect: (activity: ActivityData) => void;
   onClearSelection?: () => void;
   onAddActivity: () => void;
   isOrganiser: boolean;
-  resultCount: number;
 }
 
+/** Desktop side panel next to the map: search, category chips and the result list. */
 export default function DesktopFilterSection({
   activities,
+  results,
+  selectedActivityId,
   selectedCategories,
   onCategoryChange,
   onActivitySelect,
+  onResultSelect,
   onClearSelection,
   onAddActivity,
   isOrganiser,
-  resultCount,
 }: DesktopFilterSectionProps) {
+  const categories = getUniqueCategories(activities);
   const isFiltered = selectedCategories.length > 0;
-  const uniqueCategories = getUniqueCategories(activities);
+
+  const toggleCategory = (category: string) => {
+    onCategoryChange(
+      selectedCategories.includes(category)
+        ? selectedCategories.filter((c) => c !== category)
+        : [...selectedCategories, category]
+    );
+  };
 
   return (
-    <section className="hidden md:block animate-in fade-in slide-in-from-left-2 duration-300" style={{ position: "relative", zIndex: 10, margin: "1.5rem" }}>
-      <div
-        className={cn(
-          "w-72 flex flex-col",
-          "bg-muted/95 backdrop-blur-sm",
-          "rounded-2xl border border-border/80",
-          "shadow-[0_4px_24px_-4px_rgba(0,0,0,0.10),0_1px_4px_-1px_rgba(0,0,0,0.06)]"
-        )}
-      >
-        {/* Header */}
-        <div className="px-4 pt-4 pb-3 border-b border-border">
-          <div className="flex items-center gap-2 mb-0.5">
-            <div className="flex items-center justify-center size-7 rounded-lg bg-blue-50 dark:bg-blue-950/30">
-              <MapPin className="size-3.5 text-blue-600" />
-            </div>
-            <h2 className="text-sm font-bold text-foreground tracking-tight">
-              Find Activities
-            </h2>
-          </div>
-          <p className="text-[11px] text-muted-foreground pl-9 tabular-nums" aria-live="polite">
+    <aside
+      aria-label="Find activities"
+      className="hidden w-[380px] shrink-0 flex-col border-r border-border bg-white md:flex dark:bg-zinc-900"
+    >
+      <div className="flex flex-col gap-3 border-b border-border p-4">
+        <div className="flex items-baseline justify-between gap-2">
+          <h1 className="text-xl font-bold tracking-tight">Explore</h1>
+          <p className="text-[13px] tabular-nums text-muted-foreground" aria-live="polite">
             {isFiltered
-              ? `${resultCount} of ${activities.length} shown`
-              : `${activities.length} ${activities.length === 1 ? "activity" : "activities"} available`}
+              ? `${results.length} of ${activities.length} activities`
+              : `${activities.length} ${activities.length === 1 ? "activity" : "activities"}`}
           </p>
         </div>
-
-        {/* Search */}
-        <div className="px-4 pt-4 pb-3">
-          <label className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            <SlidersHorizontal className="size-3" />
-            Search
-          </label>
-          <SearchAutocomplete
-            activities={activities}
-            onActivitySelect={onActivitySelect}
-            onClearSelection={onClearSelection}
-            placeholder="Activity or location..."
-          />
-        </div>
-
-        {/* Divider */}
-        <div className="h-px bg-border mx-4" />
-
-        {/* Categories */}
-        <div className="px-4 pt-3 pb-4">
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            <span className="size-3 rounded-full border-2 border-zinc-300 inline-block" />
-            Category
-            {isFiltered && (
+        <SearchAutocomplete
+          activities={activities}
+          onActivitySelect={onActivitySelect}
+          onClearSelection={onClearSelection}
+          placeholder="Search activity or location…"
+        />
+        {categories.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Categories">
+            {categories.map((category) => {
+              const active = selectedCategories.includes(category);
+              return (
+                <button
+                  key={category}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => toggleCategory(category)}
+                  className={cn(
+                    "h-8 rounded-full border px-3 text-[13px] transition-colors active:scale-[0.97]",
+                    active
+                      ? "border-blue-600 bg-blue-50 font-medium text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"
+                      : "border-border text-foreground hover:bg-muted"
+                  )}
+                >
+                  {category}
+                </button>
+              );
+            })}
+            {isFiltered ? (
               <button
                 type="button"
                 onClick={() => onCategoryChange([])}
-                className="ml-auto normal-case tracking-normal font-medium text-blue-600 hover:underline animate-in fade-in duration-150"
+                className="h-8 px-2 text-[13px] font-semibold text-blue-600 hover:underline dark:text-blue-400"
               >
                 Clear all
               </button>
-            )}
+            ) : null}
           </div>
-          <MultiSelect
-            values={selectedCategories}
-            onValuesChange={onCategoryChange}
-          >
-            <MultiSelectTrigger className="w-full">
-              <MultiSelectValue placeholder="All categories" />
-            </MultiSelectTrigger>
-            {uniqueCategories.length > 0 && (
-              <MultiSelectContent search={false} className="filter_tab_content" popoverClassName="border-0 bg-muted shadow-lg">
-                <MultiSelectGroup>
-                  {uniqueCategories.map((category) => (
-                    <MultiSelectItem key={category} value={category}>
-                      {category}
-                    </MultiSelectItem>
-                  ))}
-                </MultiSelectGroup>
-              </MultiSelectContent>
-            )}
-          </MultiSelect>
-        </div>
-
-        {/* Add Activity */}
-        {isOrganiser && (
-          <div className="px-4 pb-4">
-            <div className="h-px bg-border mb-3" />
-            <button
-              onClick={onAddActivity}
-              className={cn(
-                "w-full flex items-center justify-center gap-2",
-                "py-2.5 rounded-xl",
-                "bg-blue-600 hover:bg-blue-700 active:scale-[0.98]",
-                "text-white text-sm font-semibold",
-                "transition-all duration-150",
-                "shadow-[0_2px_8px_-2px_rgba(37,99,235,0.4)]"
-              )}
-            >
-              <Plus className="size-4" />
-              Add Activity
-            </button>
-          </div>
-        )}
+        ) : null}
       </div>
-    </section>
+
+      <ul className="flex flex-1 flex-col gap-2 overflow-y-auto p-3">
+        {results.length === 0 ? (
+          <li className="px-2 py-10 text-center text-sm text-muted-foreground">
+            No activities match these filters.
+          </li>
+        ) : (
+          results.map((activity) => {
+            const selected = activity.id === selectedActivityId;
+            const image = activity.images?.[0];
+            return (
+              <li key={activity.id}>
+                <button
+                  type="button"
+                  onClick={() => onResultSelect(activity)}
+                  aria-current={selected ? "true" : undefined}
+                  className={cn(
+                    "flex w-full gap-3 rounded-2xl border p-2.5 text-left transition-colors",
+                    selected
+                      ? "border-blue-600 bg-blue-50 dark:bg-blue-950/40"
+                      : "border-transparent hover:bg-muted"
+                  )}
+                >
+                  <span className="relative h-[84px] w-[100px] shrink-0 overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
+                    {image ? (
+                      <Image src={image} alt="" fill sizes="100px" className="object-cover" />
+                    ) : null}
+                  </span>
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="truncate text-xs font-semibold text-blue-700 dark:text-blue-400">
+                      {activity.tags?.[0] ?? activity.category}
+                    </span>
+                    <span className="line-clamp-2 text-[15px] font-semibold leading-snug">{activity.title}</span>
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      {[activity.duration, activity.difficulty].filter(Boolean).join(" · ")}
+                      <span aria-hidden="true">·</span>
+                      <Star className="size-3 fill-amber-400 text-amber-400" aria-hidden="true" />
+                      {activity.rating.toFixed(1)}
+                    </span>
+                    <span className="mt-auto text-[13px]">
+                      <span className="text-muted-foreground">From </span>
+                      <b>{formatPrice(activity.price.amount)}</b>
+                    </span>
+                  </span>
+                </button>
+              </li>
+            );
+          })
+        )}
+      </ul>
+
+      {isOrganiser ? (
+        <div className="border-t border-border p-3">
+          <button
+            type="button"
+            onClick={onAddActivity}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 text-sm font-semibold text-white transition hover:bg-blue-500 active:scale-[0.98]"
+          >
+            <Plus className="size-4" aria-hidden="true" />
+            Add activity
+          </button>
+        </div>
+      ) : null}
+    </aside>
   );
 }

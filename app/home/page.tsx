@@ -102,16 +102,6 @@ export default function Home() {
 
   return (
     <Authenticated>
-      <DesktopFilterSection
-        activities={activities}
-        selectedCategories={selectedCategories}
-        onCategoryChange={handleCategoryChange}
-        onActivitySelect={handleActivitySelect}
-        onClearSelection={() => setSelectedActivity(null)}
-        onAddActivity={() => setShowAddDialog(true)}
-        isOrganiser={isOrganiser}
-        resultCount={filteredActivities.length}
-      />
       <MobileFilterDialog
         activities={activities}
         selectedCategories={selectedCategories}
@@ -139,11 +129,25 @@ export default function Home() {
         setShowDialog={setShowDialogMobile}
       />
 
-      <div className="map_tab">
-        <ActivityMap
-          activities={filteredActivities}
-          selectedActivity={selectedActivity}
+      <div className="flex h-[calc(100dvh-var(--app-navbar-height))] overflow-hidden">
+        <DesktopFilterSection
+          activities={activities}
+          results={filteredActivities}
+          selectedActivityId={selectedActivity?.id ?? null}
+          selectedCategories={selectedCategories}
+          onCategoryChange={handleCategoryChange}
+          onActivitySelect={handleActivitySelect}
+          onResultSelect={setSelectedActivity}
+          onClearSelection={() => setSelectedActivity(null)}
+          onAddActivity={() => setShowAddDialog(true)}
+          isOrganiser={isOrganiser}
         />
+        <div className="relative min-w-0 flex-1">
+          <ActivityMap
+            activities={filteredActivities}
+            selectedActivity={selectedActivity}
+          />
+        </div>
       </div>
       {currentNotification && (
         <QueueNotificationDialog
