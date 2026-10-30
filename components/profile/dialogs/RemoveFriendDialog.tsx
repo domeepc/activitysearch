@@ -36,7 +36,7 @@ export function RemoveFriendDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" className="rounded-full border-zinc-200" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" className="rounded-full border-zinc-200 dark:border-zinc-700" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button variant="destructive" onClick={onConfirm} className="rounded-full">

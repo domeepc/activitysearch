@@ -238,7 +238,7 @@ export function ReservationTable({ reservations }: ReservationTableProps) {
             <thead>
           <tr className="border-b border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950">
             {["Activity", "Date & Time", "User", "Teams", "Participants", "Status", "Actions"].map((h) => (
-              <th key={h} className="h-11 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+              <th key={h} className="h-11 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {h}
               </th>
             ))}

@@ -14,11 +14,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import {
   useMyTeamsAsCreator,
@@ -28,7 +23,8 @@ import {
   useJoinQueue,
   useGetQueuePosition,
 } from "@/lib/hooks/useReservations";
-import { Calendar as CalendarIcon, AlertCircle } from "lucide-react";
+import { AlertCircle, Check, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -52,7 +48,6 @@ export function ReservationDialog({
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
-  const [calendarOpen, setCalendarOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
   // Handle dialog open change and reset form when closing
@@ -296,6 +291,54 @@ export function ReservationDialog({
     );
   }
 
+  const selectedTeam = teams.find((team) => team._id === selectedTeamId);
+  const isBusy = isPending || isJoiningQueue;
+
+  const goToStep = (step: 1 | 2 | 3) => {
+    setError(null);
+    setCurrentStep(step);
+  };
+
+  const renderStepHeader = (step: 1 | 2 | 3, label: string, summary?: string) => {
+    const done = currentStep > step;
+    const active = currentStep === step;
+    return (
+      <button
+        type="button"
+        className="w-full flex items-center gap-3 py-3 text-left disabled:cursor-default"
+        onClick={() => done && goToStep(step)}
+        disabled={!done}
+        aria-current={active ? "step" : undefined}
+      >
+        <span
+          className={cn(
+            "flex size-6 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold transition-colors duration-200",
+            done && "border-foreground bg-foreground text-background",
+            active && "border-foreground text-foreground",
+            !done && !active && "border-border text-muted-foreground"
+          )}
+        >
+          {done ? <Check className="size-3.5 animate-in zoom-in-50 duration-200" /> : step}
+        </span>
+        <span
+          className={cn(
+            "flex-1 text-sm font-medium",
+            !done && !active && "text-muted-foreground"
+          )}
+        >
+          {label}
+        </span>
+        {done && summary && (
+          <span className="text-xs text-muted-foreground underline-offset-2 hover:underline">
+            {summary} · Edit
+          </span>
+        )}
+      </button>
+    );
+  };
+
+  const stepBody = "pb-4 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200";
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg">
@@ -307,7 +350,7 @@ export function ReservationDialog({
         {/* Progress bar */}
         <div className="-mx-6 h-0.5 bg-muted overflow-hidden">
           <div
-            className="h-full bg-foreground transition-all duration-300"
+            className="h-full bg-foreground transition-[width] duration-300 ease-out"
             style={{ width: `${progressPct}%` }}
           />
         </div>
@@ -317,67 +360,40 @@ export function ReservationDialog({
 
             {/* ── Step 1: Choose a date ── */}
             <div>
-              <button
-                type="button"
-                className="w-full flex items-center gap-3 py-3 text-left disabled:cursor-default"
-                onClick={() => {
-                  if (currentStep > 1) {
-                    setCurrentStep(1);
-                    setSelectedTime("");
-                  }
-                }}
-                disabled={currentStep <= 1}
-              >
-                <span className="font-mono text-xs text-muted-foreground w-5">01</span>
-                <span className="flex-1 text-sm font-medium">Choose a date</span>
-                {currentStep > 1 && selectedDate && (
-                  <span className="text-xs text-muted-foreground">
-                    {format(selectedDate, "MMM d")}
-                  </span>
-                )}
-              </button>
+              {renderStepHeader(
+                1,
+                "Choose a date",
+                selectedDate ? format(selectedDate, "MMM d") : undefined
+              )}
 
               {currentStep === 1 && (
-                <div className="pb-4 space-y-2">
-                  <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal border-border"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {selectedDate ? format(selectedDate, "PPP") : <span>Select a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent
-                      className="w-auto p-0 border-border border-2 shadow-xl"
-                      align="start"
-                    >
-                      <Calendar
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={(date) => {
-                          setSelectedDate(date);
-                          setSelectedTime("");
-                          setCalendarOpen(false);
-                        }}
-                        disabled={(date) => date < today}
-                        modifiers={{
-                          reservation_full: (date) =>
-                            getDateModifiers(date).reservation_full ?? false,
-                          reservation_limited: (date) =>
-                            getDateModifiers(date).reservation_limited ?? false,
-                          reservation_available: (date) =>
-                            getDateModifiers(date).reservation_available ?? false,
-                        }}
-                        modifiersClassNames={{
-                          reservation_full: "reservation-full",
-                          reservation_limited: "reservation-limited",
-                          reservation_available: "reservation-available",
-                        }}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                <div className={stepBody}>
+                  {/* Inline calendar: picking a date advances straight to time selection */}
+                  <div className="flex justify-center rounded-lg border border-border">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => {
+                        setSelectedDate(date);
+                        setSelectedTime("");
+                        if (date) goToStep(2);
+                      }}
+                      disabled={(date) => date < today}
+                      modifiers={{
+                        reservation_full: (date) =>
+                          getDateModifiers(date).reservation_full ?? false,
+                        reservation_limited: (date) =>
+                          getDateModifiers(date).reservation_limited ?? false,
+                        reservation_available: (date) =>
+                          getDateModifiers(date).reservation_available ?? false,
+                      }}
+                      modifiersClassNames={{
+                        reservation_full: "reservation-full",
+                        reservation_limited: "reservation-limited",
+                        reservation_available: "reservation-available",
+                      }}
+                    />
+                  </div>
 
                   {availableTimeSlots.length > 0 && (
                     <p className="text-xs text-muted-foreground">
@@ -385,36 +401,20 @@ export function ReservationDialog({
                       {availableTimeSlots.length !== 1 ? "s" : ""} per day
                     </p>
                   )}
-
-                  {error && (
-                    <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
-                      <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-                      <p className="text-sm text-destructive">{error}</p>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
 
             {/* ── Step 2: Pick a time ── */}
             <div>
-              <button
-                type="button"
-                className="w-full flex items-center gap-3 py-3 text-left disabled:cursor-default"
-                onClick={() => currentStep > 2 && setCurrentStep(2)}
-                disabled={currentStep <= 2}
-              >
-                <span className="font-mono text-xs text-muted-foreground w-5">02</span>
-                <span className="flex-1 text-sm font-medium">Pick a time</span>
-                {currentStep > 2 && (
-                  <span className="text-xs text-muted-foreground">
-                    {isDateFulfilled ? "Queue" : selectedTime || "—"}
-                  </span>
-                )}
-              </button>
+              {renderStepHeader(
+                2,
+                "Pick a time",
+                isDateFulfilled ? "Queue" : selectedTime || undefined
+              )}
 
               {currentStep === 2 && (
-                <div className="pb-4 space-y-3">
+                <div className={stepBody}>
                   {isDateFulfilled ? (
                     <div className="p-4 border rounded-md bg-purple-50 border-purple-200 dark:bg-purple-950 dark:border-purple-800">
                       <div className="flex items-start gap-2">
@@ -445,28 +445,25 @@ export function ReservationDialog({
                       No available time slots for this date
                     </div>
                   ) : (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                       {availableTimeSlotsForDate.map((time) => (
                         <button
                           key={time}
                           type="button"
-                          onClick={() => setSelectedTime(time)}
-                          className={`px-3 py-1 text-sm rounded-full border transition-colors ${
+                          onClick={() => {
+                            setSelectedTime(time);
+                            goToStep(3);
+                          }}
+                          className={cn(
+                            "py-2 text-sm rounded-lg border transition-all duration-150 active:scale-95",
                             selectedTime === time
                               ? "bg-foreground text-background border-foreground"
-                              : "border-border hover:bg-muted"
-                          }`}
+                              : "border-border hover:border-foreground/40 hover:bg-muted"
+                          )}
                         >
                           {time}
                         </button>
                       ))}
-                    </div>
-                  )}
-
-                  {error && (
-                    <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
-                      <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-                      <p className="text-sm text-destructive">{error}</p>
                     </div>
                   )}
                 </div>
@@ -475,15 +472,16 @@ export function ReservationDialog({
 
             {/* ── Step 3: Select your team ── */}
             <div>
-              <div className="w-full flex items-center gap-3 py-3">
-                <span className="font-mono text-xs text-muted-foreground w-5">03</span>
-                <span className="flex-1 text-sm font-medium">Select your team</span>
-              </div>
+              {renderStepHeader(3, "Select your team")}
 
               {currentStep === 3 && (
-                <div className="pb-4 space-y-3">
+                <div className={stepBody}>
                   {teamsLoading ? (
-                    <p className="text-sm text-muted-foreground">Loading teams...</p>
+                    <div className="flex gap-2">
+                      {[0, 1].map((i) => (
+                        <div key={i} className="h-8 w-28 rounded-full bg-muted animate-pulse" />
+                      ))}
+                    </div>
                   ) : (
                     <>
                       <div className="flex flex-wrap gap-2">
@@ -497,13 +495,14 @@ export function ReservationDialog({
                               key={team._id}
                               type="button"
                               onClick={() => setSelectedTeamId(team._id)}
-                              className={`px-3 py-1 text-sm rounded-full border transition-colors ${
+                              className={cn(
+                                "px-3 py-1.5 text-sm rounded-full border transition-all duration-150 active:scale-95",
                                 selectedTeamId === team._id
                                   ? "bg-foreground text-background border-foreground"
                                   : overLimit
                                   ? "border-destructive text-destructive hover:bg-destructive/10"
                                   : "border-border hover:bg-muted"
-                              }`}
+                              )}
                             >
                               {team.teamName} · {count}{" "}
                               {count === 1 ? "member" : "members"}
@@ -527,19 +526,44 @@ export function ReservationDialog({
                             </p>
                           </div>
                         )}
-                    </>
-                  )}
 
-                  {error && (
-                    <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
-                      <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-                      <p className="text-sm text-destructive">{error}</p>
-                    </div>
+                      {/* Booking summary, mirrors the order recap shown before confirming on booking sites */}
+                      {selectedDate && selectedTeam && (
+                        <div className="rounded-lg bg-muted/60 px-3 py-2.5 text-xs space-y-1 animate-in fade-in duration-200">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Date</span>
+                            <span className="font-medium">{format(selectedDate, "EEE, MMM d")}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Time</span>
+                            <span className="font-medium">
+                              {isDateFulfilled ? "Waiting list" : selectedTime}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Team</span>
+                            <span className="font-medium">
+                              {selectedTeam.teamName} ({userCount})
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}
             </div>
           </div>
+
+          {error && (
+            <div
+              role="alert"
+              className="flex items-center gap-2 p-3 mb-2 bg-destructive/10 border border-destructive/20 rounded-md animate-in fade-in slide-in-from-top-1 duration-200"
+            >
+              <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+              <p className="text-sm text-destructive">{error}</p>
+            </div>
+          )}
 
           {/* ── Footer ── */}
           <DialogFooter className="flex gap-2 pt-4 border-t border-border mt-2">
@@ -548,7 +572,7 @@ export function ReservationDialog({
                 type="button"
                 variant="ghost"
                 onClick={() => onOpenChange(false)}
-                disabled={isPending || isJoiningQueue}
+                disabled={isBusy}
               >
                 Cancel
               </Button>
@@ -556,8 +580,8 @@ export function ReservationDialog({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setCurrentStep((s) => Math.max(1, s - 1) as 1 | 2 | 3)}
-                disabled={isPending || isJoiningQueue}
+                onClick={() => goToStep(Math.max(1, currentStep - 1) as 1 | 2 | 3)}
+                disabled={isBusy}
               >
                 ← Back
               </Button>
@@ -566,10 +590,7 @@ export function ReservationDialog({
             {currentStep < 3 ? (
               <Button
                 type="button"
-                onClick={() => {
-                  setError(null);
-                  setCurrentStep((s) => Math.min(3, s + 1) as 1 | 2 | 3);
-                }}
+                onClick={() => goToStep(Math.min(3, currentStep + 1) as 1 | 2 | 3)}
                 disabled={
                   (currentStep === 1 && !selectedDate) ||
                   (currentStep === 2 && !isDateFulfilled && !selectedTime)
@@ -581,8 +602,7 @@ export function ReservationDialog({
               <Button
                 type="submit"
                 disabled={
-                  isPending ||
-                  isJoiningQueue ||
+                  isBusy ||
                   !hasTeams ||
                   !selectedTeamId ||
                   (isDateFulfilled && (queuePosition?.inQueue ?? false)) ||
@@ -590,6 +610,7 @@ export function ReservationDialog({
                     userCount > Number(activity.maxParticipants))
                 }
               >
+                {isBusy && <Loader2 className="size-4 animate-spin" />}
                 {isJoiningQueue
                   ? "Joining Queue..."
                   : isPending

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { getTagColorScheme } from "@/lib/tagColors";
+import { formatPrice } from "@/lib/utils";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Pencil, Star } from "lucide-react";
@@ -49,12 +50,12 @@ export default function ActivityCardInList({ activity, onEdit }: ActivityCardPro
           />
         ) : (
           <div className="flex h-full items-center justify-center">
-            <span className="text-xs text-zinc-400 dark:text-zinc-500">No image</span>
+            <span className="text-xs text-muted-foreground">No image</span>
           </div>
         )}
         {/* Price badge on image */}
         <div className="absolute right-3 top-3 rounded-full bg-white/90 dark:bg-zinc-900/90 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300 shadow-sm">
-          {activity.price.amount} {activity.price.currency}
+          {formatPrice(activity.price.amount)}
         </div>
       </div>
 
@@ -68,7 +69,7 @@ export default function ActivityCardInList({ activity, onEdit }: ActivityCardPro
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 shrink-0 text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300"
               aria-label="Edit activity"
               onClick={(e) => {
                 e.stopPropagation();

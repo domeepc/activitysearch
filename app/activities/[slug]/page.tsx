@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Star, Calendar, Pencil } from "lucide-react";
 import { SIGNED_IN_HOME_HREF } from "@/lib/routes";
 import { getTagColorScheme } from "@/lib/tagColors";
+import { formatPrice } from "@/lib/utils";
 import type { CarouselApi } from "@/components/ui/carousel";
 
 export default function ActivityPage({
@@ -124,10 +125,19 @@ export default function ActivityPage({
             <span className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
               {rating.toFixed(1)}
             </span>
-            <span className="text-sm text-zinc-400 dark:text-zinc-500">
+            <span className="text-sm text-muted-foreground">
               ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
             </span>
           </div>
+          {activity.price ? (
+            <p className="text-sm text-muted-foreground">
+              From{" "}
+              <span className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
+                {formatPrice(activity.price)}
+              </span>{" "}
+              / person
+            </p>
+          ) : null}
           {hasTeams && !isOrganiserOfActivity ? (
             <Button
               size="lg"
