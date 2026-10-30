@@ -232,7 +232,7 @@ export const getConversations = query({
           role: partner.role,
           lastMessage: lastMessage?.text || "",
           lastMessageTime: lastMessage?.timestamp || 0,
-          lastActive: partner.lastActive, // Kept for fallback if Ably is unavailable
+          lastActive: partner.lastActive,
           lastMessageReadStatus,
           lastMessageSenderName: lastMessage
             ? lastMessage.senderId === currentUser._id
@@ -314,7 +314,7 @@ export const getMessages = query({
         lastname: otherUser.lastname,
         username: otherUser.username,
         avatar: otherUser.avatar,
-        lastActive: otherUser.lastActive, // Kept for fallback if Ably is unavailable
+        lastActive: otherUser.lastActive,
       },
     };
   },
@@ -458,7 +458,7 @@ export const getMessagesByConversationId = query({
         lastname: friend.lastname,
         username: friend.username,
         avatar: friend.avatar,
-        lastActive: friend.lastActive, // Kept for fallback if Ably is unavailable
+        lastActive: friend.lastActive,
         slug: friend.slug,
       },
       conversationId: conversation._id,

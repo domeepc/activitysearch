@@ -17,8 +17,8 @@ import { useOrganiser } from "@/lib/hooks/useOrganiser";
 import { QueueNotificationDialog } from "@/components/reservations/QueueNotificationDialog";
 import { useMyQueueNotifications } from "@/lib/hooks/useReservations";
 
-const OpenStreetMapComponent = dynamic(
-  () => import("@/components/ui/leafletMap/leafletMap"),
+const ActivityMap = dynamic(
+  () => import("@/components/ui/map/ActivityMap"),
   { ssr: false }
 );
 
@@ -139,7 +139,7 @@ export default function Home() {
       />
 
       <div className="map_tab">
-        <OpenStreetMapComponent
+        <ActivityMap
           activities={filteredActivities}
           selectedActivity={selectedActivity}
         />

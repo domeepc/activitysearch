@@ -363,10 +363,7 @@ export function ConversationList({
                           {friend.lastname[0]}
                         </AvatarFallback>
                       </Avatar>
-                      <StatusDot
-                        userId={friend._id}
-                        lastActive={friend.lastActive}
-                      />
+                      <StatusDot userId={friend._id} />
                     </div>
                     <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
                       <div className="flex-1 min-w-0">
@@ -723,10 +720,7 @@ export function ConversationList({
                         {conv.lastname[0]}
                       </AvatarFallback>
                     </Avatar>
-                    <StatusDot
-                      userId={conv.userId}
-                      lastActive={conv.lastActive}
-                    />
+                    <StatusDot userId={conv.userId} />
                   </div>
                   <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
                     <div className="flex-1 min-w-0">

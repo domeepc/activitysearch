@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ConversationList } from "@/components/chat/ConversationList";
@@ -8,8 +8,6 @@ import { CreateTeamDialog } from "@/components/chat/CreateTeamDialog";
 import { TeamInviteDialog } from "@/components/chat/TeamInviteDialog";
 import { AddFriendDialog } from "@/components/chat/AddFriendDialog";
 import { usePathname } from "next/navigation";
-import { useUpdatePresence } from "@/lib/hooks/usePresence";
-import { usePresenceContext } from "@/components/providers/PresenceProvider";
 import { Id } from "@/convex/_generated/dataModel";
 import { Spinner } from "@/components/ui/spinner";
 import { ChatHeader } from "@/components/chat/ChatHeader";
@@ -43,33 +41,6 @@ function ChatLayoutClientContent({
   const { headerData } = useChatHeaderState();
 
   const currentUser = useQuery(api.users.current);
-  const { userId } = usePresenceContext();
-  const { updatePresence, leavePresence } = useUpdatePresence();
-
-  // Update presence using Ably instead of Convex mutations
-  useEffect(() => {
-    if (!userId || !currentUser) return;
-
-    // Enter presence channel as online when component mounts
-    updatePresence("online");
-
-    // Update presence on visibility change
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        updatePresence("online");
-      } else {
-        updatePresence("away");
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      // Leave presence when component unmounts
-      leavePresence();
-    };
-  }, [userId, currentUser, updatePresence, leavePresence]);
 
   // Determine current chat type and conversation ID from pathname
   const getCurrentChatInfo = () => {

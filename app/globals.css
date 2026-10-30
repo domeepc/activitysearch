@@ -231,3 +231,13 @@
     opacity: 0.4;
   }
 }
+
+/* Map popup: the ActivityCard is its own surface, so strip MapLibre's bubble and tip. */
+.activity-popup .maplibregl-popup-content {
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+.activity-popup .maplibregl-popup-tip {
+  display: none;
+}

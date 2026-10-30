@@ -1,52 +1,54 @@
-import { query } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { getCurrentUser } from "./users";
 
-// DEPRECATED: updateLastActive mutation has been migrated to Ably Presence
-// This mutation is no longer used. Presence is now handled by Ably.
-// Keeping these queries for historical data fallback if needed.
+/**
+ * Called by the client every ~30s while a tab is visible.
+ * A user counts as online when `lastSeen` is within ONLINE_WINDOW_MS (see lib/presence.ts).
+ */
+export const heartbeat = mutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) return null;
 
-// export const updateLastActive = mutation({
-//   args: {},
-//   handler: async (ctx) => {
-//     const currentUser = await getCurrentUserOrThrow(ctx);
-//     const now = Date.now();
-//
-//     await ctx.db.patch(currentUser._id, {
-//       lastActive: now,
-//     });
-//
-//     return { success: true, lastActive: now };
-//   },
-// });
+    const now = Date.now();
+    const existing = await ctx.db
+      .query("presence")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
 
-export const getUserActivity = query({
-  args: {
-    userId: v.id("users"),
-  },
-  handler: async (ctx, { userId }) => {
-    const user = await ctx.db.get(userId);
-    if (!user) {
-      return null;
+    if (existing) {
+      await ctx.db.patch(existing._id, { lastSeen: now });
+    } else {
+      await ctx.db.insert("presence", { userId: user._id, lastSeen: now });
     }
-
-    return {
-      lastActive: user.lastActive,
-    };
+    return null;
   },
 });
 
-export const getUsersActivity = query({
-  args: {
-    userIds: v.array(v.id("users")),
-  },
+/** Last-seen timestamps for the given users (signed-in callers only). */
+export const getLastSeen = query({
+  args: { userIds: v.array(v.id("users")) },
+  returns: v.array(
+    v.object({ userId: v.id("users"), lastSeen: v.union(v.number(), v.null()) })
+  ),
   handler: async (ctx, { userIds }) => {
-    const users = await Promise.all(userIds.map((id) => ctx.db.get(id)));
-    
-    return users
-      .filter((user): user is NonNullable<typeof user> => user !== null)
-      .map((user) => ({
-        userId: user._id,
-        lastActive: user.lastActive,
-      }));
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+
+    return await Promise.all(
+      userIds.slice(0, 200).map(async (userId) => {
+        const row = await ctx.db
+          .query("presence")
+          .withIndex("by_userId", (q) => q.eq("userId", userId))
+          .unique();
+        if (row) return { userId, lastSeen: row.lastSeen };
+        // Fall back to the legacy field for users who haven't sent a heartbeat yet.
+        const user = await ctx.db.get(userId);
+        return { userId, lastSeen: user?.lastActive ?? null };
+      })
+    );
   },
 });
