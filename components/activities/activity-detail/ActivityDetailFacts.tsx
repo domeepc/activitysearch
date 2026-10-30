@@ -1,13 +1,6 @@
 import { Baby, Clock, Gauge, Users } from "lucide-react";
 import { getDifficultyColorScheme } from "@/lib/tagColors";
-
-export function formatDuration(minutes: number) {
-  if (!minutes) return null;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (!h) return `${m} min`;
-  return m ? `${h} h ${m} min` : `${h} h`;
-}
+import { formatDuration } from "@/lib/utils";
 
 interface ActivityDetailFactsProps {
   durationMinutes: number;

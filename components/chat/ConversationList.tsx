@@ -44,6 +44,13 @@ interface ConversationListProps {
   onInviteToTeam?: (slug: string) => void;
 }
 
+type ListFilter = "friends" | "teams" | "reservations";
+const LIST_FILTERS: Array<{ key: ListFilter; label: string }> = [
+  { key: "friends", label: "Friends" },
+  { key: "teams", label: "Teams" },
+  { key: "reservations", label: "Reservations" },
+];
+
 export function ConversationList({
   currentChatType,
   currentChatSlug,
@@ -55,6 +62,9 @@ export function ConversationList({
   onInviteToTeam,
 }: ConversationListProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [listFilter, setListFilter] = useState<ListFilter>(
+    currentChatType === "team" ? "teams" : "friends"
+  );
   const [showTeamMembers, setShowTeamMembers] = useState(false);
   const [showLeaveTeam, setShowLeaveTeam] = useState(false);
   const [showDeleteTeam, setShowDeleteTeam] = useState(false);
@@ -257,6 +267,13 @@ export function ConversationList({
     return teams.filter((team) => team.teamName.toLowerCase().includes(query));
   }, [teams, searchQuery]);
 
+  const show = (section: ListFilter) => listFilter === section;
+  const unreadByFilter: Record<ListFilter, number> = {
+    friends: filteredFriendsList.reduce((s, f) => s + (f.unreadCount ?? 0), 0),
+    teams: filteredTeams.reduce((s, team) => s + (team.unreadCount ?? 0), 0),
+    reservations: filteredReservationConversations.reduce((s, c) => s + (c.unreadCount ?? 0), 0),
+  };
+
   // Get total friend count (after filtering)
   const friendCount = filteredFriendsList.length;
   const reservationCount = filteredReservationConversations.length;
@@ -278,10 +295,40 @@ export function ConversationList({
         </div>
       </div>
 
+      <div
+        role="tablist"
+        aria-label="Show conversations"
+        className="mb-4 grid grid-cols-3 gap-1 rounded-xl bg-zinc-100 p-1 text-[13px] dark:bg-zinc-800"
+      >
+        {LIST_FILTERS.map(({ key, label }) => {
+          const unread = unreadByFilter[key];
+          return (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={listFilter === key}
+              onClick={() => setListFilter(key)}
+              className={cn(
+                "relative h-8 rounded-lg px-1 transition-colors",
+                listFilter === key
+                  ? "bg-white font-semibold text-zinc-900 shadow-sm dark:bg-zinc-950 dark:text-zinc-50"
+                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+              )}
+            >
+              {label}
+              {unread > 0 && listFilter !== key && (
+                <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-blue-600" aria-label="Unread" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
       {/* List */}
       <div className="flex-1 overflow-y-auto min-h-0">
         {/* Friends Section */}
-        <div className="mb-4">
+        {show("friends") && <div className="mb-4">
           {(!searchQuery.trim() || filteredFriendsList.length > 0) && (
             <div className="mb-2 flex items-center justify-between px-1">
               <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -468,10 +515,10 @@ export function ConversationList({
                 </Button>
               </div>
             )}
-        </div>
+        </div>}
 
         {/* Teams Section */}
-        <div className="mb-4 mt-5">
+        {show("teams") && <div className="mb-4">
           {(!searchQuery.trim() ||
             (filteredTeams && filteredTeams.length > 0)) && (
               <div className="mb-2 flex items-center justify-between px-1">
@@ -671,14 +718,14 @@ export function ConversationList({
                 </Button>
               </div>
             )}
-        </div>
+        </div>}
 
         {/* Reservation Chats Section */}
-        {filteredReservationConversations.length > 0 && (
-          <div className="mb-4 mt-5">
+        {show("reservations") && filteredReservationConversations.length > 0 && (
+          <div className="mb-4">
             <div className="mb-2 flex items-center justify-between px-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-violet-400">
-                Reservation Chats {!searchQuery.trim() && reservationCount > 0 ? `(${reservationCount})` : ""}
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Reservations {!searchQuery.trim() && reservationCount > 0 ? `(${reservationCount})` : ""}
               </span>
             </div>
             {filteredReservationConversations.map((conv) => {
@@ -703,7 +750,7 @@ export function ConversationList({
                   }}
                   className={cn(
                     "w-full px-2.5 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-left flex items-center gap-3 rounded-2xl cursor-pointer mb-0.5",
-                    isSelected ? "bg-violet-50 dark:bg-violet-950/60" : "bg-transparent"
+                    isSelected ? "bg-blue-50 dark:bg-blue-950/60" : "bg-transparent"
                   )}
                 >
                   <div className="relative shrink-0">
@@ -758,6 +805,14 @@ export function ConversationList({
           </div>
         )}
 
+        {listFilter === "reservations" && filteredReservationConversations.length === 0 && reservationConversations !== undefined && (
+          <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+            {searchQuery.trim()
+              ? "No reservation chats match"
+              : "When a team you're in books an activity, its organiser chat shows up here."}
+          </p>
+        )}
+
         {/* Empty State */}
         {conversations === undefined ||
           teams === undefined ||
@@ -768,7 +823,8 @@ export function ConversationList({
           <div className="p-4 text-center text-muted-foreground">
             Loading...
           </div>
-        ) : filteredFriendsList.length === 0 &&
+        ) : listFilter !== "reservations" &&
+          filteredFriendsList.length === 0 &&
           (!filteredTeams || filteredTeams.length === 0) &&
           filteredReservationConversations.length === 0 ? (
           <div className="p-4 text-center text-muted-foreground">
