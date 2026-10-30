@@ -1594,7 +1594,7 @@ export const declineQueueReservation = mutation({
 });
 
 // Cleanup function to delete conversations for finished reservations
-export const cleanupFinishedReservations = mutation({
+export const cleanupFinishedReservations = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = new Date();
@@ -1875,7 +1875,7 @@ export const getReservationPayments = query({
   },
 });
 
-export const calculatePaymentProgress = query({
+export const calculatePaymentProgress = internalQuery({
   args: {
     reservationId: v.id("reservations"),
   },
@@ -1951,7 +1951,7 @@ export const calculatePaymentProgress = query({
   },
 });
 
-export const updatePaymentStatus = mutation({
+export const updatePaymentStatus = internalMutation({
   args: {
     reservationId: v.id("reservations"),
     status: v.union(

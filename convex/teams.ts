@@ -1,5 +1,6 @@
 import {
   internalMutation,
+  internalQuery,
   mutation,
   query,
   type MutationCtx,
@@ -444,7 +445,7 @@ export const sendTeamMessage = mutation({
   },
 });
 
-export const sendReservationCardToTeam = mutation({
+export const sendReservationCardToTeam = internalMutation({
   args: {
     teamId: v.id("teams"),
     reservationId: v.id("reservations"),
@@ -601,7 +602,7 @@ export const markTeamMessageAsRead = mutation({
   },
 });
 
-export const getTeamById = query({
+export const getTeamById = internalQuery({
   args: {
     teamId: v.id("teams"),
   },

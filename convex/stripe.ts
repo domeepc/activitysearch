@@ -427,7 +427,7 @@ export const createTeamPaymentIntentInternal = internalAction({
       { reservationId }
     )) as ReservationPaymentWithUser[];
 
-    const team = await ctx.runQuery(api.teams.getTeamById, { teamId });
+    const team = await ctx.runQuery(internal.teams.getTeamById, { teamId });
     if (!team) {
       throw new Error("Team not found");
     }
@@ -570,7 +570,7 @@ export const createTeamPaymentIntent = action({
     if (!currentUser) {
       throw new Error("User not found");
     }
-    const team = await ctx.runQuery(api.teams.getTeamById, { teamId });
+    const team = await ctx.runQuery(internal.teams.getTeamById, { teamId });
     if (!team || !team.teammates.includes(currentUser._id)) {
       throw new Error("Forbidden: not a member of this team");
     }
@@ -636,7 +636,7 @@ export const createPaymentIntent = action({
     // Get full team details to check teammates
     const teams = await Promise.all(
       reservationWithTeams.map((team: { _id: Id<"teams"> }) =>
-        ctx.runQuery(api.teams.getTeamById, { teamId: team._id })
+        ctx.runQuery(internal.teams.getTeamById, { teamId: team._id })
       )
     );
     const validTeams = teams.filter(
@@ -687,7 +687,7 @@ export const createPaymentIntent = action({
       // Get all teams for this reservation to check which team each payment belongs to
       const allReservationTeams = await Promise.all(
         reservationWithTeams.map((team: { _id: Id<"teams"> }) =>
-          ctx.runQuery(api.teams.getTeamById, { teamId: team._id })
+          ctx.runQuery(internal.teams.getTeamById, { teamId: team._id })
         )
       );
       const validReservationTeams = allReservationTeams.filter(
@@ -2633,7 +2633,7 @@ export const getStripePaymentIntentsForOrganiser = action({
 
           const reservationTeams = await Promise.all(
             reservation.teamIds.map((tid: Id<"teams">) =>
-              ctx.runQuery(api.teams.getTeamById, { teamId: tid })
+              ctx.runQuery(internal.teams.getTeamById, { teamId: tid })
             )
           );
           const validTeams = reservationTeams.filter(
@@ -2656,7 +2656,7 @@ export const getStripePaymentIntentsForOrganiser = action({
           let teamName = "Unknown Team";
           let teamMemberIds = new Set<Id<"users">>();
           if (finalTeamId) {
-            const team = await ctx.runQuery(api.teams.getTeamById, {
+            const team = await ctx.runQuery(internal.teams.getTeamById, {
               teamId: finalTeamId,
             });
             if (team) {
@@ -2696,7 +2696,7 @@ export const getStripePaymentIntentsForOrganiser = action({
               ? 0
               : Math.max(0, totalAmount - totalCollectedAmount);
 
-          const payer = await ctx.runQuery(api.users.getUserById, {
+          const payer = await ctx.runQuery(internal.users.getUserByIdInternal, {
             userId: pr.userId,
           });
           const payerName = payer
