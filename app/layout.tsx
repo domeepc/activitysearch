@@ -5,7 +5,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import ConvexClientProvider from "@/components/providers/ConvexClientProvider";
 import { PostHogIdentify } from "@/components/providers/PostHogIdentify";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
-import { PresenceProviderWrapper } from "@/components/providers/PresenceProviderWrapper";
+import { PresenceProvider } from "@/components/providers/PresenceProvider";
 import { ConditionalNavbar } from "@/components/ui/navBar/ConditionalNavbar";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
@@ -66,10 +66,10 @@ export default function RootLayout({
               <ConvexClientProvider>
                 <PostHogProvider>
                   <PostHogIdentify />
-                  <PresenceProviderWrapper>
+                  <PresenceProvider>
                     <ConditionalNavbar />
                     {children}
-                  </PresenceProviderWrapper>
+                  </PresenceProvider>
                 </PostHogProvider>
               </ConvexClientProvider>
             </ClerkProvider>

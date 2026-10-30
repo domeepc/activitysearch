@@ -1,150 +1,35 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useRef,
-  startTransition,
-  ReactNode,
-} from "react";
-import { useQuery, useAction } from "convex/react";
+import { ReactNode, useEffect } from "react";
+import { useConvexAuth, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { disconnectAbly, getAblyClient } from "@/lib/presence/ablyClient";
-import { Realtime } from "ably";
+import { HEARTBEAT_INTERVAL_MS } from "@/lib/hooks/usePresence";
 
-interface PresenceContextType {
-  client: Realtime | null;
-  isConnected: boolean;
-  userId: string | undefined;
-}
-
-const PresenceContext = createContext<PresenceContextType>({
-  client: null,
-  isConnected: false,
-  userId: undefined,
-});
-
-export function usePresenceContext() {
-  return useContext(PresenceContext);
-}
-
-interface PresenceProviderProps {
-  children: ReactNode;
-}
-
-export function PresenceProvider({ children }: PresenceProviderProps) {
-  const { isLoaded, isSignedIn } = useAuth();
-  const currentUser = useQuery(
-    api.users.current,
-    isLoaded && isSignedIn ? {} : "skip"
-  );
-  const getAblyTokenRequest = useAction(api.ably.getAblyTokenRequest);
-  const [client, setClient] = useState<Realtime | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const userId = currentUser?._id;
-  const prevUserIdRef = useRef(userId);
+/**
+ * Keeps the signed-in user's `presence.lastSeen` fresh while a tab is visible.
+ * Online status is derived from that timestamp — no websocket service needed.
+ */
+export function PresenceProvider({ children }: { children: ReactNode }) {
+  const { isAuthenticated } = useConvexAuth();
+  const heartbeat = useMutation(api.presence.heartbeat);
 
   useEffect(() => {
-    // Reset state only when userId changes from valid to null
-    if (!userId && prevUserIdRef.current) {
-      startTransition(() => {
-        setClient(null);
-        setIsConnected(false);
-      });
-      prevUserIdRef.current = userId;
-      return;
-    }
+    if (!isAuthenticated) return;
 
-    if (!userId) {
-      prevUserIdRef.current = userId;
-      return;
-    }
-
-    prevUserIdRef.current = userId;
-    let mounted = true;
-    let cleanupClient: (() => void) | undefined;
-
-    // Initialize Ably client asynchronously (token from Convex; set ABLY_API_KEY in Convex env)
-    getAblyClient(userId.toString(), () => getAblyTokenRequest({})).then(
-      (ablyClient) => {
-        if (!mounted || !ablyClient) {
-          startTransition(() => {
-            setClient(null);
-            setIsConnected(false);
-          });
-          return;
-        }
-
-        const handleConnected = () => {
-          if (mounted) {
-            startTransition(() => {
-              setIsConnected(true);
-            });
-          }
-        };
-
-        const handleDisconnected = () => {
-          if (mounted) {
-            startTransition(() => {
-              setIsConnected(false);
-            });
-          }
-        };
-
-        const handleClosed = () => {
-          if (mounted) {
-            startTransition(() => {
-              setIsConnected(false);
-            });
-          }
-        };
-
-        ablyClient.connection.on("connected", handleConnected);
-        ablyClient.connection.on("disconnected", handleDisconnected);
-        ablyClient.connection.on("closed", handleClosed);
-
-        if (!mounted) {
-          ablyClient.connection.off("connected", handleConnected);
-          ablyClient.connection.off("disconnected", handleDisconnected);
-          ablyClient.connection.off("closed", handleClosed);
-          return;
-        }
-
-        if (ablyClient.connection.state === "connected") {
-          startTransition(() => {
-            setIsConnected(true);
-          });
-        }
-
-        setClient(ablyClient as unknown as Realtime);
-
-        cleanupClient = () => {
-          startTransition(() => {
-            setClient(null);
-            setIsConnected(false);
-          });
-          ablyClient.connection.off("connected", handleConnected);
-          ablyClient.connection.off("disconnected", handleDisconnected);
-          ablyClient.connection.off("closed", handleClosed);
-        };
+    const beat = () => {
+      if (document.visibilityState === "visible") {
+        heartbeat().catch(() => {});
       }
-    );
-
-    return () => {
-      mounted = false;
-      cleanupClient?.();
-      disconnectAbly();
     };
-  }, [userId, getAblyTokenRequest]);
 
-  return (
-    <PresenceContext.Provider
-      value={{ client, isConnected, userId: userId?.toString() }}
-    >
-      {children}
-    </PresenceContext.Provider>
-  );
+    beat();
+    const id = setInterval(beat, HEARTBEAT_INTERVAL_MS);
+    document.addEventListener("visibilitychange", beat);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", beat);
+    };
+  }, [isAuthenticated, heartbeat]);
+
+  return <>{children}</>;
 }

@@ -110,7 +110,7 @@ export const getOAuthProviders = query({
   },
 });
 
-/** For actions that must not import `api` (avoids circular types with e.g. ably). */
+/** For actions that must not import `api` (avoids circular types). */
 export const getUserByExternalIdInternal = internalQuery({
   args: { externalId: v.string() },
   handler: async (ctx, { externalId }) => {

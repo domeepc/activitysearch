@@ -118,22 +118,7 @@ export default function ActivityCard({
   const handleClosePopup = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     e.preventDefault();
-    if (onClose) {
-      onClose();
-    } else {
-      // Fallback: find and close the Leaflet popup
-      const popup = (e.target as HTMLElement)?.closest(".leaflet-popup");
-      if (popup) {
-        const fallback = popup.querySelector(
-          ".leaflet-popup-close-button"
-        ) as HTMLElement | null;
-        if (fallback) {
-          fallback.click();
-        } else {
-          popup.remove();
-        }
-      }
-    }
+    onClose?.();
   };
 
   const cardWidth = isExpanded ? "w-80" : "w-60";
