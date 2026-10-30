@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { cn } from "@/lib/utils";
 
 export function LandingNavbar() {
@@ -19,34 +17,18 @@ export function LandingNavbar() {
   return (
     <header
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 transition-all duration-200",
-        scrolled ? "bg-background border-b border-border shadow-sm" : "bg-transparent"
+        "fixed inset-x-0 top-0 z-50 transition-colors duration-200",
+        scrolled ? "border-b border-zinc-800 bg-zinc-950/85 backdrop-blur" : "bg-transparent"
       )}
     >
-      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 py-3 md:px-6">
-        <Link href="/" className="flex items-center">
-          <Image
-            src="/full-logo.svg"
-            alt="ActivitySearch"
-            width={120}
-            height={30}
-            className="hidden md:block dark:md:hidden"
-            priority
-          />
+      <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center gap-6 px-4 md:px-10">
+        <Link href="/" className="flex items-center" aria-label="ActivitySearch home">
           <Image
             src="/full-logo-dark.svg"
             alt="ActivitySearch"
-            width={120}
-            height={30}
-            className="hidden dark:md:block"
-            priority
-          />
-          <Image
-            src="/mobile-logo.svg"
-            alt="ActivitySearch"
-            width={32}
+            width={132}
             height={32}
-            className="block md:hidden dark:hidden"
+            className="hidden md:block"
             priority
           />
           <Image
@@ -54,18 +36,30 @@ export function LandingNavbar() {
             alt="ActivitySearch"
             width={32}
             height={32}
-            className="hidden dark:block dark:md:hidden"
+            className="md:hidden"
             priority
           />
         </Link>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <Button asChild variant="ghost" size="sm" className="rounded-full">
-            <Link href="/sign-in">Sign in</Link>
-          </Button>
-          <Button asChild size="sm" className="rounded-full">
-            <Link href="/sign-up">Sign up</Link>
-          </Button>
+        <nav aria-label="Sections" className="hidden items-center gap-7 text-sm text-zinc-400 md:flex">
+          <a href="#explore" className="transition-colors hover:text-zinc-50">Explore</a>
+          <a href="#quests" className="transition-colors hover:text-zinc-50">Quests</a>
+          <Link href="/sign-up/organisator-sign-up" className="transition-colors hover:text-zinc-50">
+            For organisers
+          </Link>
+        </nav>
+        <div className="ml-auto flex items-center gap-1.5">
+          <Link
+            href="/sign-in"
+            className="inline-flex h-10 items-center px-4 text-sm text-zinc-50 hover:text-white"
+          >
+            Sign in
+          </Link>
+          <Link
+            href="/sign-up"
+            className="inline-flex h-10 items-center rounded-full bg-zinc-50 px-5 text-sm font-semibold text-zinc-950 transition-transform hover:bg-white active:scale-[0.97]"
+          >
+            Get started
+          </Link>
         </div>
       </div>
     </header>

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import ConvexClientProvider from "@/components/providers/ConvexClientProvider";
@@ -26,6 +26,15 @@ const geistMono = Geist_Mono({
   preload: true,
 });
 
+// Italic display accent used in landing/auth headlines (`font-display`).
+const instrumentSerif = Instrument_Serif({
+  variable: "--font-instrument-serif",
+  subsets: ["latin"],
+  weight: "400",
+  style: "italic",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "ActivitySearch - Discover and Book Activities",
   description:
@@ -45,7 +54,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-200 dark:bg-zinc-950`}
+        className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} antialiased bg-gray-200 dark:bg-zinc-950`}
       >
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <Suspense fallback={<Loading />}>

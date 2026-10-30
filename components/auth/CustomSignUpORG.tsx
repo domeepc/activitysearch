@@ -1176,6 +1176,7 @@ export default function CustomSignUpORG() {
 
   return (
     <AuthFormShell
+      variant="organiser"
       containerClassName="items-center"
       cardClassName="max-w-[95vw] sm:max-w-2xl"
     >

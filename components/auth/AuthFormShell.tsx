@@ -1,105 +1,133 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 
+type AuthVariant = "signin" | "signup" | "organiser";
+
+const PANEL_COPY: Record<
+  AuthVariant,
+  { title: React.ReactNode; perks: string[] }
+> = {
+  signin: {
+    title: (
+      <>
+        Your crew is <span className="font-display font-normal italic text-blue-400">waiting</span>.
+      </>
+    ),
+    perks: [
+      "Pick up your reservations and team chats",
+      "Pay your share in a couple of taps",
+      "Keep your quest streak going",
+    ],
+  },
+  signup: {
+    title: (
+      <>
+        Plan less. <span className="font-display font-normal italic text-blue-400">Play more.</span>
+      </>
+    ),
+    perks: [
+      "Find activities near you on a live map",
+      "Reserve as a team and split the bill",
+      "Earn XP and loyalty points every time you go",
+    ],
+  },
+  organiser: {
+    title: (
+      <>
+        Fill every slot, <span className="font-display font-normal italic text-blue-400">get paid</span> on time.
+      </>
+    ),
+    perks: [
+      "Publish activities on the map in minutes",
+      "Teams pay their shares; payouts through Stripe Connect",
+      "Create quests to bring people back",
+    ],
+  },
+};
+
+const PANEL_PHOTOS = [
+  "/images/outdoor-pursuit.jpg",
+  "/images/team_sports.jpg",
+  "/images/high-energy.jpg",
+];
+
 interface AuthFormShellProps {
   children: React.ReactNode;
+  variant?: AuthVariant;
   cardClassName?: string;
   containerClassName?: string;
 }
 
 export function AuthFormShell({
   children,
+  variant = "signup",
   cardClassName,
   containerClassName,
 }: AuthFormShellProps) {
+  const copy = PANEL_COPY[variant];
+
   return (
-    <div className="min-h-screen flex">
-      {/* Brand panel — desktop only */}
-      <div className="hidden lg:flex lg:w-[44%] xl:w-[42%] flex-col justify-center items-center bg-[#0D0F16] text-white relative overflow-hidden p-10 xl:p-14">
-        {/* Background decorations */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-          <div className="absolute -top-40 -right-40 w-[600px] h-[600px] rounded-full blur-3xl" style={{ backgroundColor: "rgba(85,131,243,0.09)" }} />
-          <div className="absolute bottom-0 -left-24 w-[380px] h-[380px] rounded-full blur-2xl" style={{ backgroundColor: "rgba(85,131,243,0.06)" }} />
-          <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg" style={{ opacity: 0.04 }}>
-            <defs>
-              <pattern id="auth-grid" width="28" height="28" patternUnits="userSpaceOnUse">
-                <circle cx="1.5" cy="1.5" r="1.5" fill="white" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#auth-grid)" />
-          </svg>
-          <svg className="absolute top-0 right-0" width="460" height="460" viewBox="0 0 460 460" fill="none" style={{ opacity: 0.05 }}>
-            <circle cx="460" cy="0" r="300" stroke="white" strokeWidth="0.7" />
-            <circle cx="460" cy="0" r="210" stroke="white" strokeWidth="0.7" />
-            <circle cx="460" cy="0" r="120" stroke="white" strokeWidth="0.7" />
-            <circle cx="460" cy="0" r="50" stroke="white" strokeWidth="0.7" />
-          </svg>
-        </div>
+    <div className="flex min-h-screen bg-background">
+      {/* Brand panel — desktop only; sign-in mirrors it to the right */}
+      <aside
+        className={cn(
+          "relative m-3 hidden flex-col justify-between gap-10 overflow-hidden rounded-3xl bg-zinc-950 p-10 text-zinc-50 lg:flex lg:w-[42%] xl:p-12",
+          variant === "signin" && "lg:order-last"
+        )}
+      >
+        <Link href="/" aria-label="ActivitySearch home" className="relative z-10 self-start">
+          <Image src="/full-logo-dark.svg" alt="ActivitySearch" width={132} height={32} priority />
+        </Link>
 
-        {/* Headline block */}
-        <div className="relative z-10 space-y-7 max-w-[300px]">
-          <div className="space-y-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em]" style={{ color: "#5583F3" }}>
-              Your adventure awaits
-            </p>
-            <h2
-              className="text-[50px] xl:text-[58px] font-light leading-[1.05] text-white"
-              style={{ fontFamily: "var(--font-display, Georgia, serif)", letterSpacing: "-0.025em" }}
-            >
-              Find your<br />
-              next great<br />
-              <span style={{ color: "#5583F3", fontStyle: "italic" }}>adventure.</span>
-            </h2>
-          </div>
-          <p className="text-[14px] leading-[1.7] max-w-[280px]" style={{ color: "rgba(255,255,255,0.42)" }}>
-            Thousands of activities. Trusted organisers. One platform to discover, book, and experience more.
-          </p>
-          <div className="space-y-3 pt-1 flex flex-col">
-            {[
-              "Browse curated local activities",
-              "Secure booking & instant confirmation",
-              "Connect with expert organisers",
-            ].map((item) => (
-              <div key={item} className="flex items-center gap-3">
-                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: "#5583F3" }} />
-                <span className="text-[13px]" style={{ color: "rgba(255,255,255,0.52)" }}>{item}</span>
-              </div>
+        <div className="relative z-10 flex flex-col gap-6">
+          <h2 className="text-[clamp(2.25rem,3.4vw,3rem)] font-bold leading-[1.02] tracking-[-0.045em]">
+            {copy.title}
+          </h2>
+          <ul className="flex flex-col gap-3 text-[15px] text-zinc-300">
+            {copy.perks.map((perk) => (
+              <li key={perk} className="flex items-start gap-2.5">
+                <Check className="mt-0.5 size-[18px] shrink-0 text-blue-400" strokeWidth={2.5} aria-hidden="true" />
+                {perk}
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
 
-        {/* Bottom mark */}
-        <div className="absolute bottom-8 left-0 right-0 flex justify-center">
-          <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.2)" }}>ActivitySearch © 2025</p>
+        <div aria-hidden="true" className="relative z-10 grid grid-cols-3 items-end gap-2.5">
+          {PANEL_PHOTOS.map((src, i) => (
+            <div
+              key={src}
+              className={cn(
+                "relative overflow-hidden rounded-2xl bg-zinc-800",
+                i === 1 ? "h-44" : i === 0 ? "h-36" : "h-28"
+              )}
+            >
+              <Image src={src} alt="" fill sizes="14vw" className="object-cover" />
+            </div>
+          ))}
         </div>
-      </div>
+      </aside>
 
       {/* Form panel */}
       <div
         className={cn(
-          "flex-1 flex flex-col items-center justify-center min-h-screen bg-background overflow-y-auto",
-          "px-5 py-10 sm:px-8",
+          "flex min-h-screen flex-1 flex-col items-center justify-center overflow-y-auto bg-background px-5 py-10 sm:px-8",
           containerClassName
         )}
       >
-        {/* Mobile logo */}
-        <div className="lg:hidden mb-8 flex items-center gap-2.5 w-full max-w-[360px]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/mobile-logo.svg" alt="" className="w-7 h-7 dark:hidden" />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/mobile-logo-dark.svg" alt="" className="hidden w-7 h-7 dark:block" />
-          <span className="font-semibold text-[15px] tracking-tight">
-            Activity<span style={{ color: "#5583F3" }}>Search</span>
-          </span>
-        </div>
+        <Link href="/" aria-label="ActivitySearch home" className="mb-8 flex w-full max-w-[400px] lg:hidden">
+          <Image src="/full-logo.svg" alt="ActivitySearch" width={132} height={32} className="dark:hidden" priority />
+          <Image src="/full-logo-dark.svg" alt="ActivitySearch" width={132} height={32} className="hidden dark:block" priority />
+        </Link>
 
-        <div className={cn("w-full max-w-[360px]", cardClassName)}>
-          <Card className="border-0 shadow-none bg-transparent p-0 gap-5">
-            {children}
-          </Card>
+        <div className={cn("w-full max-w-[400px]", cardClassName)}>
+          <Card className="gap-5 border-0 bg-transparent p-0 shadow-none">{children}</Card>
         </div>
       </div>
     </div>
@@ -107,11 +135,11 @@ export function AuthFormShell({
 }
 
 export const authFormStyles = {
-  header: "space-y-1 px-0",
-  title: "text-[22px] font-bold tracking-tight",
-  description: "text-sm text-muted-foreground mt-0.5",
+  header: "space-y-1.5 px-0",
+  title: "text-[30px] font-bold leading-tight tracking-[-0.03em]",
+  description: "text-[15px] text-muted-foreground",
   content: "space-y-4 px-0",
-  footer: "flex flex-col space-y-2.5 px-0 items-start",
+  footer: "flex flex-col items-start space-y-2.5 px-0",
   sectionTitle: "text-xs uppercase tracking-widest text-muted-foreground",
-  error: "rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive",
+  error: "rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive",
 };

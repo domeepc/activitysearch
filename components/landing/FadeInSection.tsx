@@ -1,27 +1,44 @@
 "use client";
 
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 
 interface FadeInSectionProps {
   children: ReactNode;
   delayMs?: number;
+  className?: string;
 }
 
-export function FadeInSection({ children, delayMs = 0 }: FadeInSectionProps) {
+/** Reveals its content once it scrolls into view (no-op for reduced motion). */
+export function FadeInSection({ children, delayMs = 0, className }: FadeInSectionProps) {
+  const ref = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => setIsVisible(true), delayMs);
-    return () => clearTimeout(timeoutId);
-  }, [delayMs]);
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "0px 0px -10% 0px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div
-      className="transition-all duration-700 ease-out"
-      style={{
-        opacity: isVisible ? 1 : 0,
-        transform: isVisible ? "translateY(0)" : "translateY(12px)",
-      }}
+      ref={ref}
+      className={cn(
+        className,
+        "motion-safe:transition-[opacity,transform] motion-safe:duration-700 motion-safe:ease-out",
+        isVisible ? "opacity-100 translate-y-0" : "motion-safe:opacity-0 motion-safe:translate-y-6"
+      )}
+      style={{ transitionDelay: `${delayMs}ms` }}
     >
       {children}
     </div>

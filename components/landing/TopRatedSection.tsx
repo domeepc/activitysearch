@@ -1,74 +1,90 @@
-import { MapPin, Star } from "lucide-react";
 import Image from "next/image";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
+import { Star } from "lucide-react";
 import { ActivityItem, topRated } from "@/components/landing/data";
+import { Accent, SectionHeading } from "./SectionHeading";
 
 interface TopRatedSectionProps {
   items?: ActivityItem[];
 }
 
 export function TopRatedSection({ items }: TopRatedSectionProps) {
-  const displayItems = items && items.length > 0 ? items : topRated;
+  const [featured, ...rest] = items && items.length > 0 ? items : topRated;
 
   return (
-    <section className="bg-muted py-14">
-      <div className="mx-auto w-full max-w-6xl space-y-6 px-4 md:px-6">
-        <div>
-          <h2 className="text-3xl font-semibold tracking-tight text-foreground">
-            Top Rated Activities
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Popular experiences trusted by the community.
-          </p>
-        </div>
+    <section aria-labelledby="top-h" className="mx-auto w-full max-w-[1440px] px-4 pt-28 md:px-10">
+      <SectionHeading
+        id="top-h"
+        index="02"
+        eyebrow="Top rated"
+        title={<>Loved by the <Accent>community</Accent>.</>}
+        description="Popular experiences trusted by the community."
+      />
+      <div className="mt-7 grid gap-3 md:grid-cols-12">
+        <Link
+          href="/home"
+          className="group relative flex h-[420px] flex-col justify-between overflow-hidden rounded-3xl bg-zinc-900 p-6 md:col-span-6 md:h-[460px]"
+        >
+          {featured.imageUrl ? (
+            <Image
+              src={featured.imageUrl}
+              alt=""
+              fill
+              sizes="(min-width: 768px) 50vw, 100vw"
+              className="object-cover transition-transform duration-700 ease-out motion-safe:group-hover:scale-105"
+            />
+          ) : null}
+          <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+          <span className="relative self-start rounded-full bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-950">
+            Featured
+          </span>
+          <span className="relative flex flex-wrap items-end justify-between gap-4">
+            <span>
+              <span className="block text-[13px] text-zinc-300">{featured.category} · Nearby</span>
+              <span className="block text-[40px] font-bold leading-[1.05] tracking-[-0.035em] text-zinc-50">
+                {featured.title}
+              </span>
+            </span>
+            <span className="flex gap-2 text-sm text-zinc-50">
+              <span className="inline-flex items-center gap-1 rounded-full bg-zinc-950/70 px-3.5 py-2.5 backdrop-blur">
+                <Star className="size-3.5 fill-amber-400 text-amber-400" aria-hidden="true" />
+                {featured.rating}
+              </span>
+              <span className="rounded-full bg-blue-600 px-3.5 py-2.5 font-semibold">{featured.price}</span>
+            </span>
+          </span>
+        </Link>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          {displayItems.map((activity) => (
-            <Card
-              key={activity.title}
-              className="overflow-hidden gap-0 border-border pt-0 pb-0 shadow-sm"
-            >
-              <div
-                className={`relative h-40 ${
-                  activity.imageUrl
-                    ? "bg-muted"
-                    : `bg-linear-to-br ${activity.tone}`
-                }`}
-              >
-                {activity.imageUrl ? (
-                  <Image
-                    src={activity.imageUrl}
-                    alt={activity.title}
-                    loading="eager"
-                    fill
-                    sizes="(max-width: 768px) 100vw, 33vw"
-                    className="h-full w-full object-cover object-center"
-                  />
-                ) : null}
-                <Badge className="absolute right-3 top-3 z-10 border-0 bg-white/90 text-xs font-semibold text-zinc-800 shadow-sm">
-                  {activity.price}
-                </Badge>
-              </div>
-              <CardContent className="space-y-3 p-4">
-                <h3 className="line-clamp-1 font-semibold text-foreground">
-                  {activity.title}
-                </h3>
-                <p className="text-sm text-muted-foreground">{activity.category}</p>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1">
-                    <MapPin className="h-3.5 w-3.5" />
-                    Nearby
-                  </span>
-                  <span className="inline-flex items-center gap-1 font-medium text-foreground">
-                    <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                    {activity.rating}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        {rest.map((activity) => (
+          <Link
+            key={activity.title}
+            href="/home"
+            className="group flex h-[420px] flex-col overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 transition-colors hover:border-zinc-700 md:col-span-3 md:h-[460px]"
+          >
+            <span className="relative flex-1 overflow-hidden bg-zinc-800">
+              {activity.imageUrl ? (
+                <Image
+                  src={activity.imageUrl}
+                  alt=""
+                  fill
+                  sizes="(min-width: 768px) 25vw, 100vw"
+                  className="object-cover transition-transform duration-700 ease-out motion-safe:group-hover:scale-105"
+                />
+              ) : null}
+            </span>
+            <span className="flex flex-col gap-1.5 p-[18px]">
+              <span className="text-[13px] text-zinc-400">{activity.category} · Nearby</span>
+              <span className="text-xl font-bold tracking-[-0.02em] text-zinc-50">{activity.title}</span>
+              <span className="mt-1.5 flex justify-between text-sm text-zinc-50">
+                <span className="inline-flex items-center gap-1">
+                  <Star className="size-3.5 fill-amber-400 text-amber-400" aria-hidden="true" />
+                  {activity.rating}
+                </span>
+                <b>{activity.price}</b>
+              </span>
+            </span>
+          </Link>
+        ))}
       </div>
     </section>
   );

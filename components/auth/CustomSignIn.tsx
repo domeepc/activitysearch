@@ -43,7 +43,7 @@ export default function CustomSignIn() {
   // Show loading state while checking authentication
   if (!userLoaded || !isLoaded) {
     return (
-      <AuthFormShell containerClassName="items-center">
+      <AuthFormShell variant="signin" containerClassName="items-center">
         <CardContent className="flex items-center justify-center py-8">
           <div className="text-muted-foreground">Loading...</div>
         </CardContent>
@@ -98,9 +98,9 @@ export default function CustomSignIn() {
   };
 
   return (
-    <AuthFormShell containerClassName="items-center">
+    <AuthFormShell variant="signin" containerClassName="items-center">
       <CardHeader className={authFormStyles.header}>
-        <CardTitle className={authFormStyles.title}>Sign in</CardTitle>
+        <CardTitle className={authFormStyles.title}>Welcome back</CardTitle>
         <CardDescription className={authFormStyles.description}>
             Choose your preferred sign in method
         </CardDescription>

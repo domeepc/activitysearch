@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { CtaContent } from "@/components/landing/data";
+import { Accent } from "./SectionHeading";
 
 interface CtaSectionProps {
   content?: CtaContent;
@@ -9,36 +8,40 @@ interface CtaSectionProps {
 
 export function CtaSection({ content }: CtaSectionProps) {
   return (
-    <section className="py-14">
-      <div className="mx-auto w-full max-w-6xl px-4 md:px-6">
-        <div className="relative overflow-hidden rounded-2xl border border-border bg-zinc-900 p-8 text-white shadow-sm md:p-12">
-          <div className="absolute inset-0 opacity-30 [background:radial-gradient(circle_at_top_right,#3b82f6_0%,transparent_45%)]" />
-          <div className="relative max-w-2xl space-y-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-white/70">
-              {content?.eyebrow ?? "Start your journey"}
-            </p>
-            <h2 className="text-3xl font-semibold tracking-tight md:text-5xl">
-              {content?.title ?? "Turn your passion into an experience."}
-            </h2>
-            <p className="text-sm text-zinc-300 md:text-base">
-              {content?.description ??
-                "Join as a participant or organiser. Build your routine, discover new communities, and reserve your next activity in seconds."}
-            </p>
-            <div className="flex flex-wrap gap-3 pt-2">
-              <Button asChild size="lg" className="rounded-full">
-                <Link href={content?.participantHref ?? "/home"}>
-                  {content?.participantLabel ?? "Join as participant"}
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="secondary" className="rounded-full">
-                <Link href={content?.organiserHref ?? "/sign-up"}>
-                  {content?.organiserLabel ?? "Become an organiser"}
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
+    <section
+      aria-labelledby="cta-h"
+      className="mx-auto flex w-full max-w-[1440px] flex-col items-center gap-6 px-4 pb-28 pt-36 text-center md:px-10"
+    >
+      <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-blue-400">
+        {content?.eyebrow ?? "Start your journey"}
+      </p>
+      <h2
+        id="cta-h"
+        className="max-w-5xl text-[clamp(3rem,7.5vw,7.5rem)] font-extrabold leading-[0.92] tracking-[-0.05em] text-zinc-50"
+      >
+        {content?.title ?? (
+          <>
+            Turn your passion into an <Accent className="text-blue-400">experience</Accent>.
+          </>
+        )}
+      </h2>
+      <p className="max-w-xl text-lg leading-relaxed text-zinc-400">
+        {content?.description ??
+          "Join as a participant or organiser. Build your routine, discover new communities, and reserve your next activity in seconds."}
+      </p>
+      <div className="mt-2 flex flex-wrap justify-center gap-2.5">
+        <Link
+          href={content?.participantHref ?? "/sign-up"}
+          className="inline-flex h-[52px] items-center rounded-full bg-zinc-50 px-7 text-base font-semibold text-zinc-950 transition hover:bg-white active:scale-[0.97]"
+        >
+          {content?.participantLabel ?? "Join as participant"}
+        </Link>
+        <Link
+          href={content?.organiserHref ?? "/sign-up/organisator-sign-up"}
+          className="inline-flex h-[52px] items-center rounded-full border border-zinc-700 px-7 text-base font-semibold text-zinc-50 transition hover:border-zinc-500 active:scale-[0.97]"
+        >
+          {content?.organiserLabel ?? "Become an organiser"}
+        </Link>
       </div>
     </section>
   );

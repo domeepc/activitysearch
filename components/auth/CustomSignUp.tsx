@@ -157,13 +157,29 @@ export default function CustomSignUp() {
     <AuthFormShell containerClassName="items-center">
       <CardHeader className={authFormStyles.header}>
         <CardTitle className={authFormStyles.title}>
-            Create an account
+            Create your account
         </CardTitle>
         <CardDescription className={authFormStyles.description}>
-            Choose your preferred sign up method
+            Takes under a minute.
         </CardDescription>
       </CardHeader>
       <CardContent className={authFormStyles.content}>
+          <nav aria-label="Account type" className="grid grid-cols-2 gap-2">
+            <span
+              aria-current="page"
+              className="rounded-2xl border-2 border-blue-600 bg-blue-50 px-3.5 py-3 dark:bg-blue-950/40"
+            >
+              <span className="block text-[15px] font-semibold">Join activities</span>
+              <span className="block text-xs text-muted-foreground">Book with friends, earn XP</span>
+            </span>
+            <Link
+              href="/sign-up/organisator-sign-up"
+              className="rounded-2xl border border-border px-3.5 py-3 transition-colors hover:border-foreground/30 hover:bg-muted"
+            >
+              <span className="block text-[15px] font-semibold">Host activities</span>
+              <span className="block text-xs text-muted-foreground">List, get paid via Stripe</span>
+            </Link>
+          </nav>
           <OAuthButtons
             onGoogleClick={() => signUpWith("oauth_google")}
             onMicrosoftClick={() => signUpWith("oauth_microsoft")}
@@ -303,11 +319,6 @@ export default function CustomSignUp() {
             <Link href="/sign-in" className="text-primary hover:underline">
               Sign in
             </Link>
-        </div>
-        <div className="text-center text-sm">
-          <Link href={"/sign-up/organisator-sign-up"} className="text-primary hover:underline">
-            Become an organisator
-          </Link>
         </div>
       </CardFooter>
     </AuthFormShell>

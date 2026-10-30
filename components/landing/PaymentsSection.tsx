@@ -1,76 +1,47 @@
-import { CreditCard, Zap, BadgeCheck } from "lucide-react";
+import { Check } from "lucide-react";
 
 const points = [
   {
-    icon: Zap,
     title: "Fast checkout",
-    description:
-      "Save a payment method and confirm reservations in a few taps — no friction at the door.",
-    iconBg: "bg-amber-50 dark:bg-amber-950/30",
-    iconColor: "text-amber-600",
+    description: "Save a payment method and confirm reservations in a few taps — no friction at the door.",
   },
   {
-    icon: CreditCard,
     title: "Powered by Stripe",
-    description:
-      "Card details are handled by Stripe's secure infrastructure. We never store full card numbers.",
-    iconBg: "bg-blue-50 dark:bg-blue-950/30",
-    iconColor: "text-blue-600",
+    description: "Card details are handled by Stripe's secure infrastructure. We never store full card numbers.",
   },
   {
-    icon: BadgeCheck,
     title: "Clear payouts",
-    description:
-      "Organisers get a straightforward flow for getting paid, with full visibility into each booking.",
-    iconBg: "bg-emerald-50 dark:bg-emerald-950/30",
-    iconColor: "text-emerald-600",
+    description: "Organisers get a straightforward flow for getting paid, with full visibility into each booking.",
   },
-] as const;
+];
 
 export function PaymentsSection() {
   return (
-    <section className="bg-background py-20">
-      <div className="mx-auto w-full max-w-6xl space-y-10 px-4 md:px-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              Payments
-            </p>
-            <h2 className="mt-2 text-4xl font-bold tracking-tight text-foreground">
-              Simple, reliable payments.
-            </h2>
-            <p className="mt-2 max-w-lg text-sm text-muted-foreground">
-              Whether you are booking your next session or running a venue —
-              payments are fast for participants and dependable for organisers.
-            </p>
-          </div>
-          <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-border bg-muted px-4 py-2">
-            <CreditCard className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-            <span className="text-xs font-medium text-muted-foreground">
-              Powered by Stripe
-            </span>
-          </div>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-3">
-          {points.map(({ icon: Icon, title, description, iconBg, iconColor }) => (
-            <div
-              key={title}
-              className="space-y-4 rounded-2xl border border-border bg-muted p-6"
-            >
-              <div
-                className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${iconBg}`}
-              >
-                <Icon className={`h-5 w-5 ${iconColor}`} aria-hidden />
-              </div>
-              <div>
-                <h3 className="font-semibold text-foreground">{title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+    <section aria-labelledby="payments-h" className="flex h-full flex-col gap-6 rounded-[28px] bg-blue-600 p-6 text-white md:p-9">
+      <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-blue-100">05 — Payments</p>
+      <h2 id="payments-h" className="text-[clamp(2.1rem,4vw,3.5rem)] font-extrabold leading-none tracking-[-0.04em]">
+        Simple, reliable payments.
+      </h2>
+      <div aria-hidden="true" className="flex flex-col gap-2 rounded-[18px] bg-zinc-950/25 p-4">
+        <span className="flex justify-between text-[13px]">
+          <span>Your team · 3 of 6 paid</span>
+          <b>50%</b>
+        </span>
+        <span className="h-2 overflow-hidden rounded-full bg-white/25">
+          <span className="block h-full w-1/2 rounded-full bg-white" />
+        </span>
       </div>
+      <ul className="flex flex-col gap-4">
+        {points.map(({ title, description }) => (
+          <li key={title} className="flex gap-3">
+            <Check className="mt-0.5 size-[18px] shrink-0" strokeWidth={2.5} aria-hidden="true" />
+            <span>
+              <span className="block text-[15px] font-semibold">{title}</span>
+              <span className="mt-1 block text-[13px] leading-relaxed text-blue-100">{description}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
