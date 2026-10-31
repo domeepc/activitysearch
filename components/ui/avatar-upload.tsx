@@ -59,7 +59,27 @@ export function AvatarUpload({
   // The current photo's host must allow CORS for the browser to crop it; otherwise only a new upload can be adjusted
   const [corsBlocked, setCorsBlocked] = React.useState(false);
 
-  const existing = isPlaceholderAvatar(currentAvatar) ? null : currentAvatar!;
+  const toSafeImageSrc = React.useCallback((value?: string | null): string | null => {
+    if (!value) return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    // Allow data URL previews only for image mime types.
+    if (/^data:image\//i.test(trimmed)) return trimmed;
+
+    try {
+      const url = new URL(trimmed, window.location.origin);
+      if (url.protocol === "http:" || url.protocol === "https:" || url.protocol === "blob:") {
+        return trimmed;
+      }
+    } catch {
+      return null;
+    }
+
+    return null;
+  }, []);
+
+  const existing = isPlaceholderAvatar(currentAvatar) ? null : toSafeImageSrc(currentAvatar);
   const source = preview ?? existing;
   const editable = !!source && !(source === existing && corsBlocked);
   const crop = natural ? { imageWidth: natural.w, imageHeight: natural.h, viewport: VIEWPORT, zoom } : null;
