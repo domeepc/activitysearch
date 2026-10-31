@@ -162,7 +162,7 @@ export function ActivityDetailGallery({ images, title }: ActivityDetailGalleryPr
       </section>
 
       {count > 1 && (
-        <div className="hidden gap-2 overflow-x-auto pb-1 md:flex [scrollbar-width:thin]" role="group" aria-label="Choose photo">
+        <div className="-m-1 hidden gap-2 overflow-x-auto p-1 md:flex [scrollbar-width:thin]" role="group" aria-label="Choose photo">
           {images.map((src, i) => (
             <button
               key={src}
@@ -171,8 +171,8 @@ export function ActivityDetailGallery({ images, title }: ActivityDetailGalleryPr
               aria-label={`Show photo ${i + 1}`}
               aria-current={i === heroIndex}
               className={cn(
-                "relative h-16 w-24 shrink-0 overflow-hidden rounded-xl ring-2 ring-offset-2 ring-offset-background transition-all",
-                i === heroIndex ? "ring-blue-600" : "opacity-70 ring-transparent hover:opacity-100"
+                "relative h-16 w-24 shrink-0 overflow-hidden rounded-xl transition-all after:pointer-events-none after:absolute after:inset-0 after:rounded-xl after:z-10 after:ring-2 after:ring-inset",
+                i === heroIndex ? "after:ring-blue-600" : "opacity-70 after:ring-transparent hover:opacity-100"
               )}
             >
               <Photo src={src} alt="" sizes="96px" />
