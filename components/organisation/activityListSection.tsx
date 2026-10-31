@@ -53,9 +53,9 @@ export default function ActivityListSection({ activityIDs, onEdit }: ActivityLis
           <LayoutGrid className="h-4 w-4 text-muted-foreground" />
           <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Activities</h2>
         </div>
-        <div className="flex flex-row flex-wrap gap-4 p-5 md:p-6">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-4 p-5 md:p-6">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="w-64 rounded-2xl border border-zinc-100 dark:border-zinc-800 overflow-hidden">
+            <div key={i} className="rounded-2xl border border-zinc-100 dark:border-zinc-800 overflow-hidden">
               <Skeleton className="h-40 w-full" />
               <div className="p-4 space-y-2">
                 <Skeleton className="h-5 w-3/4" />
@@ -78,12 +78,12 @@ export default function ActivityListSection({ activityIDs, onEdit }: ActivityLis
         </div>
         <span className="text-xs text-muted-foreground">{activities.length} total</span>
       </div>
-      <div className="flex flex-row flex-wrap gap-4 p-5 md:p-6">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-4 p-5 md:p-6">
         {activities.map((activity) => (
           <div
             key={activity.id}
             onClick={() => handleCardClick(activity.id)}
-            className="cursor-pointer transition-transform hover:scale-[1.02]"
+            className="cursor-pointer transition-transform hover:-translate-y-0.5"
           >
             <ActivityCardInList
               activity={{

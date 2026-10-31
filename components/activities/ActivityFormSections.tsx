@@ -489,7 +489,7 @@ export function TimeSlotsSection({
             {formData.availableTimeSlots.map((time) => (
               <div
                 key={time}
-                className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-md"
+                className="flex items-center gap-2 px-3 py-2 bg-muted rounded-md"
               >
                 <Clock className="h-3 w-3 text-muted-foreground" />
                 <span className="text-sm">{time}</span>
@@ -650,13 +650,13 @@ export function ImagesSection({
                       <button
                         type="button"
                         onClick={() => onRemoveImage(idx)}
-                        className="absolute top-2 right-2 rounded-full bg-destructive p-1.5 text-destructive-foreground opacity-0 shadow-lg transition-opacity hover:bg-destructive/90 group-hover:opacity-100"
+                        className="absolute top-2 right-2 rounded-full bg-destructive p-2 text-destructive-foreground opacity-0 shadow-lg transition-opacity hover:bg-destructive/90 group-hover:opacity-100"
                         aria-label={`Remove image ${idx + 1}`}
                       >
                         <X className="size-4" />
                       </button>
                       <div className="absolute right-0 bottom-0 left-0 bg-linear-to-t from-black/60 to-transparent p-3">
-                        <div className="flex items-center gap-1.5 text-xs text-white">
+                        <div className="flex items-center gap-2 text-xs text-white">
                           <ImageIcon className="size-3.5" />
                           <span>Image {idx + 1}</span>
                         </div>

@@ -100,7 +100,7 @@ export function TeamMembersDialog({
                           {isCurrentUser && <span className="font-normal text-zinc-500"> (you)</span>}
                         </b>
                         {isCreator && (
-                          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+                          <span className="rounded-full bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
                             Admin
                           </span>
                         )}

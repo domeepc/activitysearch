@@ -210,7 +210,7 @@ export function ProfileView({
           </ProfileInfo>
         </aside>
 
-        <section className="min-w-0 flex-[999_1_520px] overflow-hidden rounded-[18px] border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+        <section className="min-w-0 flex-[999_1_520px] overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
           <div role="tablist" aria-label="Profile sections" className="flex gap-1 border-b border-zinc-200 px-3 pt-2 dark:border-zinc-800">
             {tabs.map((t) => (
               <button

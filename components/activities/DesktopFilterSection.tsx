@@ -65,7 +65,7 @@ export default function DesktopFilterSection({
           placeholder="Search activity or location…"
         />
         {categories.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Categories">
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Categories">
             {categories.map((category) => {
               const active = selectedCategories.includes(category);
               return (
@@ -114,7 +114,7 @@ export default function DesktopFilterSection({
                   onClick={() => onResultSelect(activity)}
                   aria-current={selected ? "true" : undefined}
                   className={cn(
-                    "flex w-full gap-3 rounded-2xl border p-2.5 text-left transition-colors",
+                    "flex w-full gap-3 rounded-2xl border p-3 text-left transition-colors",
                     selected
                       ? "border-blue-600 bg-blue-50 dark:bg-blue-950/40"
                       : "border-transparent hover:bg-muted"
@@ -125,7 +125,7 @@ export default function DesktopFilterSection({
                       <Image src={image} alt="" fill sizes="100px" className="object-cover" />
                     ) : null}
                   </span>
-                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="flex min-w-0 flex-1 flex-col gap-1">
                     <span className="truncate text-xs font-semibold text-blue-700 dark:text-blue-400">
                       {activity.tags?.[0] ?? activity.category}
                     </span>

@@ -18,7 +18,7 @@ export function AccountTypeSwitch({ active }: { active: (typeof OPTIONS)[number]
             href={option.href}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "rounded-2xl px-3.5 py-3 text-left transition-colors",
+              "rounded-2xl px-4 py-3 text-left transition-colors",
               isActive
                 ? "pointer-events-none border-2 border-blue-600 bg-blue-50 dark:bg-blue-950/40"
                 : "border border-border hover:border-foreground/30 hover:bg-muted"

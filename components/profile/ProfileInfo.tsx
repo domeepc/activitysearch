@@ -14,7 +14,7 @@ interface ProfileInfoProps {
 /** "About" card: bio, contact and member-since. */
 export function ProfileInfo({ description, contact, joinedAt, isOwnProfile, children }: ProfileInfoProps) {
   return (
-    <section aria-labelledby="about-h" className="flex flex-col gap-2.5 rounded-[18px] border border-zinc-200 bg-white p-4.5 dark:border-zinc-800 dark:bg-zinc-900">
+    <section aria-labelledby="about-h" className="flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
       <h2 id="about-h" className="text-[15px] font-bold">About</h2>
       <p className="text-sm leading-relaxed whitespace-pre-line text-zinc-700 dark:text-zinc-300">
         {description || (

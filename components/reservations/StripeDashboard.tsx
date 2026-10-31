@@ -175,7 +175,7 @@ function BalanceChart({ points, currency }: { points: StripeBalanceHistoryPoint[
               aria-hidden="true"
             />
             <div
-              className="pointer-events-none absolute top-0 z-10 rounded-[10px] bg-zinc-900 px-2.5 py-2 text-xs whitespace-nowrap text-white shadow-lg dark:bg-zinc-50 dark:text-zinc-900"
+              className="pointer-events-none absolute top-0 z-10 rounded-lg bg-zinc-900 px-3 py-2 text-xs whitespace-nowrap text-white shadow-lg dark:bg-zinc-50 dark:text-zinc-900"
               style={{
                 left: `${(x(hover) / W) * 100}%`,
                 transform: hover > points.length / 2 ? "translateX(calc(-100% - 10px))" : "translateX(10px)",
@@ -190,7 +190,7 @@ function BalanceChart({ points, currency }: { points: StripeBalanceHistoryPoint[
             </div>
           </>
         )}
-        <div className="flex justify-between pt-1.5 text-[11px] text-zinc-500 dark:text-zinc-400" aria-hidden="true">
+        <div className="flex justify-between pt-2 text-[11px] text-zinc-500 dark:text-zinc-400" aria-hidden="true">
           {xLabelIdx.map((i) => (
             <span key={i}>{dayLabel(points[i].date)}</span>
           ))}
@@ -306,7 +306,7 @@ export function StripeDashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center rounded-[18px] border border-zinc-200 bg-white py-20 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex items-center justify-center rounded-2xl border border-zinc-200 bg-white py-20 dark:border-zinc-800 dark:bg-zinc-900">
         <Loader2 className="size-6 animate-spin text-zinc-400" />
       </div>
     );
@@ -314,14 +314,14 @@ export function StripeDashboard() {
 
   if (error) {
     return (
-      <div className="flex items-center gap-3 rounded-[18px] bg-red-50 p-4 dark:bg-red-950/50" role="alert">
+      <div className="flex items-center gap-3 rounded-2xl bg-red-50 p-4 dark:bg-red-950/50" role="alert">
         <AlertCircle className="size-4 shrink-0 text-red-600 dark:text-red-400" />
         <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
       </div>
     );
   }
 
-  const card = "rounded-[16px] border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900";
+  const card = "rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900";
 
   return (
     <div className="flex flex-col gap-4">
@@ -333,7 +333,7 @@ export function StripeDashboard() {
               ? "Payouts are enabled."
               : "Stripe is still verifying your account — payouts unlock once it's done."}
         </p>
-        <div role="radiogroup" aria-label="Range" className="inline-flex rounded-[10px] bg-zinc-200/70 p-[3px] text-[13px] dark:bg-zinc-800">
+        <div role="radiogroup" aria-label="Range" className="inline-flex rounded-lg bg-zinc-200/70 p-1 text-[13px] dark:bg-zinc-800">
           {HISTORY_RANGES.map((r) => (
             <button
               key={r.key}
@@ -362,7 +362,7 @@ export function StripeDashboard() {
       )}
 
       <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div className={cn(card, "flex flex-col gap-1.5")}>
+        <div className={cn(card, "flex flex-col gap-2")}>
           <dt className="text-xs text-zinc-600 dark:text-zinc-400">Available</dt>
           <dd className="text-2xl font-bold tracking-tight tabular-nums">{money(balanceData?.available ?? 0, currency)}</dd>
           <Button
@@ -379,17 +379,17 @@ export function StripeDashboard() {
             Request payout
           </Button>
         </div>
-        <div className={cn(card, "flex flex-col gap-1.5")}>
+        <div className={cn(card, "flex flex-col gap-2")}>
           <dt className="text-xs text-zinc-600 dark:text-zinc-400">Pending (on hold)</dt>
           <dd className="text-2xl font-bold tracking-tight tabular-nums">{money(balanceData?.pending ?? 0, currency)}</dd>
           <span className="text-xs text-zinc-600 dark:text-zinc-400">Released after each activity</span>
         </div>
-        <div className={cn(card, "flex flex-col gap-1.5")}>
+        <div className={cn(card, "flex flex-col gap-2")}>
           <dt className="text-xs text-zinc-600 dark:text-zinc-400">Inflow · {rangeLong}</dt>
           <dd className="text-2xl font-bold tracking-tight tabular-nums">{historyData?.hasConnectedAccount ? money(totals.inflow, currency) : "—"}</dd>
           <span className="text-xs text-zinc-600 dark:text-zinc-400">Card payments captured</span>
         </div>
-        <div className={cn(card, "flex flex-col gap-1.5")}>
+        <div className={cn(card, "flex flex-col gap-2")}>
           <dt className="text-xs text-zinc-600 dark:text-zinc-400">Paid out · {rangeLong}</dt>
           <dd className="text-2xl font-bold tracking-tight tabular-nums">{historyData?.hasConnectedAccount ? money(totals.payouts, currency) : "—"}</dd>
           <span className="text-xs text-zinc-600 dark:text-zinc-400">Sent to your bank</span>
@@ -397,16 +397,16 @@ export function StripeDashboard() {
       </dl>
 
       <div className="flex flex-wrap items-stretch gap-4">
-        <section aria-labelledby="bal-h" className="flex min-w-0 flex-[999_1_560px] flex-col gap-3.5 rounded-[18px] border border-zinc-200 bg-white px-5 py-4.5 dark:border-zinc-800 dark:bg-zinc-900">
+        <section aria-labelledby="bal-h" className="flex min-w-0 flex-[999_1_560px] flex-col gap-4 rounded-2xl border border-zinc-200 bg-white px-5 py-5 dark:border-zinc-800 dark:bg-zinc-900">
           <div className="flex flex-wrap items-baseline gap-3">
             <h2 id="bal-h" className="flex-1 text-base font-bold">Balance over time</h2>
-            <span className="inline-flex gap-3.5 text-xs text-zinc-600 dark:text-zinc-400">
-              <span className="inline-flex items-center gap-1.5"><span className="h-[3px] w-3.5 rounded-sm bg-blue-600" />Balance</span>
-              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-[3px] bg-blue-200 dark:bg-blue-900" />Daily inflow</span>
+            <span className="inline-flex gap-4 text-xs text-zinc-600 dark:text-zinc-400">
+              <span className="inline-flex items-center gap-2"><span className="h-[3px] w-3.5 rounded-sm bg-blue-600" />Balance</span>
+              <span className="inline-flex items-center gap-2"><span className="size-2.5 rounded-sm bg-blue-200 dark:bg-blue-900" />Daily inflow</span>
             </span>
           </div>
           {historyError ? (
-            <p className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400"><AlertCircle className="size-4" />{historyError}</p>
+            <p className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400"><AlertCircle className="size-4" />{historyError}</p>
           ) : isHistoryLoading && !historyData ? (
             <div className="flex h-56 items-center justify-center"><Loader2 className="size-5 animate-spin text-zinc-400" /></div>
           ) : !historyData?.hasConnectedAccount ? (
@@ -420,7 +420,7 @@ export function StripeDashboard() {
           )}
         </section>
 
-        <section aria-labelledby="mix-h" className="flex flex-[1_1_320px] flex-col gap-3.5 rounded-[18px] border border-zinc-200 bg-white px-5 py-4.5 dark:border-zinc-800 dark:bg-zinc-900">
+        <section aria-labelledby="mix-h" className="flex flex-[1_1_320px] flex-col gap-4 rounded-2xl border border-zinc-200 bg-white px-5 py-5 dark:border-zinc-800 dark:bg-zinc-900">
           <h2 id="mix-h" className="text-base font-bold">Payment status</h2>
           {byStatus.total === 0 ? (
             <p className="text-sm text-zinc-600 dark:text-zinc-400">No payments yet.</p>
@@ -429,16 +429,16 @@ export function StripeDashboard() {
               <div
                 role="img"
                 aria-label={`Payments by status: ${byStatus.rows.filter((r) => r.amount > 0).map((r) => `${STATUS_META[r.status].label} ${Math.round((r.amount / byStatus.total) * 100)}%`).join(", ")}`}
-                className="flex h-3.5 gap-0.5 overflow-hidden rounded-full"
+                className="flex h-3.5 gap-1 overflow-hidden rounded-full"
               >
                 {byStatus.rows.filter((r) => r.amount > 0).map((r) => (
                   <span key={r.status} className={STATUS_META[r.status].swatch} style={{ width: `${(r.amount / byStatus.total) * 100}%` }} />
                 ))}
               </div>
-              <ul className="flex flex-col gap-2.5 text-[13px]">
+              <ul className="flex flex-col gap-3 text-[13px]">
                 {byStatus.rows.filter((r) => r.count > 0).map((r) => (
                   <li key={r.status} className="flex items-center gap-2">
-                    <span className={cn("size-2.5 rounded-[3px]", STATUS_META[r.status].swatch)} />
+                    <span className={cn("size-2.5 rounded-sm", STATUS_META[r.status].swatch)} />
                     <span className="flex-1">{STATUS_META[r.status].label} <span className="text-zinc-500">· {r.count}</span></span>
                     <b className="tabular-nums">{money(r.amount, currency)}</b>
                     <span className="w-9 text-right tabular-nums text-zinc-600 dark:text-zinc-400">{Math.round((r.amount / byStatus.total) * 100)}%</span>
@@ -450,10 +450,10 @@ export function StripeDashboard() {
         </section>
       </div>
 
-      <section aria-labelledby="tx-h" className="overflow-hidden rounded-[18px] border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="flex flex-wrap items-center gap-2.5 px-5 py-4">
+      <section aria-labelledby="tx-h" className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex flex-wrap items-center gap-3 px-5 py-4">
           <h2 id="tx-h" className="flex-1 text-base font-bold">Payments</h2>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-2">
             {(["all", ...STATUS_ORDER] as const)
               .filter((k) => k === "all" || byStatus.rows.find((r) => r.status === k)!.count > 0)
               .map((k) => (
@@ -484,11 +484,11 @@ export function StripeDashboard() {
             <table className="w-full min-w-[640px] border-collapse text-[13px]">
               <thead>
                 <tr className="bg-zinc-50 text-left text-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-400">
-                  <th className="px-5 py-2.5 font-medium">Date</th>
-                  <th className="px-2.5 py-2.5 font-medium">Payer</th>
-                  <th className="px-2.5 py-2.5 font-medium">Activity</th>
-                  <th className="px-2.5 py-2.5 font-medium">Status</th>
-                  <th className="px-5 py-2.5 text-right font-medium">Amount</th>
+                  <th className="px-5 py-3 font-medium">Date</th>
+                  <th className="px-3 py-3 font-medium">Payer</th>
+                  <th className="px-3 py-3 font-medium">Activity</th>
+                  <th className="px-3 py-3 font-medium">Status</th>
+                  <th className="px-5 py-3 text-right font-medium">Amount</th>
                 </tr>
               </thead>
               <tbody>
@@ -497,16 +497,16 @@ export function StripeDashboard() {
                   return (
                     <tr key={`${intent.paymentIntentId}-${intent.reservationId}`} className="border-t border-zinc-100 dark:border-zinc-800">
                       <td className="px-5 py-3 whitespace-nowrap">{format(new Date(intent.createdAt), "d MMM")}</td>
-                      <td className="px-2.5 py-3">
+                      <td className="px-3 py-3">
                         {intent.payerName} <span className="text-zinc-500">· {intent.teamName}</span>
                         {intent.personsPaidFor > 1 && <span className="block text-xs text-zinc-500">covers {intent.personsPaidFor} people</span>}
                       </td>
-                      <td className="px-2.5 py-3">
+                      <td className="px-3 py-3">
                         {intent.activityName}
                         <span className="block text-xs text-zinc-500">{dayLabel(intent.date, "EEE d MMM")} · {intent.time}</span>
                       </td>
-                      <td className="px-2.5 py-3">
-                        <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap", STATUS_META[intent.status].chip)}>
+                      <td className="px-3 py-3">
+                        <span className={cn("rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap", STATUS_META[intent.status].chip)}>
                           {STATUS_META[intent.status].label}
                         </span>
                       </td>
@@ -538,7 +538,7 @@ export function StripeDashboard() {
               void handleRequestPayout();
             }}
           >
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="payout-amount">Amount ({currency})</Label>
               <Input
                 id="payout-amount"
@@ -554,7 +554,7 @@ export function StripeDashboard() {
               />
             </div>
             {payoutError && (
-              <p className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400" role="alert">
+              <p className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400" role="alert">
                 <AlertCircle className="size-4 shrink-0" />
                 {payoutError}
               </p>

@@ -38,7 +38,7 @@ export default function MobileFilterDialog({
         <DialogPrimitive.Trigger asChild>
           <button
             className={cn(
-              "group flex items-center gap-2.5 px-6 py-3.5",
+              "group flex items-center gap-3 px-6 py-4",
               "rounded-full",
               "bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700",
               "text-white font-semibold text-sm tracking-wide",
@@ -52,7 +52,7 @@ export default function MobileFilterDialog({
           >
             <Search className="size-4 group-hover:rotate-12 transition-transform duration-200" />
             <span>Find activities</span>
-            <div className="ml-0.5 flex items-center justify-center size-5 rounded-full bg-white/20 text-[10px] font-bold">
+            <div className="ml-1 flex items-center justify-center size-5 rounded-full bg-white/20 text-[10px] font-bold">
               <SlidersHorizontal className="size-3" />
             </div>
           </button>
@@ -86,7 +86,7 @@ export default function MobileFilterDialog({
                 <DialogPrimitive.Title className="text-lg font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">
                   Find activities
                 </DialogPrimitive.Title>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p className="text-xs text-muted-foreground mt-1">
                   {activities.length} activities available
                 </p>
               </div>
@@ -114,7 +114,7 @@ export default function MobileFilterDialog({
               <button
                 onClick={onSearch}
                 className={cn(
-                  "w-full py-3.5 rounded-full",
+                  "w-full py-4 rounded-full",
                   "bg-gradient-to-r from-blue-500 to-blue-700",
                   "text-white font-semibold text-sm tracking-wide",
                   "shadow-[0_4px_20px_-4px_rgba(59,130,246,0.5)]",

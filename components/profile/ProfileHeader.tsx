@@ -71,7 +71,7 @@ export function ProfileHeader({
   };
 
   return (
-    <section aria-label="Profile" className="overflow-hidden rounded-[22px] border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+    <section aria-label="Profile" className="overflow-hidden rounded-3xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
       <div className="relative h-28 sm:h-36" aria-hidden="true">
         <div className="absolute inset-0 bg-[linear-gradient(110deg,#1e3a8a_0%,#1d4ed8_40%,#2563eb_70%,#60a5fa_100%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_20%,rgba(255,255,255,0.25),transparent_45%)]" />
@@ -88,12 +88,12 @@ export function ProfileHeader({
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{fullName}</h1>
             {level !== undefined && (
-              <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
                 Level {level}
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
             @{username} · {friendCount} {friendCount === 1 ? "friend" : "friends"}
           </p>
         </div>
@@ -118,7 +118,7 @@ export function ProfileHeader({
                   <Button className="h-10 bg-blue-600 font-semibold text-white hover:bg-blue-700" onClick={openChat} disabled={opening}>
                     <MessageCircle /> {opening ? "Opening…" : "Message"}
                   </Button>
-                  <span className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-zinc-200 px-3.5 text-sm dark:border-zinc-700">
+                  <span className="inline-flex h-10 items-center gap-2 rounded-xl border border-zinc-200 px-4 text-sm dark:border-zinc-700">
                     <Check className="size-4 text-green-600" /> Friends
                   </span>
                 </>

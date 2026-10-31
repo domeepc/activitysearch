@@ -33,7 +33,7 @@ export function CategorySection({ items }: CategorySectionProps) {
           <Link
             key={category.title}
             href="/sign-in"
-            className="group relative flex h-72 flex-col justify-between overflow-hidden rounded-[22px] bg-zinc-900 p-5 text-zinc-50 md:h-96"
+            className="group relative flex h-72 flex-col justify-between overflow-hidden rounded-3xl bg-zinc-900 p-5 text-zinc-50 md:h-96"
           >
             {category.imageUrl ? (
               <Image
@@ -47,7 +47,7 @@ export function CategorySection({ items }: CategorySectionProps) {
             {/* Scrim keeps white text legible over any photo */}
             <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/30" />
             <span className="relative text-[13px] text-zinc-300">0{i + 1}</span>
-            <span className="relative flex flex-col gap-1.5">
+            <span className="relative flex flex-col gap-2">
               <span className="text-[30px] font-bold leading-none tracking-[-0.03em]">{category.title}</span>
               <span className="text-sm text-zinc-300">{category.subtitle}</span>
             </span>

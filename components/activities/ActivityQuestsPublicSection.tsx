@@ -52,7 +52,7 @@ export function ActivityQuestsPublicSection({
               <QuestVisual
                 iconImageUrl={q.iconImageUrl}
                 iconSvg={q.iconSvg}
-                className="mt-0.5"
+                className="mt-1"
               />
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex flex-wrap items-start justify-between gap-2">

@@ -121,7 +121,7 @@ export default function ActivityPage({
     <div className="mx-auto w-full max-w-6xl px-4 pb-28 pt-4 md:px-6 md:pt-6 lg:pb-12">
       <Link
         href={SIGNED_IN_HOME_HREF}
-        className="mb-3 inline-flex h-9 items-center gap-1.5 rounded-xl px-2 -ml-2 text-sm text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
+        className="mb-3 inline-flex h-9 items-center gap-2 rounded-xl px-2 -ml-2 text-sm text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
       >
         <ArrowLeft className="size-4" aria-hidden="true" />
         Explore
@@ -133,13 +133,13 @@ export default function ActivityPage({
         <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-8">
           <header className="flex flex-col gap-3">
             {tags.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-2">
                 {tags.map((tag) => {
                   const colorScheme = getTagColorScheme(tag, databaseTags);
                   return (
                     <span
                       key={tag}
-                      className="rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                      className="rounded-full px-3 py-1 text-xs font-semibold"
                       style={{ backgroundColor: colorScheme.bgHex, color: colorScheme.textHex }}
                     >
                       {tag}
@@ -197,7 +197,7 @@ export default function ActivityPage({
                 {equipment.map((item) => (
                   <li
                     key={item}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-sm dark:border-zinc-800 dark:bg-zinc-900"
+                    className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-zinc-800 dark:bg-zinc-900"
                   >
                     <Package className="size-3.5 text-zinc-500" aria-hidden="true" />
                     {item}
@@ -222,7 +222,7 @@ export default function ActivityPage({
 
         <aside
           aria-label="Booking"
-          className="hidden min-w-0 flex-[1_1_320px] flex-col gap-4 rounded-[22px] border border-zinc-200 bg-white p-5 shadow-[0_8px_28px_-12px_rgba(0,0,0,0.18)] lg:sticky lg:top-[calc(var(--app-navbar-height)+1.5rem)] lg:flex dark:border-zinc-700 dark:bg-zinc-900"
+          className="hidden min-w-0 flex-[1_1_320px] flex-col gap-4 rounded-3xl border border-zinc-200 bg-white p-5 shadow-[0_8px_28px_-12px_rgba(0,0,0,0.18)] lg:sticky lg:top-[calc(var(--app-navbar-height)+1.5rem)] lg:flex dark:border-zinc-700 dark:bg-zinc-900"
         >
           {activity.price ? (
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -234,13 +234,13 @@ export default function ActivityPage({
             </p>
           ) : null}
           {bookingAction}
-          <ul className="flex flex-col gap-2.5 text-[13px] text-zinc-600 dark:text-zinc-400">
+          <ul className="flex flex-col gap-3 text-[13px] text-zinc-600 dark:text-zinc-400">
             <li className="flex gap-2">
-              <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden="true" />
+              <Check className="mt-1 size-4 shrink-0 text-emerald-600" aria-hidden="true" />
               <span><b className="text-zinc-900 dark:text-zinc-50">Split the bill</b> — the price is shared, each teammate pays their part</span>
             </li>
             <li className="flex gap-2">
-              <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden="true" />
+              <Check className="mt-1 size-4 shrink-0 text-emerald-600" aria-hidden="true" />
               <span><b className="text-zinc-900 dark:text-zinc-50">Join the queue</b> if your date is already full</span>
             </li>
           </ul>

@@ -1,13 +1,12 @@
 "use client";
 
-import { Id } from "@/convex/_generated/dataModel";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { X, Users, AlertCircle, Calendar, MapPin, User } from "lucide-react";
+import { useMemo, useState } from "react";
+import { format, isToday, startOfDay } from "date-fns";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import { useCancelReservation } from "@/lib/hooks/useReservations";
-import { useState } from "react";
+import { AlertCircle, Inbox, MoreHorizontal, Search, Users, X } from "lucide-react";
+import { Id } from "@/convex/_generated/dataModel";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -16,9 +15,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { useIsMobile } from "@/lib/hooks/useIsMobile";
+import { useCancelReservation } from "@/lib/hooks/useReservations";
+import { cn } from "@/lib/utils";
 
 interface Reservation {
   _id: Id<"reservations">;
@@ -31,7 +39,6 @@ interface Reservation {
   cancelledAt?: number;
   cancellationReason?: string;
   readByOrganizer?: boolean;
-  reservationChatSlug?: string;
   activity: {
     _id: Id<"activities">;
     activityName: string;
@@ -52,369 +59,322 @@ interface Reservation {
   }>;
 }
 
-interface ReservationTableProps {
-  reservations: Reservation[];
+type Filter = "upcoming" | "past" | "cancelled" | "all";
+type Status = "today" | "upcoming" | "past" | "cancelled";
+
+const FILTERS: Array<{ key: Filter; label: string }> = [
+  { key: "upcoming", label: "Upcoming" },
+  { key: "past", label: "Past" },
+  { key: "cancelled", label: "Cancelled" },
+  { key: "all", label: "All" },
+];
+
+const STATUS: Record<Status, { label: string; chip: string }> = {
+  today: { label: "Today", chip: "bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300" },
+  upcoming: { label: "Upcoming", chip: "bg-green-50 text-green-700 dark:bg-green-950/60 dark:text-green-300" },
+  past: { label: "Done", chip: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300" },
+  cancelled: { label: "Cancelled", chip: "bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300" },
+};
+
+function dateOf(r: Reservation) {
+  return new Date(`${r.date}T00:00:00`);
 }
 
-export function ReservationTable({ reservations }: ReservationTableProps) {
-  const { cancelReservation, isPending } = useCancelReservation();
-  const isMobile = useIsMobile();
-  const [processingId, setProcessingId] = useState<Id<"reservations"> | null>(
-    null
-  );
-  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-  const [selectedReservation, setSelectedReservation] =
-    useState<Reservation | null>(null);
-  const [cancellationReason, setCancellationReason] = useState("");
+function statusOf(r: Reservation): Status {
+  if (r.cancelledAt) return "cancelled";
+  const d = dateOf(r);
+  if (isToday(d)) return "today";
+  return d < startOfDay(new Date()) ? "past" : "upcoming";
+}
 
-  const handleCancelClick = (reservation: Reservation) => {
-    setSelectedReservation(reservation);
-    setCancellationReason("");
-    setCancelDialogOpen(true);
-  };
+function DateBlock({ r }: { r: Reservation }) {
+  const d = dateOf(r);
+  return (
+    <span className="flex w-12 shrink-0 flex-col items-center self-start rounded-xl border border-zinc-200 py-1 leading-none dark:border-zinc-700">
+      <span className="text-[10px] font-semibold uppercase text-zinc-500">{format(d, "MMM")}</span>
+      <span className="text-lg font-bold">{format(d, "d")}</span>
+      <span className="text-[10px] text-zinc-500">{format(d, "EEE")}</span>
+    </span>
+  );
+}
+
+function StatusChip({ r }: { r: Reservation }) {
+  const s = STATUS[statusOf(r)];
+  return (
+    <span className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-xs font-semibold", s.chip)}>
+      <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
+      {s.label}
+    </span>
+  );
+}
+
+interface ReservationTableProps {
+  reservations: Reservation[];
+  isLoading?: boolean;
+}
+
+export function ReservationTable({ reservations, isLoading = false }: ReservationTableProps) {
+  const { cancelReservation, isPending } = useCancelReservation();
+  const [filter, setFilter] = useState<Filter>("upcoming");
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<Reservation | null>(null);
+  const [reason, setReason] = useState("");
+
+  const counts = useMemo(() => {
+    const c: Record<Filter, number> = { upcoming: 0, past: 0, cancelled: 0, all: reservations.length };
+    for (const r of reservations) {
+      const s = statusOf(r);
+      if (s === "cancelled") c.cancelled++;
+      else if (s === "past") c.past++;
+      else c.upcoming++;
+    }
+    return c;
+  }, [reservations]);
+
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const list = reservations.filter((r) => {
+      const s = statusOf(r);
+      if (filter === "upcoming" && s !== "upcoming" && s !== "today") return false;
+      if (filter === "past" && s !== "past") return false;
+      if (filter === "cancelled" && s !== "cancelled") return false;
+      if (!q) return true;
+      return [
+        r.activity?.activityName,
+        r.user && `${r.user.name} ${r.user.lastname} ${r.user.username}`,
+        ...r.teams.map((t) => t.teamName),
+      ].some((v) => v?.toLowerCase().includes(q));
+    });
+    const key = (r: Reservation) => `${r.date} ${r.time}`;
+    // Upcoming reads soonest-first; everything else newest-first.
+    return list.sort((a, b) => (filter === "upcoming" ? key(a).localeCompare(key(b)) : key(b).localeCompare(key(a))));
+  }, [reservations, filter, query]);
 
   const handleCancelConfirm = async () => {
-    if (!selectedReservation || !cancellationReason.trim()) {
-      return;
-    }
-
-    setProcessingId(selectedReservation._id);
+    if (!selected || !reason.trim()) return;
     try {
-      const result = await cancelReservation(
-        selectedReservation._id,
-        cancellationReason.trim()
-      );
-      setCancelDialogOpen(false);
-      setSelectedReservation(null);
-      setCancellationReason("");
-      toast.success("Reservation cancelled.");
-      if (result.autoAssigned) {
-        toast.info("The first team in queue has been assigned the freed slot.");
-      } else if (result.queueNotified) {
-        toast.info("The first team in queue has been notified.");
-      }
+      const result = await cancelReservation(selected._id, reason.trim());
+      setSelected(null);
+      setReason("");
+      toast.success("Reservation cancelled. The team is refunded.");
+      if (result.autoAssigned) toast.info("The first team in the queue got the freed spot.");
+      else if (result.queueNotified) toast.info("The first team in the queue has been notified.");
     } catch (error) {
-      console.error("Failed to cancel reservation:", error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to cancel reservation"
-      );
-    } finally {
-      setProcessingId(null);
+      toast.error(error instanceof Error ? error.message : "Failed to cancel reservation");
     }
   };
 
-  const getStatusBadge = (reservation: Reservation) => {
-    if (reservation.cancelledAt) {
-      return (
-        <Badge variant="destructive">
-          Cancelled
-        </Badge>
-      );
-    }
-    return (
-      <Badge variant="default" className="bg-green-500 hover:bg-green-600 dark:bg-green-700 dark:hover:bg-green-600">
-        Active
-      </Badge>
+  const rowMenu = (r: Reservation) =>
+    r.cancelledAt ? null : (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="size-9" aria-label="Reservation actions">
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            variant="destructive"
+            onSelect={() => {
+              setReason("");
+              setSelected(r);
+            }}
+          >
+            <X /> Cancel reservation
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     );
-  };
 
-  const formatDate = (dateStr: string) => {
-    try {
-      return format(new Date(dateStr + "T00:00:00"), "MMM dd, yyyy");
-    } catch {
-      return dateStr;
-    }
-  };
+  const bookedBy = (r: Reservation) => (
+    <span className="flex min-w-0 items-center gap-2">
+      <Avatar className="size-7">
+        <AvatarImage src={r.user?.avatar} alt="" />
+        <AvatarFallback className="text-[10px] font-bold">{r.user?.name?.[0] ?? "?"}</AvatarFallback>
+      </Avatar>
+      <span className="min-w-0">
+        <b className="block truncate text-sm font-medium">
+          {r.user ? `${r.user.name} ${r.user.lastname}` : "Unknown"}
+        </b>
+        <span className="block truncate text-xs text-zinc-500">
+          {r.teams.length > 0 ? r.teams.map((t) => t.teamName).join(", ") : r.user ? `@${r.user.username}` : ""}
+        </span>
+      </span>
+    </span>
+  );
 
   return (
-    <>
-      {isMobile ? (
-        // Mobile card view
-        <div className="space-y-3">
-          {reservations.map((reservation) => {
-            const isProcessing = processingId === reservation._id;
-            const isCancelled = !!reservation.cancelledAt;
+    <section aria-labelledby="res-h" className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex flex-wrap items-center gap-3 border-b border-zinc-100 px-4 py-4 sm:px-5 dark:border-zinc-800">
+        <h2 id="res-h" className="sr-only">Reservations</h2>
+        <div role="tablist" aria-label="Filter reservations" className="inline-flex max-w-full overflow-x-auto rounded-xl bg-zinc-100 p-1 text-sm [scrollbar-width:none] dark:bg-zinc-800">
+          {FILTERS.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={filter === key}
+              onClick={() => setFilter(key)}
+              className={cn(
+                "inline-flex h-8 shrink-0 items-center gap-2 rounded-lg px-3 transition-colors",
+                filter === key
+                  ? "bg-white font-semibold text-zinc-900 shadow-sm dark:bg-zinc-950 dark:text-zinc-50"
+                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+              )}
+            >
+              {label}
+              <span className="text-xs tabular-nums text-zinc-500">{counts[key]}</span>
+            </button>
+          ))}
+        </div>
+        <div className="relative ml-auto w-full sm:w-64">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" aria-hidden="true" />
+          <Input
+            aria-label="Search reservations"
+            placeholder="Search activity, person or team"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="h-10 bg-zinc-50 pl-9 dark:bg-zinc-800/60"
+          />
+        </div>
+      </div>
 
-            return (
-              <div
-                key={reservation._id}
-                className="rounded-2xl bg-zinc-50 dark:bg-zinc-900 p-4 space-y-3"
-              >
-                  {/* Activity & Status */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-base truncate">
-                        {reservation.activity?.activityName || "Unknown Activity"}
-                      </h3>
-                      {reservation.activity?.address && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                          <MapPin className="h-3 w-3" />
-                          <span className="truncate">
-                            {reservation.activity.address}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    {getStatusBadge(reservation)}
-                  </div>
-
-                  {/* Date & Time */}
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{formatDate(reservation.date)}</span>
-                    <span className="text-muted-foreground">at</span>
-                    <span>{reservation.time}</span>
-                  </div>
-
-                  {/* User */}
-                  {reservation.user && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <span>
-                        {reservation.user.name} {reservation.user.lastname}
-                      </span>
-                      <span className="text-muted-foreground">
-                        @{reservation.user.username}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Teams */}
-                  {reservation.teams.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {reservation.teams.map((team) => (
-                        <Badge
-                          key={team._id}
-                          variant="outline"
-                          className="text-xs"
-                        >
-                          {team.teamName}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Participants */}
-                  <div className="flex items-center gap-2 text-sm">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <span>{Number(reservation.userCount)} participants</span>
-                  </div>
-
-                  {/* Cancellation Reason */}
-                  {reservation.cancellationReason && (
-                    <div className="rounded-xl bg-zinc-100 dark:bg-zinc-800 p-3">
-                      <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
-                        Cancellation Reason:
-                      </p>
-                      <p className="text-xs text-zinc-700 dark:text-zinc-300">
-                        {reservation.cancellationReason}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Actions */}
-                  {!isCancelled && (
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleCancelClick(reservation)}
-                      disabled={isProcessing}
-                      className="w-full"
-                    >
-                      <X className="h-4 w-4 mr-2" />
-                      Cancel Reservation
-                    </Button>
-                  )}
-              </div>
-            );
-          })}
+      {isLoading ? (
+        <div className="flex justify-center py-16">
+          <Spinner className="size-6 text-zinc-400" />
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 px-4 py-16 text-center text-sm text-zinc-600 dark:text-zinc-400">
+          <span className="inline-flex size-10 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
+            <Inbox className="size-5" />
+          </span>
+          {query.trim()
+            ? `Nothing matches “${query.trim()}”.`
+            : filter === "upcoming"
+              ? "No upcoming reservations yet. New bookings show up here."
+              : `No ${filter === "all" ? "" : filter + " "}reservations.`}
         </div>
       ) : (
-        // Desktop table view
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden overflow-x-auto bg-white dark:bg-zinc-950">
-          <table className="w-full">
+        <>
+          {/* Desktop / tablet */}
+          <table className="hidden w-full border-collapse text-sm md:table">
             <thead>
-          <tr className="border-b border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950">
-            {["Activity", "Date & Time", "User", "Teams", "Participants", "Status", "Actions"].map((h) => (
-              <th key={h} className="h-11 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {h}
-              </th>
-            ))}
-            </tr>
-          </thead>
-          <tbody>
-          {reservations.map((reservation) => {
-            const isProcessing = processingId === reservation._id;
-            const isCancelled = !!reservation.cancelledAt;
-
-            return (
-              <tr
-                key={reservation._id}
-                className="border-b border-zinc-100 dark:border-zinc-800 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900"
-              >
-                <td className="p-4 align-middle">
-                  <div>
-                    <div className="font-medium">
-                      {reservation.activity?.activityName || "Unknown Activity"}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {reservation.activity?.address || ""}
-                    </div>
-                  </div>
-                </td>
-                <td className="p-4 align-middle">
-                  <div>
-                    <div className="font-medium">{formatDate(reservation.date)}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {reservation.time}
-                    </div>
-                  </div>
-                </td>
-                <td className="p-4 align-middle">
-                  {reservation.user ? (
-                    <div>
-                      <div className="font-medium">
-                        {reservation.user.name} {reservation.user.lastname}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        @{reservation.user.username}
-                      </div>
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground">Unknown</span>
-                  )}
-                </td>
-                <td className="p-4 align-middle">
-                  <div className="flex flex-wrap gap-1">
-                    {reservation.teams.length > 0 ? (
-                      reservation.teams.map((team) => (
-                        <Badge
-                          key={team._id}
-                          variant="outline"
-                          className="text-xs"
-                        >
-                          {team.teamName}
-                        </Badge>
-                      ))
-                    ) : (
-                      <span className="text-muted-foreground text-sm">No teams</span>
-                    )}
-                  </div>
-                </td>
-                <td className="p-4 align-middle">
-                  <div className="flex items-center gap-1">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <span>{Number(reservation.userCount)}</span>
-                  </div>
-                </td>
-                <td className="p-4 align-middle">
-                  {getStatusBadge(reservation)}
-                  {reservation.cancellationReason && (
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Reason: {reservation.cancellationReason}
-                    </div>
-                  )}
-                </td>
-                <td className="p-4 align-middle">
-                  {!isCancelled && (
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleCancelClick(reservation)}
-                      disabled={isProcessing}
-                      className="h-8"
-                    >
-                      <X className="h-3 w-3 mr-1" />
-                      Cancel
-                    </Button>
-                  )}
-                  {isCancelled && (
-                    <span className="text-sm text-muted-foreground">
-                      Cancelled
-                    </span>
-                  )}
-                </td>
+              <tr className="bg-zinc-50 text-left text-xs text-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-400">
+                <th className="py-3 pl-5 pr-3 font-medium">When</th>
+                <th className="px-3 py-3 font-medium">Activity</th>
+                <th className="px-3 py-3 font-medium">Booked by</th>
+                <th className="px-3 py-3 font-medium">People</th>
+                <th className="px-3 py-3 font-medium">Status</th>
+                <th className="py-3 pl-3 pr-5"><span className="sr-only">Actions</span></th>
               </tr>
-            );
-          })}
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr
+                  key={r._id}
+                  className={cn(
+                    "border-t border-zinc-100 transition-colors hover:bg-zinc-50/60 dark:border-zinc-800 dark:hover:bg-zinc-800/40",
+                    r.cancelledAt && "text-zinc-500"
+                  )}
+                >
+                  <td className="py-3 pl-5 pr-3">
+                    <span className="flex items-center gap-3">
+                      <DateBlock r={r} />
+                      <span className="font-semibold tabular-nums">{r.time}</span>
+                    </span>
+                  </td>
+                  <td className="max-w-[16rem] px-3 py-3">
+                    <b className="block truncate font-medium">{r.activity?.activityName ?? "Unknown activity"}</b>
+                    {r.activity?.address && <span className="block truncate text-xs text-zinc-500">{r.activity.address}</span>}
+                  </td>
+                  <td className="max-w-[14rem] px-3 py-3">{bookedBy(r)}</td>
+                  <td className="px-3 py-3">
+                    <span className="inline-flex items-center gap-1 tabular-nums">
+                      <Users className="size-4 text-zinc-400" aria-hidden="true" />
+                      {Number(r.userCount)}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3">
+                    <StatusChip r={r} />
+                    {r.cancellationReason && (
+                      <span className="mt-1 block max-w-[12rem] truncate text-xs text-zinc-500" title={r.cancellationReason}>
+                        {r.cancellationReason}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-3 pl-3 pr-5 text-right">{rowMenu(r)}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
-        </div>
+
+          {/* Phone */}
+          <ul className="flex flex-col md:hidden">
+            {rows.map((r) => (
+              <li key={r._id} className="flex gap-3 border-t border-zinc-100 px-4 py-4 first:border-t-0 dark:border-zinc-800">
+                <DateBlock r={r} />
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <div className="flex items-start gap-2">
+                    <span className="min-w-0 flex-1">
+                      <b className="block truncate text-sm font-semibold">{r.activity?.activityName ?? "Unknown activity"}</b>
+                      <span className="text-xs text-zinc-500">
+                        {r.time} · {Number(r.userCount)} people
+                      </span>
+                    </span>
+                    <StatusChip r={r} />
+                  </div>
+                  {bookedBy(r)}
+                  {r.cancellationReason && <p className="text-xs text-zinc-500">“{r.cancellationReason}”</p>}
+                </div>
+                <div className="-mr-2 self-start">{rowMenu(r)}</div>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
 
-      {/* Cancel Reservation Dialog - shared for both mobile and desktop */}
-      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-md">
+      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+        <DialogContent className="sm:max-w-md">
+          <span className="inline-flex size-11 items-center justify-center rounded-xl bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300">
+            <AlertCircle className="size-5" />
+          </span>
           <DialogHeader>
-            <DialogTitle>Cancel Reservation</DialogTitle>
+            <DialogTitle>Cancel this reservation?</DialogTitle>
             <DialogDescription>
-              Please provide a reason for cancelling this reservation. The first
-              team in the queue will be notified.
+              The team is refunded in full and the first team in the queue is offered the spot.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            {selectedReservation && (
-              <div className="space-y-2">
-                <div>
-                  <span className="text-sm font-medium">Activity: </span>
-                  <span className="text-sm">
-                    {selectedReservation.activity?.activityName || "Unknown"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-sm font-medium">Date: </span>
-                  <span className="text-sm">
-                    {formatDate(selectedReservation.date)} at{" "}
-                    {selectedReservation.time}
-                  </span>
-                </div>
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="cancellationReason">
-                Cancellation Reason <span className="text-destructive">*</span>
-              </Label>
-              <Textarea
-                id="cancellationReason"
-                value={cancellationReason}
-                onChange={(e) => setCancellationReason(e.target.value)}
-                placeholder="Enter the reason for cancelling this reservation..."
-                className="min-h-[100px]"
-                required
-              />
-              {!cancellationReason.trim() && (
-                <p className="text-xs text-destructive flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  Cancellation reason is required
-                </p>
-              )}
+          {selected && (
+            <div className="rounded-xl bg-zinc-50 p-3 text-sm dark:bg-zinc-800/60">
+              <b>{selected.activity?.activityName ?? "Activity"}</b>
+              <br />
+              <span className="text-zinc-600 dark:text-zinc-400">
+                {format(dateOf(selected), "EEE, d MMM")} · {selected.time} · {selected.teams.map((t) => t.teamName).join(", ") || "Team"}
+              </span>
             </div>
+          )}
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="org-cancel-reason">Reason (shared with the team)</Label>
+            <Textarea
+              id="org-cancel-reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="e.g. Bad weather forecast"
+              rows={3}
+              className="resize-none"
+              required
+            />
           </div>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button
-              variant="outline"
-              className="border-border w-full sm:w-auto"
-              onClick={() => {
-                setCancelDialogOpen(false);
-                setCancellationReason("");
-              }}
-              disabled={isPending}
-            >
-              Cancel
+          <DialogFooter>
+            <Button variant="outline" className="h-10" onClick={() => setSelected(null)} disabled={isPending}>
+              Keep it
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleCancelConfirm}
-              disabled={isPending || !cancellationReason.trim()}
-              className="w-full sm:w-auto"
-            >
-              {isPending ? "Cancelling..." : "Cancel Reservation"}
+            <Button variant="destructive" className="h-10 font-semibold" onClick={handleCancelConfirm} disabled={isPending || !reason.trim()}>
+              {isPending ? "Cancelling…" : "Cancel & refund"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </section>
   );
 }

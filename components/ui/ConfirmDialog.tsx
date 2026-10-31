@@ -51,7 +51,7 @@ export function ConfirmDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         {variant === "destructive" && (
-          <span className="inline-flex size-11 items-center justify-center rounded-[14px] bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300">
+          <span className="inline-flex size-11 items-center justify-center rounded-xl bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300">
             <AlertCircle className="size-5" />
           </span>
         )}

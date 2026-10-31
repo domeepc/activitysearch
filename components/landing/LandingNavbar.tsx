@@ -47,7 +47,7 @@ export function LandingNavbar() {
             For organisers
           </Link>
         </nav>
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex items-center gap-2">
           <Link
             href="/sign-in"
             className="inline-flex h-10 items-center px-4 text-sm text-zinc-50 hover:text-white"

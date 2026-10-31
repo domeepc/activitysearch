@@ -23,9 +23,9 @@ const nf = new Intl.NumberFormat("en-IE");
 export function ProfileStats({ progression, questsCompleted, isLoading = false }: ProfileStatsProps) {
   if (isLoading || progression === undefined) {
     return (
-      <section className="flex flex-col gap-3.5 rounded-[18px] border border-zinc-200 bg-white p-4.5 dark:border-zinc-800 dark:bg-zinc-900">
+      <section className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
         <Skeleton className="h-4 w-20" />
-        <div className="flex items-center gap-3.5">
+        <div className="flex items-center gap-4">
           <Skeleton className="size-16 rounded-full" />
           <Skeleton className="h-8 flex-1" />
         </div>
@@ -45,9 +45,9 @@ export function ProfileStats({ progression, questsCompleted, isLoading = false }
   ].filter(Boolean) as Array<{ label: string; value: string }>;
 
   return (
-    <section aria-labelledby="journey-h" className="flex flex-col gap-3.5 rounded-[18px] border border-zinc-200 bg-white p-4.5 dark:border-zinc-800 dark:bg-zinc-900">
+    <section aria-labelledby="journey-h" className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
       <h2 id="journey-h" className="text-[15px] font-bold">Journey</h2>
-      <div className="flex items-center gap-3.5">
+      <div className="flex items-center gap-4">
         <span
           role="img"
           aria-label={`Level ${progression.level}, ${pct}% to level ${progression.level + 1}`}
@@ -69,9 +69,9 @@ export function ProfileStats({ progression, questsCompleted, isLoading = false }
       </div>
       <dl className="grid gap-2 text-center" style={{ gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))` }}>
         {stats.map((s) => (
-          <div key={s.label} className="rounded-xl bg-zinc-50 px-1 py-2.5 dark:bg-zinc-800/60">
+          <div key={s.label} className="rounded-xl bg-zinc-50 px-1 py-3 dark:bg-zinc-800/60">
             <dt className="text-[11px] text-zinc-600 dark:text-zinc-400">{s.label}</dt>
-            <dd className="mt-0.5 text-[17px] font-bold tabular-nums">{s.value}</dd>
+            <dd className="mt-1 text-[17px] font-bold tabular-nums">{s.value}</dd>
           </div>
         ))}
       </dl>

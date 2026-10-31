@@ -19,7 +19,7 @@ export function QuestsSection({ items }: QuestsSectionProps) {
 
   return (
     <section id="quests" aria-labelledby="quests-h" className="mx-auto w-full max-w-[1440px] scroll-mt-20 px-4 pt-28 md:px-10">
-      <div className="flex flex-wrap gap-10 rounded-[32px] bg-zinc-50 p-6 text-zinc-950 md:p-12">
+      <div className="flex flex-wrap gap-10 rounded-4xl bg-zinc-50 p-6 text-zinc-950 md:p-12">
         <div className="flex min-w-[280px] flex-1 flex-col gap-4">
           <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-blue-700">03 — Quests</p>
           <h2 id="quests-h" className="text-[clamp(2.5rem,5vw,4.25rem)] font-extrabold leading-[0.95] tracking-[-0.045em]">
@@ -39,13 +39,13 @@ export function QuestsSection({ items }: QuestsSectionProps) {
           {displayQuests.map((quest, i) => {
             const tint = QUEST_TINTS[i % QUEST_TINTS.length];
             return (
-              <article key={quest.title} className="flex flex-col gap-2.5 rounded-[20px] border border-zinc-200 bg-white p-5">
+              <article key={quest.title} className="flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-5">
                 <span className="flex items-center justify-between">
                   <span className={`inline-flex size-10 items-center justify-center rounded-xl ${tint}`}>
                     <Star className="size-5" aria-hidden="true" />
                   </span>
                   {quest.badge ? (
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${tint}`}>{quest.badge}</span>
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${tint}`}>{quest.badge}</span>
                   ) : null}
                 </span>
                 <h3 className="text-lg font-bold tracking-[-0.01em]">{quest.title}</h3>

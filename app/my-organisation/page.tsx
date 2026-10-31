@@ -24,7 +24,7 @@ import { OrganiserStats } from "@/components/organisation/OrganiserStats";
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col gap-0.5 py-3">
+    <div className="flex flex-col gap-1 py-3">
       <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </span>
@@ -43,7 +43,7 @@ function EditRow({
   error?: string;
 }) {
   return (
-    <div className="py-3 space-y-1.5">
+    <div className="py-3 space-y-2">
       <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </label>
@@ -152,14 +152,14 @@ export default function MyOrganisationPage() {
   // Loading
   if (currentUser === undefined || organisation === undefined) {
     return (
-      <div className="container mx-auto p-4 md:p-6 max-w-4xl">
+      <div className="mx-auto w-full max-w-7xl p-4 md:p-6">
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
           <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 md:px-6">
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Skeleton className="h-6 w-48" />
               <Skeleton className="h-4 w-32" />
             </div>
-            <Skeleton className="h-8 w-28 rounded-full" />
+            <Skeleton className="h-8 w-28 rounded-xl" />
           </div>
           <div className="space-y-0 divide-y divide-zinc-100 dark:divide-zinc-800 px-5 py-2 md:px-6">
             {["w-40", "w-36", "w-48", "w-32", "w-28"].map((w, i) => (
@@ -179,11 +179,11 @@ export default function MyOrganisationPage() {
 
   if (currentUser !== null && !isOrganiser) {
     return (
-      <div className="container mx-auto p-4 md:p-6 max-w-4xl">
+      <div className="mx-auto w-full max-w-7xl p-4 md:p-6">
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm p-6 text-center space-y-3">
           <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Access Denied</p>
           <p className="text-sm text-muted-foreground">You must be an organiser to access this page.</p>
-          <Button size="sm" className="rounded-full" onClick={() => router.push(SIGNED_IN_HOME_HREF)}>
+          <Button size="sm" onClick={() => router.push(SIGNED_IN_HOME_HREF)}>
             Go to Home
           </Button>
         </div>
@@ -193,11 +193,11 @@ export default function MyOrganisationPage() {
 
   if (currentUser === null && isSignedIn) {
     return (
-      <div className="container mx-auto p-4 md:p-6 max-w-4xl">
+      <div className="mx-auto w-full max-w-7xl p-4 md:p-6">
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm p-6 text-center space-y-3">
           <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Setting Up</p>
           <p className="text-sm text-muted-foreground">Your account is being set up. Please wait a moment and refresh.</p>
-          <Button size="sm" className="rounded-full" onClick={() => router.push(SIGNED_IN_HOME_HREF)}>
+          <Button size="sm" onClick={() => router.push(SIGNED_IN_HOME_HREF)}>
             Go to Home
           </Button>
         </div>
@@ -207,11 +207,11 @@ export default function MyOrganisationPage() {
 
   if (organisation === null) {
     return (
-      <div className="container mx-auto p-4 md:p-6 max-w-4xl">
+      <div className="mx-auto w-full max-w-7xl p-4 md:p-6">
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm p-6 text-center space-y-3">
           <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">No Organisation Found</p>
           <p className="text-sm text-muted-foreground">You don&apos;t have an organisation associated with your account.</p>
-          <Button size="sm" className="rounded-full" onClick={() => router.push(SIGNED_IN_HOME_HREF)}>
+          <Button size="sm" onClick={() => router.push(SIGNED_IN_HOME_HREF)}>
             Go to Home
           </Button>
         </div>
@@ -220,7 +220,7 @@ export default function MyOrganisationPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-6 md:px-6 md:py-8">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-6 md:px-6 md:py-8">
       <Suspense fallback={null}>
         <OrganiserNav />
       </Suspense>
@@ -233,7 +233,7 @@ export default function MyOrganisationPage() {
           </h1>
         </div>
         <Button
-          className="rounded-xl bg-blue-600 hover:bg-blue-500"
+          className="h-10 bg-blue-600 font-semibold text-white hover:bg-blue-700"
           onClick={() => {
             setEditingActivityId(null);
             setEditDialogOpen(true);
@@ -256,7 +256,7 @@ export default function MyOrganisationPage() {
             }}
           />
         </div>
-        <aside className="flex min-w-0 flex-[1_1_320px] flex-col gap-5">
+        <aside className="flex min-w-0 flex-[1_1_360px] flex-col gap-5">
           <StripeConnectButton organisationId={organisation._id} />
           <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
             {/* Header */}
@@ -271,10 +271,10 @@ export default function MyOrganisationPage() {
               <div className="flex gap-2">
                 {isEditing ? (
                   <>
-                    <Button size="sm" variant="outline" className="rounded-full border-zinc-200 dark:border-zinc-700" onClick={handleCancel}>
+                    <Button size="sm" variant="outline" onClick={handleCancel}>
                       Cancel
                     </Button>
-                    <Button size="sm" className="rounded-full" onClick={handleSave} disabled={hasErrors}>
+                    <Button size="sm" onClick={handleSave} disabled={hasErrors}>
                       Save Changes
                     </Button>
                   </>
@@ -282,10 +282,10 @@ export default function MyOrganisationPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="rounded-full border-zinc-200 dark:border-zinc-700"
+                    
                     onClick={() => { setEditedFormData(organisationFormData); setIsEditing(true); }}
                   >
-                    <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                    <Pencil className="mr-2 h-3.5 w-3.5" />
                     Edit
                   </Button>
                 )}

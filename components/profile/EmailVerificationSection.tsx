@@ -15,12 +15,12 @@ export function EmailVerificationSection({
   onVerifyClick,
 }: EmailVerificationSectionProps) {
   return (
-    <div className="flex flex-col gap-1.5 text-[13px]">
+    <div className="flex flex-col gap-2 text-[13px]">
       <span className="flex min-w-0 items-center gap-2 text-zinc-700 dark:text-zinc-300">
         <Mail className="size-[15px] shrink-0 text-zinc-500" aria-hidden="true" />
         <span className="min-w-0 truncate">{email}</span>
         {verificationStatus === true ? (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[11px] font-semibold text-green-700 dark:bg-green-950/60 dark:text-green-300">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-50 px-2 py-1 text-[11px] font-semibold text-green-700 dark:bg-green-950/60 dark:text-green-300">
             <Check className="size-3" /> Verified
           </span>
         ) : null}

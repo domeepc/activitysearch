@@ -71,7 +71,7 @@ function DateOfBirthCalendar({
           defaultClassNames.month_caption
         ),
         dropdowns: cn(
-          "w-full min-w-0 flex items-center text-sm font-medium justify-center h-(--cell-size) gap-1.5",
+          "w-full min-w-0 flex items-center text-sm font-medium justify-center h-(--cell-size) gap-2",
           defaultClassNames.dropdowns
         ),
         dropdown_root: cn(

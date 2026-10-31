@@ -334,7 +334,7 @@ export function ChatView({
 
       <div ref={messagesContainerRef} className="relative min-h-0 flex-1 overflow-y-auto bg-zinc-50 px-4 py-4 sm:px-5 dark:bg-zinc-950">
         {isEncryptionAvailable && (
-          <p className="mx-auto mb-4 flex w-fit select-none items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+          <p className="mx-auto mb-4 flex w-fit select-none items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
             <Lock className="h-3 w-3" aria-hidden="true" />
             Messages are end-to-end encrypted
           </p>
@@ -345,7 +345,7 @@ export function ChatView({
             <p className="text-sm text-zinc-600 dark:text-zinc-400">Say hi — or plan your next activity together.</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-3.5">
+          <div className="flex flex-col gap-4">
             {decryptedMessages.map((message, index) => (
               <MessageBubble
                 key={message._id}

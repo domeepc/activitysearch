@@ -101,7 +101,7 @@ export function CreateTeamDialog({
             void handleSubmit();
           }}
         >
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             <Label htmlFor="teamName">Team name</Label>
             <Input
               id="teamName"
@@ -112,7 +112,7 @@ export function CreateTeamDialog({
               required
             />
           </div>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             <Label htmlFor="teamDescription">
               Description <span className="font-normal text-zinc-500">(optional)</span>
             </Label>
@@ -125,8 +125,8 @@ export function CreateTeamDialog({
               rows={2}
             />
           </div>
-          <fieldset className="flex flex-col gap-1.5">
-            <legend className="mb-1.5 flex w-full justify-between text-sm font-medium">
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-2 flex w-full justify-between text-sm font-medium">
               Add friends
               {count > 0 && <span className="font-normal text-zinc-600 dark:text-zinc-400">{count} selected</span>}
             </legend>

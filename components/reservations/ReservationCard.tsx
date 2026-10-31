@@ -86,9 +86,9 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
 
   if (reservationData === undefined) {
     return (
-      <div className="w-full max-w-[420px] animate-pulse rounded-[20px] border border-zinc-200 bg-white p-3.5 dark:border-zinc-700 dark:bg-zinc-900">
+      <div className="w-full max-w-[420px] animate-pulse rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
         <div className="flex gap-3">
-          <div className="size-16 shrink-0 rounded-[14px] bg-zinc-100 dark:bg-zinc-800" />
+          <div className="size-16 shrink-0 rounded-xl bg-zinc-100 dark:bg-zinc-800" />
           <div className="flex flex-1 flex-col gap-2 pt-1">
             <div className="h-3 w-16 rounded-full bg-zinc-100 dark:bg-zinc-800" />
             <div className="h-4 w-3/4 rounded-full bg-zinc-100 dark:bg-zinc-800" />
@@ -101,7 +101,7 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
 
   if (reservationData === null || !reservationData.reservation || !reservationData.activity) {
     return (
-      <div className="w-full max-w-[420px] rounded-[20px] border border-dashed border-zinc-300 p-4 text-sm text-muted-foreground dark:border-zinc-700">
+      <div className="w-full max-w-[420px] rounded-2xl border border-dashed border-zinc-300 p-4 text-sm text-muted-foreground dark:border-zinc-700">
         This reservation is no longer available.
       </div>
     );
@@ -217,12 +217,12 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
     <article
       aria-label={`Reservation: ${activity.activityName}`}
       className={cn(
-        "w-full max-w-[420px] overflow-hidden rounded-[20px] border border-zinc-200 bg-white shadow-[0_6px_20px_-10px_rgba(0,0,0,0.18)] dark:border-zinc-700 dark:bg-zinc-900",
+        "w-full max-w-[420px] overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_6px_20px_-10px_rgba(0,0,0,0.18)] dark:border-zinc-700 dark:bg-zinc-900",
         status === "cancelled" && "opacity-75"
       )}
     >
-      <div className="flex gap-3 p-3.5">
-        <div className="relative size-16 shrink-0 overflow-hidden rounded-[14px] bg-blue-100 dark:bg-zinc-800">
+      <div className="flex gap-3 p-4">
+        <div className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-blue-100 dark:bg-zinc-800">
           {image && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -235,7 +235,7 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <span
             className={cn(
-              "inline-flex items-center gap-1.5 self-start rounded-full px-2 py-0.5 text-[11px] font-semibold",
+              "inline-flex items-center gap-2 self-start rounded-full px-2 py-1 text-[11px] font-semibold",
               style.chip
             )}
           >
@@ -252,8 +252,8 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 px-3.5 pb-3.5">
-        <div className="flex flex-col gap-1.5 rounded-[14px] bg-zinc-50 p-3 dark:bg-zinc-800/60">
+      <div className="flex flex-col gap-3 px-4 pb-4">
+        <div className="flex flex-col gap-2 rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800/60">
           <div className="flex justify-between text-[13px]">
             <span className="text-zinc-600 dark:text-zinc-400">{paidLabel}</span>
             <b className="tabular-nums text-zinc-900 dark:text-zinc-50">{amountLabel}</b>
@@ -287,7 +287,7 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
         </div>
 
         {canRedeem && (
-          <div className="rounded-[14px] border border-dashed border-zinc-300 px-3 py-2.5 text-xs dark:border-zinc-700">
+          <div className="rounded-xl border border-dashed border-zinc-300 px-3 py-3 text-xs dark:border-zinc-700">
             {loyaltyOpen ? (
               <form
                 className="flex items-end gap-2"
@@ -331,7 +331,7 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
                 </Button>
               </form>
             ) : (
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-3">
                 <span className="flex-1">
                   <b className="block text-[13px] text-zinc-900 dark:text-zinc-50">
                     Use {loyaltyPoints} points
@@ -386,12 +386,12 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
                 <Star /> Leave a review
               </Button>
             ) : (
-              <span className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-green-50 text-sm font-semibold text-green-700 dark:bg-green-950/50 dark:text-green-300">
+              <span className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-green-50 text-sm font-semibold text-green-700 dark:bg-green-950/50 dark:text-green-300">
                 <Check className="size-3.5" strokeWidth={3} />
                 {status === "pending" ? "You've paid" : "Fully paid"}
               </span>
             )}
-            <Button asChild variant="outline" className="h-10 px-3.5">
+            <Button asChild variant="outline" className="h-10 px-4">
               <Link href={`/activities/${activity._id}`}>Details</Link>
             </Button>
             {canCancel && (
@@ -441,7 +441,7 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
 
       <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
         <DialogContent className="sm:max-w-md">
-          <span className="inline-flex size-11 items-center justify-center rounded-[14px] bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300">
+          <span className="inline-flex size-11 items-center justify-center rounded-xl bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300">
             <AlertCircle className="size-5" />
           </span>
           <DialogHeader>
@@ -450,7 +450,7 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
               Everyone who paid gets a full refund, and the next team in the queue is offered the spot.
             </DialogDescription>
           </DialogHeader>
-          <div className="rounded-[14px] bg-zinc-50 p-3 text-[13px] dark:bg-zinc-800/60">
+          <div className="rounded-xl bg-zinc-50 p-3 text-[13px] dark:bg-zinc-800/60">
             <b className="text-zinc-900 dark:text-zinc-50">{activity.activityName}</b>
             <br />
             <span className="text-zinc-600 dark:text-zinc-400">
@@ -459,7 +459,7 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
                 ` · ${formatPrice(paymentProgress.collectedAmount)} to refund`}
             </span>
           </div>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             <Label htmlFor={`cancel-reason-${reservationId}`}>Reason (shared with your team)</Label>
             <Textarea
               id={`cancel-reason-${reservationId}`}

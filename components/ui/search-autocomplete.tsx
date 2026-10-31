@@ -25,7 +25,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
   return (
     <>
       {text.slice(0, i)}
-      <mark className="rounded-[3px] bg-blue-100 px-px text-inherit dark:bg-blue-900/60">{text.slice(i, i + query.length)}</mark>
+      <mark className="rounded-sm bg-blue-100 px-px text-inherit dark:bg-blue-900/60">{text.slice(i, i + query.length)}</mark>
       {text.slice(i + query.length)}
     </>
   );
@@ -145,7 +145,7 @@ export default function SearchAutocomplete({
               No activities match “{term}”
             </p>
           ) : (
-            <ul id={listId} role="listbox" aria-label="Activities" className="max-h-80 overflow-y-auto p-1.5">
+            <ul id={listId} role="listbox" aria-label="Activities" className="max-h-80 overflow-y-auto p-2">
               {results.map(({ activity, field }, i) => {
                 const image = activity.images?.[0];
                 return (
@@ -162,7 +162,7 @@ export default function SearchAutocomplete({
                       i === active && "bg-zinc-100 dark:bg-zinc-800"
                     )}
                   >
-                    <span className="relative size-11 shrink-0 overflow-hidden rounded-[10px] bg-blue-100 dark:bg-zinc-800">
+                    <span className="relative size-11 shrink-0 overflow-hidden rounded-lg bg-blue-100 dark:bg-zinc-800">
                       {image ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={image} alt="" className="size-full object-cover" />
@@ -181,10 +181,10 @@ export default function SearchAutocomplete({
                         />
                       </span>
                     </span>
-                    <span className="flex shrink-0 flex-col items-end gap-0.5 text-xs">
+                    <span className="flex shrink-0 flex-col items-end gap-1 text-xs">
                       <b className="text-zinc-900 dark:text-zinc-50">{formatPrice(activity.price.amount)}</b>
                       {activity.reviewCount > 0 && (
-                        <span className="inline-flex items-center gap-0.5 text-zinc-600 dark:text-zinc-400">
+                        <span className="inline-flex items-center gap-1 text-zinc-600 dark:text-zinc-400">
                           <Star className="size-3 fill-amber-500 text-amber-500" aria-hidden="true" />
                           {activity.rating.toFixed(1)}
                         </span>

@@ -92,7 +92,7 @@ export function ReviewDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader className="flex-row items-center gap-3 text-left">
-          <span className="size-13 shrink-0 overflow-hidden rounded-[14px] bg-blue-100 dark:bg-zinc-800">
+          <span className="size-13 shrink-0 overflow-hidden rounded-xl bg-blue-100 dark:bg-zinc-800">
             {activityImage && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={activityImage} alt="" className="size-full object-cover" />
@@ -108,7 +108,7 @@ export function ReviewDialog({
             <div
               role="radiogroup"
               aria-label="Rating"
-              className="flex gap-1.5"
+              className="flex gap-2"
               onMouseLeave={() => setHoverRating(undefined)}
             >
               {[1, 2, 3, 4, 5].map((v) => {
@@ -143,7 +143,7 @@ export function ReviewDialog({
               {ratingWord}
             </span>
           </div>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             <Label htmlFor="review-text">Tell others about it</Label>
             <Textarea
               id="review-text"

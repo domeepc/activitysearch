@@ -29,7 +29,7 @@ export function CtaSection({ content }: CtaSectionProps) {
         {content?.description ??
           "Join as a participant or organiser. Build your routine, discover new communities, and reserve your next activity in seconds."}
       </p>
-      <div className="mt-2 flex flex-wrap justify-center gap-2.5">
+      <div className="mt-2 flex flex-wrap justify-center gap-3">
         <Link
           href={content?.participantHref ?? "/sign-up"}
           className="inline-flex h-[52px] items-center rounded-full bg-zinc-50 px-7 text-base font-semibold text-zinc-950 transition hover:bg-white active:scale-[0.97]"

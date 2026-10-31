@@ -274,7 +274,7 @@ export function ReservationDialog({
     return (
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-md">
-          <span className="inline-flex size-11 items-center justify-center rounded-[14px] bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+          <span className="inline-flex size-11 items-center justify-center rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
             <Users className="size-5" />
           </span>
           <DialogHeader>
@@ -352,7 +352,7 @@ export function ReservationDialog({
                 {doneSteps < 3 ? `Step ${Math.min(doneSteps + 1, 3)} of 3` : "Ready to reserve"}
               </DialogDescription>
             </DialogHeader>
-            <div className="grid grid-cols-3 gap-1.5" aria-hidden="true">
+            <div className="grid grid-cols-3 gap-2" aria-hidden="true">
               {[0, 1, 2].map((i) => (
                 <span
                   key={i}
@@ -365,8 +365,8 @@ export function ReservationDialog({
             </div>
 
             {/* 1 · Date */}
-            <section aria-labelledby="rd-date" className="flex flex-col gap-2.5">
-              <div className="flex items-center gap-2.5">
+            <section aria-labelledby="rd-date" className="flex flex-col gap-3">
+              <div className="flex items-center gap-3">
                 {stepBadge(1, !!selectedDate, !selectedDate)}
                 <h3 id="rd-date" className="flex-1 text-sm font-semibold">Date</h3>
                 <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
@@ -398,7 +398,7 @@ export function ReservationDialog({
               <div
                 role="radiogroup"
                 aria-labelledby="rd-date"
-                className="-mx-1 flex snap-x gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]"
+                className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]"
               >
                 {upcomingDays.map((day) => {
                   const m = getDateModifiers(day);
@@ -413,7 +413,7 @@ export function ReservationDialog({
                       aria-label={`${format(day, "EEEE d MMMM")}${status === "full" ? ", full — join queue" : status === "limited" ? ", filling up" : ""}`}
                       onClick={() => pickDate(day)}
                       className={cn(
-                        "flex w-[58px] shrink-0 snap-start flex-col items-center gap-0.5 rounded-xl border py-2 transition-colors",
+                        "flex w-[58px] shrink-0 snap-start flex-col items-center gap-1 rounded-xl border py-2 transition-colors",
                         selected
                           ? "border-blue-600 bg-blue-600 text-white"
                           : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
@@ -431,7 +431,7 @@ export function ReservationDialog({
                   Picked <b className="text-zinc-900 dark:text-zinc-50">{format(selectedDate, "EEE, d MMM yyyy")}</b>
                 </p>
               )}
-              <div className="flex flex-wrap gap-x-3.5 gap-y-1 text-[11px] text-zinc-600 dark:text-zinc-400">
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-zinc-600 dark:text-zinc-400">
                 <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-green-600" />Open</span>
                 <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-orange-600" />Filling up</span>
                 <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-violet-600" />Full · join queue</span>
@@ -439,15 +439,15 @@ export function ReservationDialog({
             </section>
 
             {/* 2 · Time */}
-            <section aria-labelledby="rd-time" className={cn("flex flex-col gap-2.5 border-t border-zinc-100 pt-4 dark:border-zinc-800", !selectedDate && "opacity-50")}>
-              <div className="flex items-center gap-2.5">
+            <section aria-labelledby="rd-time" className={cn("flex flex-col gap-3 border-t border-zinc-100 pt-4 dark:border-zinc-800", !selectedDate && "opacity-50")}>
+              <div className="flex items-center gap-3">
                 {stepBadge(2, !!selectedDate && timeDone, !!selectedDate && !timeDone)}
                 <h3 id="rd-time" className="text-sm font-semibold">Time</h3>
               </div>
               {!selectedDate ? (
                 <p className="text-[13px] text-zinc-600 dark:text-zinc-400">Pick a date to see open times.</p>
               ) : isDateFulfilled ? (
-                <div className="rounded-[14px] bg-violet-50 p-3.5 text-[13px] dark:bg-violet-950/40">
+                <div className="rounded-xl bg-violet-50 p-4 text-[13px] dark:bg-violet-950/40">
                   <b className="block text-violet-900 dark:text-violet-200">This day is fully booked</b>
                   <span className="text-violet-800 dark:text-violet-300">
                     {queuePosition?.inQueue
@@ -456,7 +456,7 @@ export function ReservationDialog({
                   </span>
                 </div>
               ) : availableTimeSlotsForDate.length === 0 ? (
-                <p className="rounded-[14px] bg-zinc-50 p-3.5 text-[13px] text-zinc-600 dark:bg-zinc-800/60 dark:text-zinc-400">
+                <p className="rounded-xl bg-zinc-50 p-4 text-[13px] text-zinc-600 dark:bg-zinc-800/60 dark:text-zinc-400">
                   No times left on this day — try another date.
                 </p>
               ) : (
@@ -486,8 +486,8 @@ export function ReservationDialog({
             </section>
 
             {/* 3 · Team */}
-            <section aria-labelledby="rd-team" className="flex flex-col gap-2.5 border-t border-zinc-100 pt-4 dark:border-zinc-800">
-              <div className="flex items-center gap-2.5">
+            <section aria-labelledby="rd-team" className="flex flex-col gap-3 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+              <div className="flex items-center gap-3">
                 {stepBadge(3, !!selectedTeamId, !selectedTeamId && !!selectedDate && timeDone)}
                 <h3 id="rd-team" className="flex-1 text-sm font-semibold">Team</h3>
                 <span className="text-[11px] text-zinc-500">Teams you created</span>
@@ -515,13 +515,13 @@ export function ReservationDialog({
                           setSelectedTeamId(team._id);
                         }}
                         className={cn(
-                          "flex items-center gap-3 rounded-xl border p-2.5 text-left transition-colors",
+                          "flex items-center gap-3 rounded-xl border p-3 text-left transition-colors",
                           selected
                             ? "border-blue-600 bg-blue-50 ring-1 ring-blue-600 dark:bg-blue-950/40"
                             : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
                         )}
                       >
-                        <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-indigo-100 font-bold text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
+                        <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-indigo-100 font-bold text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
                           {team.teamName[0]?.toUpperCase()}
                         </span>
                         <span className="min-w-0 flex-1">
@@ -540,7 +540,7 @@ export function ReservationDialog({
             </section>
           </div>
 
-          <aside className="flex flex-[1_1_260px] flex-col gap-3.5 border-t border-zinc-100 bg-zinc-50 p-5 sm:p-6 md:border-t-0 md:border-l dark:border-zinc-800 dark:bg-zinc-950/40">
+          <aside className="flex flex-[1_1_260px] flex-col gap-4 border-t border-zinc-100 bg-zinc-50 p-5 sm:p-6 md:border-t-0 md:border-l dark:border-zinc-800 dark:bg-zinc-950/40">
             <div className="flex items-center gap-3">
               <span className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-blue-100 dark:bg-zinc-800">
                 {image && (
@@ -575,8 +575,8 @@ export function ReservationDialog({
             </p>
 
             {error && (
-              <p role="alert" className="flex items-start gap-2 rounded-xl bg-red-50 p-2.5 text-[13px] text-red-700 dark:bg-red-950/50 dark:text-red-300">
-                <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              <p role="alert" className="flex items-start gap-2 rounded-xl bg-red-50 p-3 text-[13px] text-red-700 dark:bg-red-950/50 dark:text-red-300">
+                <AlertCircle className="mt-1 size-4 shrink-0" />
                 {error}
               </p>
             )}
