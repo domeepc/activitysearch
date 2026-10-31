@@ -39,7 +39,7 @@ export function OAuthButtons({
   disabled = false,
 }: OAuthButtonsProps) {
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-3">
       <Button
         variant="outline"
         type="button"

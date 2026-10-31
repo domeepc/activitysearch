@@ -26,7 +26,7 @@ export function OrganiserNav() {
           href={href}
           aria-current={active ? "page" : undefined}
           className={cn(
-            "flex h-9 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-sm font-medium transition-colors",
+            "flex h-9 items-center gap-2 whitespace-nowrap rounded-lg px-3 text-sm font-medium transition-colors",
             active
               ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-950 dark:text-zinc-50"
               : "text-muted-foreground hover:text-foreground"
@@ -35,7 +35,7 @@ export function OrganiserNav() {
           <Icon className="size-4" aria-hidden="true" />
           {label}
           {badge > 0 ? (
-            <span className="min-w-5 rounded-full bg-blue-600 px-1.5 text-center text-[11px] font-bold leading-5 text-white">
+            <span className="min-w-5 rounded-full bg-blue-600 px-2 text-center text-[11px] font-bold leading-5 text-white">
               {badge > 99 ? "99+" : badge}
             </span>
           ) : null}

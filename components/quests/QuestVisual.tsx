@@ -13,9 +13,9 @@ const imageFrameClass = {
 
 /** System / default SVG icons: outer box with generous inset so the glyph breathes. */
 const svgFrameClass = {
-  sm: "inline-flex size-8 items-center justify-center p-1.5 [&>svg]:size-5 [&>svg]:shrink-0",
+  sm: "inline-flex size-8 items-center justify-center p-2 [&>svg]:size-5 [&>svg]:shrink-0",
   md: "inline-flex size-11 items-center justify-center p-2 [&>svg]:size-7 [&>svg]:shrink-0",
-  lg: "inline-flex size-14 items-center justify-center p-2.5 [&>svg]:size-9 [&>svg]:shrink-0",
+  lg: "inline-flex size-14 items-center justify-center p-3 [&>svg]:size-9 [&>svg]:shrink-0",
   xl: "inline-flex size-28 items-center justify-center p-4 [&>svg]:size-20 [&>svg]:shrink-0 rounded-xl",
 } as const;
 

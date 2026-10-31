@@ -7,10 +7,8 @@ import { usePostHog } from "@posthog/react";
 import "../home.css";
 import { ActivityData } from "@/lib/types/activity";
 import DialogAddActivity from "@/components/activities/DialogAddActivity";
-import DialogAddActivityMobile from "@/components/activities/DialogAddActivityMobile";
 import DesktopFilterSection from "@/components/activities/DesktopFilterSection";
 import MobileFilterDialog from "@/components/activities/MobileFilterDialog";
-import MobileAddActivityFAB from "@/components/activities/MobileAddActivityFAB";
 import { useActivities } from "@/lib/hooks/useActivities";
 import { useActivityFilters } from "@/lib/hooks/useActivityFilters";
 import { useOrganiser } from "@/lib/hooks/useOrganiser";
@@ -33,7 +31,6 @@ export default function Home() {
   );
   const [isMobileDialogOpen, setIsMobileDialogOpen] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [showAddDialogMobile, setShowDialogMobile] = useState(false);
 
   const { activities } = useActivities();
   const { isOrganiser } = useOrganiser();
@@ -104,6 +101,7 @@ export default function Home() {
     <Authenticated>
       <MobileFilterDialog
         activities={activities}
+        resultCount={pendingActivity ? 1 : filteredActivities.length}
         selectedCategories={selectedCategories}
         onCategoryChange={handleCategoryChange}
         onActivitySelect={handleMobileActivitySelect}
@@ -114,19 +112,12 @@ export default function Home() {
         open={isMobileDialogOpen}
         onOpenChange={setIsMobileDialogOpen}
         onSearch={handleMobileSearch}
+        onAddActivity={isOrganiser ? () => setShowAddDialog(true) : undefined}
       />
-
-      {isOrganiser && (
-        <MobileAddActivityFAB onClick={() => setShowDialogMobile(true)} />
-      )}
 
       <DialogAddActivity
         showDialog={showAddDialog}
         setShowDialog={setShowAddDialog}
-      />
-      <DialogAddActivityMobile
-        showDialog={showAddDialogMobile}
-        setShowDialog={setShowDialogMobile}
       />
 
       <div className="flex h-[calc(100dvh-var(--app-navbar-height))] overflow-hidden">

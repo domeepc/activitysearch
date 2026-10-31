@@ -184,7 +184,7 @@ export function MessageBubble({
           ) : null}
           <div
             className={cn(
-              "rounded-[18px] px-3.5 py-2.5",
+              "rounded-2xl px-4 py-3",
               isFromCurrentUser
                 ? "rounded-br-md bg-blue-600 text-white"
                 : "rounded-bl-md border border-zinc-200 bg-white text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50",

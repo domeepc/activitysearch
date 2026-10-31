@@ -24,14 +24,6 @@ export interface ActivityData {
   images?: string[];
 }
 
-export interface ActivityFilterProps {
-  activities: ActivityData[];
-  selectedCategories: string[];
-  onCategoryChange: (categories: string[]) => void;
-  onActivitySelect: (activity: ActivityData) => void;
-  onClearSelection?: () => void;
-}
-
 export interface ActivityMappingOptions {
   defaultCurrency?: string;
   defaultPriceType?: string;

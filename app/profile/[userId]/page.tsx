@@ -114,10 +114,10 @@ export default function ProfilePage({
   if (user === undefined || currentUser === undefined) {
     return (
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-6 md:px-6">
-        <Skeleton className="h-[220px] w-full rounded-[22px]" />
+        <Skeleton className="h-[220px] w-full rounded-3xl" />
         <div className="flex flex-wrap gap-5">
-          <Skeleton className="h-64 flex-[1_1_300px] rounded-[18px] lg:max-w-[360px]" />
-          <Skeleton className="h-64 flex-[999_1_520px] rounded-[18px]" />
+          <Skeleton className="h-64 flex-[1_1_300px] rounded-2xl lg:max-w-[360px]" />
+          <Skeleton className="h-64 flex-[999_1_520px] rounded-2xl" />
         </div>
       </div>
     );

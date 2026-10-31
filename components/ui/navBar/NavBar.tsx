@@ -28,7 +28,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { useTheme } from "next-themes";
 import { SIGNED_IN_HOME_HREF } from "@/lib/routes";
 import { useUnreadReservationCount } from "@/lib/hooks/useReservations";
 import { useUnreadMessageCount } from "@/lib/hooks/useUnreadMessageCount";
@@ -51,6 +51,8 @@ export default function Navbar() {
   const { count: unreadReservationCount } = useUnreadReservationCount();
   const { count: unreadMessageCount } = useUnreadMessageCount();
   const isOrganiser = user?.role === "organiser";
+  const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
 
   const links = [
     { href: SIGNED_IN_HOME_HREF, label: "Explore", icon: Compass, count: 0, match: ["/home", "/activities"] },
@@ -98,7 +100,7 @@ export default function Navbar() {
                   aria-current={active ? "page" : undefined}
                   aria-label={count > 0 ? `${label}, ${count} unread` : label}
                   className={cn(
-                    "relative inline-flex h-10 items-center gap-2 rounded-xl px-2.5 text-sm font-medium transition-colors md:px-3",
+                    "relative inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-medium transition-colors md:px-3",
                     active
                       ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-50"
                       : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
@@ -114,7 +116,7 @@ export default function Navbar() {
         </ul>
 
         <DropdownMenu>
-          <DropdownMenuTrigger className="group inline-flex h-10 items-center gap-2 rounded-xl p-0.5 outline-none transition-colors hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-zinc-100 md:border md:border-zinc-200 md:py-1 md:pl-1 md:pr-2.5 dark:hover:bg-zinc-800 dark:data-[state=open]:bg-zinc-800 md:dark:border-zinc-800">
+          <DropdownMenuTrigger className="group inline-flex items-center gap-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-10 md:rounded-xl md:border md:border-zinc-200 md:py-1 md:pl-1 md:pr-3 md:transition-colors md:hover:bg-zinc-100 md:data-[state=open]:bg-zinc-100 md:dark:border-zinc-800 md:dark:hover:bg-zinc-800 md:dark:data-[state=open]:bg-zinc-800">
             <Avatar className="size-9 md:size-7">
               <AvatarImage src={user?.avatar} alt="" />
               <AvatarFallback className="text-xs font-bold">{user?.name?.[0]}</AvatarFallback>
@@ -124,8 +126,8 @@ export default function Navbar() {
             <span className="sr-only">Account menu</span>
           </DropdownMenuTrigger>
 
-          <DropdownMenuContent align="end" sideOffset={8} className="w-60 rounded-2xl p-1.5">
-            <DropdownMenuLabel className="flex items-center gap-2.5 px-2 py-2 font-normal">
+          <DropdownMenuContent align="end" sideOffset={8} className="w-60 rounded-2xl p-2">
+            <DropdownMenuLabel className="flex items-center gap-3 px-2 py-2 font-normal">
               <Avatar className="size-9">
                 <AvatarImage src={user?.avatar} alt="" />
                 <AvatarFallback className="text-xs font-bold">{user?.name?.[0]}</AvatarFallback>
@@ -149,11 +151,33 @@ export default function Navbar() {
                   </Link>
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="h-9 cursor-default justify-between rounded-lg">
+              <DropdownMenuItem
+                role="menuitemcheckbox"
+                aria-checked={isDark}
+                className="h-9 justify-between rounded-lg"
+                onSelect={(e) => {
+                  // Keep the menu open so the switch visibly flips.
+                  e.preventDefault();
+                  setTheme(isDark ? "light" : "dark");
+                }}
+              >
                 <span className="flex items-center gap-2">
                   <Moon /> Dark mode
                 </span>
-                <ThemeToggle />
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors",
+                    isDark ? "bg-blue-600" : "bg-zinc-300 dark:bg-zinc-700"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "absolute top-0.5 size-4 rounded-full bg-white shadow-sm transition-transform",
+                      isDark ? "translate-x-4" : "translate-x-0.5"
+                    )}
+                  />
+                </span>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

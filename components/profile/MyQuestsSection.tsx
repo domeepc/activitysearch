@@ -15,7 +15,7 @@ type QuestRow = {
 
 function XpPill({ amount }: { amount: number }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-950 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
+    <span className="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-950 px-2 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
       +{amount} XP
     </span>
   );
@@ -25,7 +25,7 @@ function QuestRowCard({ quest, completed }: Omit<QuestRow, "completedAt">) {
   return (
     <li
       className={cn(
-        "flex gap-3 rounded-2xl p-3.5 transition-colors",
+        "flex gap-3 rounded-2xl p-4 transition-colors",
         completed
           ? "border border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40"
           : "border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
@@ -34,7 +34,7 @@ function QuestRowCard({ quest, completed }: Omit<QuestRow, "completedAt">) {
       <QuestVisual
         iconImageUrl={quest.iconImageUrl}
         iconSvg={quest.iconSvg}
-        className="mt-0.5 shrink-0"
+        className="mt-1 shrink-0"
       />
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
@@ -47,9 +47,9 @@ function QuestRowCard({ quest, completed }: Omit<QuestRow, "completedAt">) {
             {quest.questName}
           </p>
           {completed ? (
-            <CheckCircle2 className="size-4 shrink-0 text-emerald-500 mt-0.5" />
+            <CheckCircle2 className="size-4 shrink-0 text-emerald-500 mt-1" />
           ) : (
-            <Circle className="size-4 shrink-0 text-zinc-300 mt-0.5" />
+            <Circle className="size-4 shrink-0 text-zinc-300 mt-1" />
           )}
         </div>
         <p className="mt-1 line-clamp-3 text-xs text-zinc-500 dark:text-zinc-400">
@@ -119,7 +119,7 @@ export function MyQuestsSection() {
       {groups.map((group) => {
         const done = group.rows.filter((r) => r.completed).length;
         return (
-          <div key={group.key} className="flex flex-col gap-2.5">
+          <div key={group.key} className="flex flex-col gap-3">
             <SectionLabel label={group.label} total={group.rows.length} completed={done} />
             <div
               className="h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800"

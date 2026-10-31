@@ -129,7 +129,7 @@ export function QueueNotificationDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
-        <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">
+        <span className="inline-flex items-center gap-2 self-start rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">
           <Sparkles className="size-3.5" aria-hidden="true" />
           From the queue
         </span>
@@ -140,7 +140,7 @@ export function QueueNotificationDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-0.5 rounded-[14px] border border-zinc-200 p-3 dark:border-zinc-700">
+        <div className="flex flex-col gap-1 rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">
           <b className="text-sm text-zinc-900 dark:text-zinc-50">
             {notification.activity?.activityName || "Activity"}
           </b>
@@ -170,7 +170,7 @@ export function QueueNotificationDialog({
                     setError(null);
                   }}
                   className={cn(
-                    "h-9 rounded-xl border px-3.5 text-sm font-medium tabular-nums transition-colors",
+                    "h-9 rounded-xl border px-4 text-sm font-medium tabular-nums transition-colors",
                     selectedTime === time
                       ? "border-blue-600 bg-blue-600 text-white"
                       : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900"

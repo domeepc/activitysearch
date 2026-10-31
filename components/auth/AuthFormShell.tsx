@@ -79,10 +79,12 @@ export function AuthFormShell({
       {/* Brand panel — desktop only; sign-in mirrors it to the right */}
       <aside
         className={cn(
-          "relative m-3 hidden shrink-0 flex-col justify-between gap-8 overflow-hidden rounded-3xl bg-zinc-950 p-10 text-zinc-50 lg:flex lg:w-[42%] xl:p-12",
+          "relative m-3 hidden shrink-0 flex-col justify-between gap-8 overflow-hidden rounded-3xl bg-zinc-950 p-10 text-zinc-50 lg:flex lg:w-[42%] xl:p-12 dark:bg-zinc-900 dark:ring-1 dark:ring-white/10 dark:shadow-[0_24px_60px_-24px_rgba(0,0,0,0.8)]",
           variant === "signin" && "lg:order-last"
         )}
       >
+        {/* Soft blue glow lifts the panel off the page, most visibly in dark mode */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_80%_at_0%_0%,rgba(37,99,235,0.28),transparent_55%),radial-gradient(90%_70%_at_100%_100%,rgba(56,189,248,0.12),transparent_60%)]" />
         <Link href="/" aria-label="ActivitySearch home" className="relative z-10 self-start">
           <Image src="/full-logo-dark.svg" alt="ActivitySearch" width={132} height={32} priority />
         </Link>
@@ -93,15 +95,15 @@ export function AuthFormShell({
           </h2>
           <ul className="flex flex-col gap-3 text-[15px] text-zinc-300">
             {copy.perks.map((perk) => (
-              <li key={perk} className="flex items-start gap-2.5">
-                <Check className="mt-0.5 size-[18px] shrink-0 text-blue-400" strokeWidth={2.5} aria-hidden="true" />
+              <li key={perk} className="flex items-start gap-3">
+                <Check className="mt-1 size-5 shrink-0 text-blue-400" strokeWidth={2.5} aria-hidden="true" />
                 {perk}
               </li>
             ))}
           </ul>
         </div>
 
-        <div aria-hidden="true" className="relative z-10 grid grid-cols-3 items-end gap-2.5">
+        <div aria-hidden="true" className="relative z-10 grid grid-cols-3 items-end gap-3">
           {PANEL_PHOTOS.map((src, i) => (
             <div
               key={src}
@@ -137,11 +139,11 @@ export function AuthFormShell({
 }
 
 export const authFormStyles = {
-  header: "space-y-1.5 px-0",
+  header: "space-y-2 px-0",
   title: "text-[30px] font-bold leading-tight tracking-[-0.03em]",
   description: "text-[15px] text-muted-foreground",
   content: "space-y-4 px-0",
-  footer: "flex flex-col items-start space-y-2.5 px-0",
+  footer: "flex flex-col items-start space-y-3 px-0",
   sectionTitle: "text-xs uppercase tracking-widest text-muted-foreground",
   error: "rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive",
 };

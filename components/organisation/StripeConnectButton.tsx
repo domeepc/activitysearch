@@ -115,7 +115,7 @@ export function StripeConnectButton({ organisationId }: StripeConnectButtonProps
         {isConnected && hasRequirements && (
           <div className="rounded-2xl bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 p-4 space-y-3">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+              <AlertTriangle className="h-5 w-5 text-amber-600 mt-1 shrink-0" />
               <div className="flex-1">
                 <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
                   Action Required: Complete Your Stripe Account Setup
@@ -127,7 +127,7 @@ export function StripeConnectButton({ organisationId }: StripeConnectButtonProps
                   {requirements.pastDue.length > 0 && (
                     <div>
                       <p className="text-xs font-semibold text-red-700 dark:text-red-300 mb-1">Past Due (Urgent):</p>
-                      <ul className="text-xs text-red-700 dark:text-red-300 list-disc list-inside space-y-0.5">
+                      <ul className="text-xs text-red-700 dark:text-red-300 list-disc list-inside space-y-1">
                         {requirements.pastDue.map((req, idx) => <li key={idx}>{req}</li>)}
                       </ul>
                     </div>
@@ -135,7 +135,7 @@ export function StripeConnectButton({ organisationId }: StripeConnectButtonProps
                   {requirements.currentlyDue.length > 0 && (
                     <div>
                       <p className="text-xs font-medium text-amber-900 dark:text-amber-100 mb-1">Currently Required:</p>
-                      <ul className="text-xs text-amber-800 dark:text-amber-200 list-disc list-inside space-y-0.5">
+                      <ul className="text-xs text-amber-800 dark:text-amber-200 list-disc list-inside space-y-1">
                         {requirements.currentlyDue.map((req, idx) => <li key={idx}>{req}</li>)}
                       </ul>
                     </div>
@@ -143,7 +143,7 @@ export function StripeConnectButton({ organisationId }: StripeConnectButtonProps
                   {requirements.eventuallyDue.length > 0 && (
                     <div>
                       <p className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">Due Soon:</p>
-                      <ul className="text-xs text-blue-700 dark:text-blue-300 list-disc list-inside space-y-0.5">
+                      <ul className="text-xs text-blue-700 dark:text-blue-300 list-disc list-inside space-y-1">
                         {requirements.eventuallyDue.map((req, idx) => <li key={idx}>{req}</li>)}
                       </ul>
                     </div>
@@ -154,7 +154,7 @@ export function StripeConnectButton({ organisationId }: StripeConnectButtonProps
             <Button
               onClick={handleConnect}
               disabled={isConnecting}
-              className="w-full rounded-full bg-amber-600 hover:bg-amber-700 text-white"
+              className="h-10 w-full bg-amber-600 hover:bg-amber-700 text-white"
             >
               {isConnecting ? (
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Redirecting to Stripe...</>
@@ -187,10 +187,10 @@ export function StripeConnectButton({ organisationId }: StripeConnectButtonProps
         {/* Error */}
         {error && (
           <div className="flex items-start gap-2 rounded-xl bg-red-50 dark:bg-red-950 border border-red-100 dark:border-red-900 p-3">
-            <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+            <AlertCircle className="h-4 w-4 text-red-500 mt-1 shrink-0" />
             <div>
               <p className="text-sm font-medium text-red-700 dark:text-red-300">Error</p>
-              <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">{error}</p>
+              <p className="text-xs text-red-600 dark:text-red-400 mt-1">{error}</p>
             </div>
           </div>
         )}
@@ -199,7 +199,7 @@ export function StripeConnectButton({ organisationId }: StripeConnectButtonProps
         {!isConnected && (
           <div className="space-y-3">
             <div className="flex items-start gap-3 rounded-2xl bg-blue-50 dark:bg-blue-950 border border-blue-100 dark:border-blue-900 p-4">
-              <AlertCircle className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+              <AlertCircle className="h-4 w-4 text-blue-500 mt-1 shrink-0" />
               <div>
                 <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Connect your Stripe account</p>
                 <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
@@ -207,7 +207,7 @@ export function StripeConnectButton({ organisationId }: StripeConnectButtonProps
                 </p>
               </div>
             </div>
-            <Button onClick={handleConnect} disabled={isConnecting} className="w-full rounded-full">
+            <Button onClick={handleConnect} disabled={isConnecting} className="h-10 w-full">
               {isConnecting ? (
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Connecting...</>
               ) : (

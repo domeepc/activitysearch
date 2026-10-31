@@ -19,7 +19,7 @@ export function ActivityDetailFacts({ durationMinutes, difficulty, maxParticipan
       icon: Gauge,
       label: "Level",
       value: (
-        <span className="inline-flex items-center gap-1.5 capitalize">
+        <span className="inline-flex items-center gap-2 capitalize">
           <span className="size-2 rounded-full" style={{ backgroundColor: level.textHex }} aria-hidden="true" />
           {difficulty}
         </span>
@@ -34,8 +34,8 @@ export function ActivityDetailFacts({ durationMinutes, difficulty, maxParticipan
   return (
     <dl className="flex flex-wrap gap-px overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-200 dark:border-zinc-800 dark:bg-zinc-800">
       {facts.map(({ icon: Icon, label, value }) => (
-        <div key={label} className="flex flex-[1_1_130px] flex-col gap-1 bg-white p-3.5 dark:bg-zinc-900">
-          <dt className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
+        <div key={label} className="flex flex-[1_1_130px] flex-col gap-1 bg-white p-4 dark:bg-zinc-900">
+          <dt className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400">
             <Icon className="size-3.5" aria-hidden="true" />
             {label}
           </dt>

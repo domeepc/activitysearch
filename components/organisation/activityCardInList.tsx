@@ -38,7 +38,7 @@ export default function ActivityCardInList({ activity, onEdit }: ActivityCardPro
   const databaseTags = useQuery(convexApi.activity.getAllTags);
 
   return (
-    <div className="w-64 overflow-hidden rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm transition-shadow hover:shadow-md">
+    <div className="h-full w-full overflow-hidden rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm transition-shadow hover:shadow-md">
       {/* Image */}
       <div className="relative h-40 w-full bg-zinc-100 dark:bg-zinc-800">
         {activity.images && activity.images.length > 0 ? (
@@ -54,7 +54,7 @@ export default function ActivityCardInList({ activity, onEdit }: ActivityCardPro
           </div>
         )}
         {/* Price badge on image */}
-        <div className="absolute right-3 top-3 rounded-full bg-white/90 dark:bg-zinc-900/90 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300 shadow-sm">
+        <div className="absolute right-3 top-3 rounded-full bg-white/90 dark:bg-zinc-900/90 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300 shadow-sm">
           {formatPrice(activity.price.amount)}
         </div>
       </div>
@@ -97,7 +97,7 @@ export default function ActivityCardInList({ activity, onEdit }: ActivityCardPro
                 <Badge
                   key={index}
                   variant="secondary"
-                  className="text-[10px] px-1.5 py-0.5"
+                  className="text-[10px] px-2 py-1"
                   style={{
                     backgroundColor: colorScheme.bgHex,
                     color: colorScheme.textHex,
@@ -109,7 +109,7 @@ export default function ActivityCardInList({ activity, onEdit }: ActivityCardPro
               );
             })}
             {allTags.length > 3 && (
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">
+              <Badge variant="secondary" className="text-[10px] px-2 py-1">
                 +{allTags.length - 3}
               </Badge>
             )}

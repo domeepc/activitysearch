@@ -398,7 +398,7 @@ export function ConversationList({
                       }
                     }}
                     className={cn(
-                      "w-full px-2.5 py-2 cursor-pointer mb-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-left flex items-center gap-3 rounded-2xl",
+                      "w-full px-3 py-2 cursor-pointer mb-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-left flex items-center gap-3 rounded-2xl",
                       isSelected ? "bg-blue-50 dark:bg-blue-950/60" : "bg-transparent"
                     )}
                   >
@@ -431,7 +431,7 @@ export function ConversationList({
                           </span>
                         )}
                         {friend.unreadCount > 0 && (
-                          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[11px] font-bold leading-none text-white tabular-nums">
+                          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-2 text-[11px] font-bold leading-none text-white tabular-nums">
                             {friend.unreadCount > 99
                               ? "99+"
                               : friend.unreadCount}
@@ -546,7 +546,7 @@ export function ConversationList({
                       onSelectTeam(team.slug);
                     }}
                     className={cn(
-                      "w-full px-2.5 py-2 mb-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-3 rounded-2xl cursor-pointer",
+                      "w-full px-3 py-2 mb-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-3 rounded-2xl cursor-pointer",
                       isSelected ? "bg-blue-50 dark:bg-blue-950/60" : "bg-transparent"
                     )}
                   >
@@ -583,7 +583,7 @@ export function ConversationList({
                           </span>
                         )}
                         {team.unreadCount > 0 && (
-                          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[11px] font-bold leading-none text-white tabular-nums">
+                          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-2 text-[11px] font-bold leading-none text-white tabular-nums">
                             {team.unreadCount > 99 ? "99+" : team.unreadCount}
                           </span>
                         )}
@@ -749,7 +749,7 @@ export function ConversationList({
                     }
                   }}
                   className={cn(
-                    "w-full px-2.5 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-left flex items-center gap-3 rounded-2xl cursor-pointer mb-0.5",
+                    "w-full px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-left flex items-center gap-3 rounded-2xl cursor-pointer mb-1",
                     isSelected ? "bg-blue-50 dark:bg-blue-950/60" : "bg-transparent"
                   )}
                 >
@@ -787,7 +787,7 @@ export function ConversationList({
                         </span>
                       )}
                       {conv.unreadCount > 0 && (
-                        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[11px] font-bold leading-none text-white tabular-nums">
+                        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-2 text-[11px] font-bold leading-none text-white tabular-nums">
                           {conv.unreadCount > 99 ? "99+" : conv.unreadCount}
                         </span>
                       )}

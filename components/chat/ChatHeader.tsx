@@ -35,7 +35,7 @@ export function ChatHeader({
 
   return (
     <div
-      className={`${sticky ? "sticky top-(--app-navbar-height) z-40" : ""} border-b border-border px-3 py-2.5 md:px-5 md:py-3 shrink-0 bg-white dark:bg-zinc-900`}
+      className={`${sticky ? "sticky top-(--app-navbar-height) z-40" : ""} border-b border-border px-3 py-3 md:px-5 md:py-3 shrink-0 bg-white dark:bg-zinc-900`}
     >
       <div className="flex items-center gap-2 md:gap-3">
         {/* Back button - only visible on mobile */}

@@ -170,7 +170,7 @@ function PaymentForm({
       <div className="rounded-2xl border border-border p-4">
         <PaymentElement />
       </div>
-      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <p className="flex items-center gap-2 text-xs text-muted-foreground">
         <Lock className="size-3.5" aria-hidden="true" />
         Card details go straight to Stripe. The amount is held until the activity date.
       </p>

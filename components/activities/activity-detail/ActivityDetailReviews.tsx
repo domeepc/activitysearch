@@ -48,8 +48,8 @@ export function ActivityDetailReviews({ reviews, rating, reviewCount }: Activity
           {reviews.map((r) => {
             const name = r.user ? `${r.user.name} ${r.user.lastname}`.trim() : "Former guest";
             return (
-              <li key={r._id} className="flex flex-col gap-2.5 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-                <div className="flex items-center gap-2.5">
+              <li key={r._id} className="flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+                <div className="flex items-center gap-3">
                   <Avatar className="size-9">
                     <AvatarImage src={r.user?.avatar} alt="" />
                     <AvatarFallback className="text-xs font-bold">{name[0] ?? "?"}</AvatarFallback>
@@ -63,7 +63,7 @@ export function ActivityDetailReviews({ reviews, rating, reviewCount }: Activity
                     )}
                   </span>
                   {r.rating != null && (
-                    <span className="flex gap-0.5" aria-label={`${r.rating} out of 5`}>
+                    <span className="flex gap-1" aria-label={`${r.rating} out of 5`}>
                       {[1, 2, 3, 4, 5].map((n) => (
                         <Star
                           key={n}

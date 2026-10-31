@@ -40,7 +40,7 @@ export function ActiveStatus({ userId }: { userId: Id<"users"> }) {
 
   if (presence?.status === "online") {
     return (
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <div className="size-2 rounded-full bg-green-500" />
         <span>Active now</span>
       </div>
@@ -48,7 +48,7 @@ export function ActiveStatus({ userId }: { userId: Id<"users"> }) {
   }
 
   return (
-    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+    <div className="flex items-center gap-2 text-xs text-muted-foreground">
       <div className="size-2 rounded-full bg-zinc-300 dark:bg-zinc-600" />
       <span>Last active {formatLastSeen(presence?.lastSeen, now)}</span>
     </div>
