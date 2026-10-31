@@ -139,6 +139,11 @@ export default function CustomSignUp() {
             strategy: "email_code",
           })
         }
+        onBack={() => {
+          setVerifying(false);
+          setCode("");
+          setError("");
+        }}
         error={error}
         loading={loading}
       />

@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
 
   const res = await fetch(url, {
     headers: {
-      "User-Agent": "activitysearch/1.0 (domagoj.milardovic@activitysearch.eu)",
+      "User-Agent": "activitysearch/1.0 (domemdev@gmail.com)",
       "Accept-Language": "en",
     },
     next: { revalidate: 60 },

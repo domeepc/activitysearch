@@ -88,10 +88,7 @@ export function TeamMembersDialog({
                   >
                     <Avatar className="size-10">
                       <AvatarImage src={teammate.avatar} alt="" />
-                      <AvatarFallback className="text-xs font-bold">
-                        {teammate.name[0]}
-                        {teammate.lastname[0]}
-                      </AvatarFallback>
+                      <AvatarFallback name={`${teammate.name} ${teammate.lastname}`} />
                     </Avatar>
                     <span className="min-w-0">
                       <span className="flex items-center gap-2">

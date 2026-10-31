@@ -108,6 +108,12 @@ export default function ActivityMap({
       mapStyle={isDark ? MAP_STYLE.dark : MAP_STYLE.light}
       interactiveLayerIds={[CLUSTER_LAYER, POINT_LAYER]}
       onClick={handleClick}
+      onLoad={(e) => {
+        // OpenFreeMap's dark style references "wood-pattern", which its sprite lacks; fill gaps with a transparent pixel
+        e.target.on("styleimagemissing", ({ id }) => {
+          if (!e.target.hasImage(id)) e.target.addImage(id, { width: 1, height: 1, data: new Uint8Array(4) });
+        });
+      }}
       cursor="auto"
       attributionControl={{ compact: true }}
     >

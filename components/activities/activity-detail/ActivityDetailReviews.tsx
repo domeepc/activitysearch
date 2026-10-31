@@ -52,7 +52,7 @@ export function ActivityDetailReviews({ reviews, rating, reviewCount }: Activity
                 <div className="flex items-center gap-3">
                   <Avatar className="size-9">
                     <AvatarImage src={r.user?.avatar} alt="" />
-                    <AvatarFallback className="text-xs font-bold">{name[0] ?? "?"}</AvatarFallback>
+                    <AvatarFallback name={name} />
                   </Avatar>
                   <span className="min-w-0 flex-1">
                     <b className="block truncate text-sm">{name}</b>

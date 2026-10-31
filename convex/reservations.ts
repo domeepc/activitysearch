@@ -1423,7 +1423,14 @@ export const getReservationActivityIdInternal = internalQuery({
     if (!reservation) {
       return null;
     }
-    return { activityId: reservation.activityId };
+    const activity = await ctx.db.get(reservation.activityId);
+    return {
+      activityId: reservation.activityId,
+      // For the payment receipt's description line
+      activityName: activity?.activityName ?? "Activity",
+      date: reservation.date,
+      time: reservation.time,
+    };
   },
 });
 

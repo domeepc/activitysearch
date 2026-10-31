@@ -97,10 +97,7 @@ export function TeamInviteDialog({
               {currentTeam.teammates.slice(0, 5).map((teammate) => (
                 <Avatar key={teammate._id} className="size-7 border-2 border-white dark:border-zinc-900">
                   <AvatarImage src={teammate.avatar} alt="" />
-                  <AvatarFallback className="text-[10px] font-bold">
-                    {teammate.name[0]}
-                    {teammate.lastname[0]}
-                  </AvatarFallback>
+                  <AvatarFallback name={`${teammate.name} ${teammate.lastname}`} />
                 </Avatar>
               ))}
             </div>
@@ -120,10 +117,7 @@ export function TeamInviteDialog({
                 <label className="flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800/60">
                   <Avatar className="size-9">
                     <AvatarImage src={friend.avatar} alt="" />
-                    <AvatarFallback className="text-xs font-bold">
-                      {friend.name[0]}
-                      {friend.lastname[0]}
-                    </AvatarFallback>
+                    <AvatarFallback name={`${friend.name} ${friend.lastname}`} />
                   </Avatar>
                   <span className="min-w-0 flex-1">
                     <b className="block truncate text-sm font-semibold">

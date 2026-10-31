@@ -460,6 +460,12 @@ export default function CustomSignUpORG() {
             strategy: "email_code",
           })
         }
+        onBack={() => {
+          setVerifying(false);
+          setCode("");
+          setError("");
+        }}
+        variant="organiser"
         error={error}
         loading={loading}
       />

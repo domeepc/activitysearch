@@ -26,6 +26,8 @@ interface AvatarUploadProps {
   className?: string;
   disabled?: boolean;
   size?: "sm" | "md";
+  /** Generated-avatar style when there's no photo: faces for people, abstract for teams */
+  fallbackVariant?: "beam" | "marble";
 }
 
 export function AvatarUpload({
@@ -35,6 +37,7 @@ export function AvatarUpload({
   className,
   disabled = false,
   size = "md",
+  fallbackVariant = "beam",
 }: AvatarUploadProps) {
   const [open, setOpen] = React.useState(false);
   const [preview, setPreview] = React.useState<string | null>(null);
@@ -103,13 +106,6 @@ export function AvatarUpload({
     }
   };
 
-  const initials = userName
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild disabled={disabled}>
@@ -128,11 +124,7 @@ export function AvatarUpload({
             )}
           >
             <AvatarImage src={currentAvatar} alt={userName} />
-            <AvatarFallback
-              className={size === "sm" ? "text-lg" : "text-2xl"}
-            >
-              {initials}
-            </AvatarFallback>
+            <AvatarFallback name={userName} variant={fallbackVariant} />
           </Avatar>
           {!disabled && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
@@ -162,11 +154,7 @@ export function AvatarUpload({
             )}
           >
             <AvatarImage src={preview || currentAvatar} alt={userName} />
-            <AvatarFallback
-              className={size === "sm" ? "text-2xl" : "text-3xl"}
-            >
-              {initials}
-            </AvatarFallback>
+            <AvatarFallback name={userName} variant={fallbackVariant} />
           </Avatar>
 
           <input

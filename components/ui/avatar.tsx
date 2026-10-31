@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import * as AvatarPrimitive from "@radix-ui/react-avatar"
+import BoringAvatar from "boring-avatars"
 
 import { cn } from "@/lib/utils"
 
@@ -21,14 +22,21 @@ function Avatar({
   )
 }
 
+// Clerk's generic placeholder (base64 of {"type":"default"...}); treat it as "no photo" so the generated avatar shows
+const CLERK_PLACEHOLDER = "https://img.clerk.com/eyJ0eXBlIjoiZGVmYXVsdCI"
+
+const AVATAR_COLORS = ["#1d4ed8", "#3b82f6", "#38bdf8", "#fbbf24", "#f97316"]
+
 function AvatarImage({
   className,
+  src,
   ...props
 }: React.ComponentProps<typeof AvatarPrimitive.Image>) {
   return (
     <AvatarPrimitive.Image
       data-slot="avatar-image"
-      className={cn("aspect-square size-full", className)}
+      className={cn("aspect-square size-full object-cover", className)}
+      src={typeof src === "string" && src.startsWith(CLERK_PLACEHOLDER) ? undefined : src}
       {...props}
     />
   )
@@ -36,17 +44,31 @@ function AvatarImage({
 
 function AvatarFallback({
   className,
+  name,
+  variant = "beam",
+  children,
   ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
+}: React.ComponentProps<typeof AvatarPrimitive.Fallback> & {
+  /** Seed for a generated avatar (same name, same avatar everywhere); children are used without it */
+  name?: string
+  variant?: "beam" | "marble"
+}) {
   return (
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
       className={cn(
-        "bg-muted flex size-full items-center justify-center rounded-full",
+        "flex size-full items-center justify-center rounded-full",
+        !name && "bg-muted",
         className
       )}
       {...props}
-    />
+    >
+      {name ? (
+        <BoringAvatar name={name} variant={variant} colors={AVATAR_COLORS} size="100%" square aria-hidden="true" />
+      ) : (
+        children
+      )}
+    </AvatarPrimitive.Fallback>
   )
 }
 

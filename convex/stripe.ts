@@ -21,7 +21,7 @@ const stripe = new Stripe(stripeSecretKey, {
   apiVersion: "2025-12-15.preview" as any,
 });
 
-const PLATFORM_FEE_BPS = 500; // 5.00%
+const PLATFORM_FEE_BPS = 500; // 5.00% service fee, added on top for the customer
 const MINOR_UNITS_PER_MAJOR = 100;
 const HISTORY_LOOKBACK_BUFFER_DAYS = 14;
 const MAX_BALANCE_TRANSACTION_PAGES = 20;
@@ -33,6 +33,79 @@ function toMajorUnits(amountMinor: number): number {
 function calculatePlatformFeeMinor(amountMinor: number): number {
   return Math.round((amountMinor * PLATFORM_FEE_BPS) / 10_000);
 }
+
+/**
+ * Customer pays price + 5% service fee + VAT; the platform keeps the fee and the VAT it must remit;
+ * the organiser receives the full activity price.
+ */
+export function splitChargeWithVat(priceCents: number, vatCents: number) {
+  const serviceFeeCents = calculatePlatformFeeMinor(priceCents);
+  const chargeCents = priceCents + serviceFeeCents + vatCents;
+  const applicationFeeCents = serviceFeeCents + vatCents;
+  return { serviceFeeCents, chargeCents, applicationFeeCents, organiserCents: chargeCents - applicationFeeCents };
+}
+
+// VAT via Stripe Tax, added on top of the activity price. With destination charges the platform is the
+// merchant of record, so it collects and remits the VAT; the organiser always receives the full price.
+// shortcut: one "General - Services" code for every activity, taxed by the platform's place of supply;
+// upgrade to per-activity tax codes + performance locations (Tax Locations API, preview) for admission-type activities.
+const VAT_TAX_CODE = "txcd_20030000";
+// Customer country for the checkout estimate, before we know the card's billing country
+const VAT_ESTIMATE_COUNTRY = "HR";
+
+// VAT on both the activity price and the platform's service fee (a taxable service too)
+async function calculateVat(priceMinor: number, customerCountry: string, idempotencyKey?: string) {
+  return await stripe.tax.calculations.create(
+    {
+      currency: "eur",
+      line_items: [
+        { amount: priceMinor, reference: "activity", tax_behavior: "exclusive", tax_code: VAT_TAX_CODE },
+        {
+          amount: calculatePlatformFeeMinor(priceMinor),
+          reference: "service_fee",
+          tax_behavior: "exclusive",
+          tax_code: VAT_TAX_CODE,
+        },
+      ],
+      customer_details: { address: { country: customerCountry }, address_source: "billing" },
+    },
+    idempotencyKey ? { idempotencyKey } : undefined
+  );
+}
+
+/**
+ * Checkout breakdown for an activity price in EUR: service fee + VAT (VAT is zero if Stripe Tax
+ * isn't active or has no registration). Computed with the same split as chargeReservation.
+ */
+export const estimateVat = action({
+  args: { amount: v.number() },
+  handler: async (
+    ctx,
+    { amount }
+  ): Promise<{ serviceFee: number; tax: number; total: number; ratePercent: string | null }> => {
+    const currentUser = await ctx.runQuery(api.users.current);
+    if (!currentUser) throw new Error("Unauthorized");
+    if (!(amount > 0) || amount > 100_000) throw new Error("Invalid amount");
+    const priceCents = Math.round(amount * MINOR_UNITS_PER_MAJOR);
+    let vatCents = 0;
+    let ratePercent: string | null = null;
+    try {
+      const calc = await calculateVat(priceCents, VAT_ESTIMATE_COUNTRY);
+      vatCents = calc.tax_amount_exclusive;
+      ratePercent = calc.tax_breakdown?.[0]?.tax_rate_details?.percentage_decimal ?? null;
+    } catch (error) {
+      // Same fallback as chargeReservation, so the estimate never promises a different total
+      console.error("Stripe Tax estimate failed; showing no VAT:", error);
+    }
+    const split = splitChargeWithVat(priceCents, vatCents);
+    return {
+      serviceFee: toMajorUnits(split.serviceFeeCents),
+      tax: toMajorUnits(vatCents),
+      total: toMajorUnits(split.chargeCents),
+      ratePercent,
+    };
+  },
+});
 
 const supportedCountryCodes = new Set(
   STRIPE_SUPPORTED_COUNTRIES.map((country) => country.code)
@@ -445,25 +518,45 @@ export const chargeReservation = internalAction({
           customerId = customer.id;
         }
 
+        // VAT on top, taxed by the card's billing country. Same idempotency key on retry returns the
+        // same calculation, so the PaymentIntent params (and its idempotency key) stay identical.
+        const customerCountry =
+          paymentMethod.billing_details?.address?.country ?? paymentMethod.card?.country ?? VAT_ESTIMATE_COUNTRY;
+        let vat: Stripe.Tax.Calculation | null = null;
+        try {
+          vat = await calculateVat(amountCents, customerCountry, `vat-${row._id}`);
+        } catch (error) {
+          console.error(`Stripe Tax failed for payment ${row._id}; charging without VAT:`, error);
+        }
+        const vatCents = vat?.tax_amount_exclusive ?? 0;
+
         // One PaymentIntent per payer, so refunds go back to the card that paid.
+        const split = splitChargeWithVat(amountCents, vatCents);
         const params: Stripe.PaymentIntentCreateParams = {
-          amount: amountCents,
+          amount: split.chargeCents,
           currency: "eur",
           payment_method_types: ["card"],
           payment_method: pmId,
           customer: customerId,
           confirm: true,
           off_session: true,
+          // Stripe emails the payer a receipt (with the VAT breakdown from the linked tax calculation)
+          receipt_email: row.user.email || undefined,
+          description: `${resMeta.activityName} · ${resMeta.date} ${resMeta.time}`,
           metadata: {
             reservationId: String(reservationId),
             reservationPaymentId: String(row._id),
             activityId: String(resMeta.activityId),
             organisationId: String(organisation._id),
             userId: String(row.userId),
+            vatCents: String(vatCents),
           },
+          // Stripe records the tax transaction on success and reverses it on refunds
+          ...(vat && { hooks: { inputs: { tax: { calculation: vat.id } } } }),
         };
         if (stripeAccountId) {
-          params.application_fee_amount = calculatePlatformFeeMinor(amountCents);
+          // The platform keeps its service fee and the VAT it must remit; the organiser gets the full price
+          params.application_fee_amount = split.applicationFeeCents;
           params.transfer_data = { destination: stripeAccountId };
         }
 

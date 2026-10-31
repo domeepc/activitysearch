@@ -79,10 +79,7 @@ export function ProfileHeader({
       <div className="relative flex flex-wrap items-end gap-x-4 gap-y-3 px-5 pb-5 sm:px-6">
         <Avatar className="-mt-12 size-24 border-4 border-white text-3xl shadow-sm sm:size-[104px] dark:border-zinc-900">
           <AvatarImage src={avatar} alt="" />
-          <AvatarFallback className="bg-blue-100 text-3xl font-bold text-blue-900">
-            {name[0]}
-            {lastname[0]}
-          </AvatarFallback>
+          <AvatarFallback name={`${name} ${lastname}`} />
         </Avatar>
         <div className="min-w-[200px] flex-1 pb-1">
           <div className="flex flex-wrap items-center gap-2">

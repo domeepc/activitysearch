@@ -412,10 +412,7 @@ export function ConversationList({
                     <div className="relative shrink-0">
                       <Avatar className="h-11 w-11">
                         <AvatarImage src={friend.avatar} alt={friend.name} />
-                        <AvatarFallback>
-                          {friend.name[0]}
-                          {friend.lastname[0]}
-                        </AvatarFallback>
+                        <AvatarFallback name={`${friend.name} ${friend.lastname}`} />
                       </Avatar>
                       <StatusDot userId={friend._id} />
                     </div>
@@ -569,9 +566,7 @@ export function ConversationList({
                       {team.icon ? (
                         <Avatar className="h-11 w-11">
                           <AvatarImage src={team.icon} alt={team.teamName} />
-                          <AvatarFallback>
-                            <Users className="h-6 w-6 text-primary" />
-                          </AvatarFallback>
+                          <AvatarFallback name={team.teamName} variant="marble" />
                         </Avatar>
                       ) : (
                         <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -779,10 +774,7 @@ export function ConversationList({
                   <div className="relative shrink-0">
                     <Avatar className="h-11 w-11">
                       <AvatarImage src={conv.avatar} alt={conv.name} />
-                      <AvatarFallback>
-                        {conv.name[0]}
-                        {conv.lastname[0]}
-                      </AvatarFallback>
+                      <AvatarFallback name={`${conv.name} ${conv.lastname}`} />
                     </Avatar>
                     <StatusDot userId={conv.userId} />
                   </div>
@@ -886,9 +878,15 @@ export function ConversationList({
           <ConfirmDialog
             open={showLeaveTeam}
             onOpenChange={setShowLeaveTeam}
-            title="Leave Team"
-            description={`Are you sure you want to leave "${selectedTeam.teamName}"? You will no longer receive messages from this team.`}
-            confirmText="Leave"
+            title={`Leave ${selectedTeam.teamName}?`}
+            description="You can rejoin later if a member invites you again."
+            consequences={[
+              "You'll stop receiving this team's messages",
+              "The team chat disappears from your sidebar",
+            ]}
+            icon={LogOut}
+            confirmText="Leave team"
+            cancelText="Stay"
             variant="destructive"
             onConfirm={async () => {
               await leaveTeam({ teamId: selectedTeam._id });
@@ -899,9 +897,16 @@ export function ConversationList({
           <ConfirmDialog
             open={showDeleteTeam}
             onOpenChange={setShowDeleteTeam}
-            title="Delete Team"
-            description={`Are you sure you want to delete "${selectedTeam.teamName}"? This action cannot be undone. All messages and team data will be permanently deleted.`}
-            confirmText="Delete"
+            title={`Delete ${selectedTeam.teamName}?`}
+            description="This can't be undone, for you or any member of the team."
+            consequences={[
+              "All team messages are permanently deleted",
+              "Every member loses access to the team",
+              "Reservations booked with this team are deleted",
+            ]}
+            icon={Trash2}
+            confirmText="Delete team"
+            cancelText="Keep team"
             variant="destructive"
             onConfirm={async () => {
               await deleteTeam({ teamId: selectedTeam._id });
@@ -917,9 +922,15 @@ export function ConversationList({
           <ConfirmDialog
             open={showRemoveFriend}
             onOpenChange={setShowRemoveFriend}
-            title="Remove Friend"
-            description={`Are you sure you want to remove ${selectedFriend.name} from your friends list?`}
-            confirmText="Remove"
+            title={`Remove ${selectedFriend.name} from friends?`}
+            description="You can add each other again later."
+            consequences={[
+              "Your chat history with them is deleted for both of you",
+              "You'll no longer appear in each other's friend lists",
+            ]}
+            icon={UserMinus}
+            confirmText="Remove friend"
+            cancelText="Keep friend"
             variant="destructive"
             onConfirm={async () => {
               await removeFriend({ friendId: selectedFriend._id });
@@ -929,9 +940,16 @@ export function ConversationList({
           <ConfirmDialog
             open={showBlockFriend}
             onOpenChange={setShowBlockFriend}
-            title="Block User"
-            description={`Are you sure you want to block ${selectedFriend.name}? You won't be able to see their information or messages until you unblock them.`}
+            title={`Block ${selectedFriend.name}?`}
+            description="You can unblock them anytime from your profile settings."
+            consequences={[
+              "They're removed from your friends",
+              "Your chat history with them is deleted for both of you",
+              "Neither of you can message the other",
+            ]}
+            icon={Ban}
             confirmText="Block"
+            cancelText="Cancel"
             variant="destructive"
             onConfirm={async () => {
               await blockUser({ userId: selectedFriend._id });

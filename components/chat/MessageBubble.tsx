@@ -81,14 +81,7 @@ function SenderAvatar({ name, avatar, href }: { name?: string; avatar?: string; 
   const avatarEl = (
     <Avatar className="size-7">
       <AvatarImage src={avatar} alt={name} />
-      <AvatarFallback className="text-xs font-bold">
-        {name
-          ?.split(" ")
-          .map((n) => n[0])
-          .join("")
-          .slice(0, 2)
-          .toUpperCase() || "?"}
-      </AvatarFallback>
+      <AvatarFallback name={name ?? "?"} />
     </Avatar>
   );
   if (!href) return <span className="shrink-0">{avatarEl}</span>;
