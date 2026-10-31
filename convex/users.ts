@@ -415,18 +415,36 @@ export const getCurrentUserProfile = query({
  * Profile lookups are reachable without auth (profile layouts fetch metadata server-side),
  * so private fields are stripped unless the caller is viewing their own record.
  */
-async function toProfileView(ctx: QueryCtx, user: Doc<"users"> | null) {
+function toProfileView(viewer: Doc<"users"> | null, user: Doc<"users"> | null) {
   if (!user) return null;
-  const identity = await ctx.auth.getUserIdentity();
-  if (identity?.subject === user.externalId) return user;
-  // Keep the document shape for callers, but blank fields only the owner may see.
-  return { ...user, email: "", externalId: "" };
+  if (viewer?._id === user._id) return { ...user, hasBlockedYou: false };
+  // Allow-list: what the profile screens show. Never the blocked list, email or loyalty balance.
+  const signedIn = viewer !== null;
+  return {
+    _id: user._id,
+    _creationTime: user._creationTime,
+    name: user.name,
+    lastname: user.lastname,
+    username: user.username,
+    slug: user.slug,
+    avatar: user.avatar,
+    description: user.description,
+    role: user.role,
+    email: "", // owner-only; kept so callers share one shape
+    // Signed-in members only (signed-out visitors and page metadata get the basic card)
+    contact: signedIn ? user.contact : "",
+    friends: signedIn ? user.friends : [],
+    totalExp: signedIn ? user.totalExp : BigInt(0),
+    lastActive: signedIn ? user.lastActive : undefined,
+    publicKey: signedIn ? user.publicKey : undefined,
+    hasBlockedYou: signedIn ? (user.blocked ?? []).includes(viewer._id) : false,
+  };
 }
 
 export const getUserById = query({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
-    return await toProfileView(ctx, await ctx.db.get(userId));
+    return toProfileView(await getCurrentUser(ctx), await ctx.db.get(userId));
   },
 });
 
@@ -444,7 +462,7 @@ export const getUserByUsername = query({
       .query("users")
       .withIndex("byUsername", (q) => q.eq("username", username))
       .first();
-    return await toProfileView(ctx, user);
+    return toProfileView(await getCurrentUser(ctx), user);
   },
 });
 
@@ -470,7 +488,7 @@ export const getUsersByIds = query({
 
     // Batch fetch all users in parallel
     const users = await Promise.all(
-      filteredUserIds.map(async (id) => toProfileView(ctx, await ctx.db.get(id)))
+      filteredUserIds.map(async (id) => toProfileView(currentUser, await ctx.db.get(id)))
     );
 
     return users.filter((u): u is NonNullable<typeof u> => u !== null);
@@ -525,12 +543,15 @@ export const searchUsers = query({
 
     const blocked = currentUser.blocked || [];
 
-    // Get all users and filter by search term
-    // Note: We include blocked users in search results but mark them as blocked
-    // This allows users to see they've blocked someone and potentially unblock them
-    const allUsers = await ctx.db.query("users").collect();
+    // Search indexes instead of reading every user. Blocked users are included (marked) so they can be unblocked.
+    const [byUsername, byName, byLastname] = await Promise.all([
+      ctx.db.query("users").withSearchIndex("search_username", (q) => q.search("username", searchTerm)).take(20),
+      ctx.db.query("users").withSearchIndex("search_name", (q) => q.search("name", searchTerm)).take(20),
+      ctx.db.query("users").withSearchIndex("search_lastname", (q) => q.search("lastname", searchTerm)).take(20),
+    ]);
+    const candidates = [...new Map([...byUsername, ...byName, ...byLastname].map((u) => [u._id, u])).values()];
 
-    return allUsers
+    return candidates
       .filter((user) => {
         if (user._id === currentUser._id) return false;
         // Filter out organisers - only show regular users

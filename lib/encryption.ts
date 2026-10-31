@@ -1,10 +1,8 @@
 /**
  * End-to-End Encryption Service
- * Uses ECDH (Elliptic Curve Diffie-Hellman) with AES-GCM for hybrid encryption
- * Each user has their own key pair (public/private)
- * Messages are encrypted with receiver's public key and decrypted with receiver's private key
- * 
- * Backward compatibility: Old symmetric encryption methods are preserved for legacy messages
+ * 1:1 chats: ECDH (P-256) between the two users' keys -> HKDF -> AES-256-GCM.
+ * Team chats: a random AES-256-GCM team key, wrapped for each member with the same ECDH scheme.
+ * Each user has one key pair, shared between their linked browsers.
  */
 
 // ECDH Configuration
@@ -23,9 +21,6 @@ const HKDF_HASH = "SHA-256";
 const HKDF_SALT = new TextEncoder().encode("activitysearch_hkdf_salt_v1");
 const HKDF_INFO = new TextEncoder().encode("activitysearch_aes_key_v1");
 
-// Legacy symmetric encryption constants (for backward compatibility)
-const PBKDF2_ITERATIONS = 100000;
-const PBKDF2_SALT = "activitysearch_e2e_salt_v1";
 
 /**
  * Encryption Service for E2E message encryption
@@ -467,94 +462,8 @@ export class EncryptionService {
     }
   }
 
-  // ========== Legacy Symmetric Encryption Methods (for backward compatibility) ==========
-
   /**
-   * Derive an AES-GCM encryption key from user IDs using PBKDF2 (LEGACY)
-   * @deprecated Use asymmetric encryption instead
-   */
-  static async deriveKeyFromIds(user1Id: string, user2Id: string): Promise<CryptoKey> {
-    const sortedIds = [user1Id, user2Id].sort((a, b) => a.localeCompare(b));
-    const keyMaterial = `${sortedIds[0]}_${sortedIds[1]}`;
-
-    const encoder = new TextEncoder();
-    const keyMaterialBuffer = encoder.encode(keyMaterial);
-    const saltBuffer = encoder.encode(PBKDF2_SALT);
-
-    const baseKey = await crypto.subtle.importKey(
-      "raw",
-      keyMaterialBuffer,
-      "PBKDF2",
-      false,
-      ["deriveBits"]
-    );
-
-    const derivedBits = await crypto.subtle.deriveBits(
-      {
-        name: "PBKDF2",
-        salt: saltBuffer,
-        iterations: PBKDF2_ITERATIONS,
-        hash: "SHA-256",
-      },
-      baseKey,
-      AES_KEY_LENGTH
-    );
-
-    return await crypto.subtle.importKey(
-      "raw",
-      derivedBits,
-      {
-        name: AES_ALGORITHM,
-        length: AES_KEY_LENGTH,
-      },
-      true,
-      ["encrypt", "decrypt"]
-    );
-  }
-
-  /**
-   * Derive an AES-GCM encryption key from team ID using PBKDF2 (LEGACY)
-   * @deprecated Use asymmetric encryption instead
-   */
-  static async deriveKeyFromTeamId(teamId: string): Promise<CryptoKey> {
-    const encoder = new TextEncoder();
-    const keyMaterialBuffer = encoder.encode(teamId);
-    const saltBuffer = encoder.encode(PBKDF2_SALT);
-
-    const baseKey = await crypto.subtle.importKey(
-      "raw",
-      keyMaterialBuffer,
-      "PBKDF2",
-      false,
-      ["deriveBits"]
-    );
-
-    const derivedBits = await crypto.subtle.deriveBits(
-      {
-        name: "PBKDF2",
-        salt: saltBuffer,
-        iterations: PBKDF2_ITERATIONS,
-        hash: "SHA-256",
-      },
-      baseKey,
-      AES_KEY_LENGTH
-    );
-
-    return await crypto.subtle.importKey(
-      "raw",
-      derivedBits,
-      {
-        name: AES_ALGORITHM,
-        length: AES_KEY_LENGTH,
-      },
-      true,
-      ["encrypt", "decrypt"]
-    );
-  }
-
-  /**
-   * Encrypt a message using symmetric AES-GCM (LEGACY)
-   * @deprecated Use encryptMessageAsymmetric instead
+   * Encrypt with a shared AES-GCM key (team messages). Format: iv:ciphertext:tag
    */
   static async encryptMessage(text: string, key: CryptoKey): Promise<string> {
     const encoder = new TextEncoder();
@@ -583,8 +492,7 @@ export class EncryptionService {
   }
 
   /**
-   * Decrypt a message using symmetric AES-GCM (LEGACY)
-   * @deprecated Use decryptMessageAsymmetric instead
+   * Decrypt with a shared AES-GCM key (team messages)
    */
   static async decryptMessage(encryptedText: string, key: CryptoKey): Promise<string> {
     try {
@@ -647,94 +555,6 @@ export class EncryptionService {
         throw error;
       }
       throw new Error(`Decryption failed: ${error instanceof Error ? error.message : "Unknown error"}`);
-    }
-  }
-
-  /**
-   * Get or create encryption key for a conversation (LEGACY)
-   * @deprecated Use asymmetric encryption instead
-   */
-  static async getOrCreateConversationKey(
-    user1Id: string,
-    user2Id: string
-  ): Promise<CryptoKey> {
-    const sortedIds = [user1Id, user2Id].sort((a, b) => a.localeCompare(b));
-    const keyName = `e2e_key_${sortedIds[0]}_${sortedIds[1]}`;
-
-    const cachedKey = await this.loadKey(keyName);
-    if (cachedKey) {
-      return cachedKey;
-    }
-
-    const derivedKey = await this.deriveKeyFromIds(user1Id, user2Id);
-    await this.storeKey(keyName, derivedKey);
-    return derivedKey;
-  }
-
-  /**
-   * Get or create encryption key for a team (LEGACY)
-   * @deprecated Use asymmetric encryption instead
-   */
-  static async getOrCreateTeamKey(teamId: string): Promise<CryptoKey> {
-    const keyName = `e2e_team_key_${teamId}`;
-
-    const cachedKey = await this.loadKey(keyName);
-    if (cachedKey) {
-      return cachedKey;
-    }
-
-    const derivedKey = await this.deriveKeyFromTeamId(teamId);
-    await this.storeKey(keyName, derivedKey);
-    return derivedKey;
-  }
-
-  /**
-   * Store a key in localStorage as JWK (LEGACY)
-   */
-  static async storeKey(keyName: string, key: CryptoKey): Promise<void> {
-    try {
-      if (typeof window === "undefined" || !window.localStorage) {
-        throw new Error("localStorage is not available");
-      }
-
-      const jwk = await crypto.subtle.exportKey("jwk", key);
-      const keyData = JSON.stringify(jwk);
-      localStorage.setItem(keyName, keyData);
-    } catch (error) {
-      throw new Error(`Failed to store key: ${error instanceof Error ? error.message : "Unknown error"}`);
-    }
-  }
-
-  /**
-   * Load a key from localStorage (LEGACY)
-   */
-  static async loadKey(keyName: string): Promise<CryptoKey | null> {
-    try {
-      if (typeof window === "undefined" || !window.localStorage) {
-        return null;
-      }
-
-      const keyData = localStorage.getItem(keyName);
-      if (!keyData) {
-        return null;
-      }
-
-      const jwk = JSON.parse(keyData);
-      const key = await crypto.subtle.importKey(
-        "jwk",
-        jwk,
-        {
-          name: AES_ALGORITHM,
-          length: AES_KEY_LENGTH,
-        },
-        true,
-        ["encrypt", "decrypt"]
-      );
-
-      return key;
-    } catch (error) {
-      console.error(`Failed to load key ${keyName}:`, error);
-      return null;
     }
   }
 

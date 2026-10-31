@@ -220,7 +220,12 @@ function PaymentForm({
   );
 }
 
-export function PaymentDialog({
+// Remounting on open/close gives every opening a fresh form (persons, card form, errors)
+export function PaymentDialog(props: PaymentDialogProps) {
+  return <PaymentDialogContent key={props.open ? "open" : "closed"} {...props} />;
+}
+
+function PaymentDialogContent({
   open,
   onOpenChange,
   reservationId,
@@ -235,17 +240,17 @@ export function PaymentDialog({
   const [personsToPayFor, setPersonsToPayFor] = useState(1);
   const createSetupIntentAction = useAction(api.stripe.createSetupIntent);
   const estimateVatAction = useAction(api.stripe.estimateVat);
-  const [vat, setVat] = useState<{ forAmount: number; estimate: VatEstimate } | null>(null);
+  // Estimates per amount: changing the persons count back and forth doesn't re-call Stripe Tax
+  const [vatByAmount, setVatByAmount] = useState<Record<number, VatEstimate>>({});
   const subtotal = perPersonAmount * personsToPayFor;
-  // Only trust an estimate made for the current amount
-  const currentVat = vat?.forAmount === subtotal ? vat.estimate : null;
+  const currentVat = vatByAmount[subtotal] ?? null;
 
   useEffect(() => {
-    if (!open || !(subtotal > 0)) return;
+    if (!open || !(subtotal > 0) || vatByAmount[subtotal]) return;
     let cancelled = false;
     estimateVatAction({ amount: subtotal })
       .then((estimate) => {
-        if (!cancelled) setVat({ forAmount: subtotal, estimate });
+        if (!cancelled) setVatByAmount((cache) => ({ ...cache, [subtotal]: estimate }));
       })
       .catch(() => {
         if (!cancelled) setError("Couldn't calculate the total. Please close and try again.");
@@ -253,25 +258,8 @@ export function PaymentDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, subtotal, estimateVatAction]);
+  }, [open, subtotal, vatByAmount, estimateVatAction]);
   const { resolvedTheme } = useTheme();
-
-  // Reset persons to pay for when dialog opens
-  useEffect(() => {
-    if (open) {
-      const initialPersons = Math.min(1, Math.max(1, remainingPersons));
-      setPersonsToPayFor(initialPersons);
-      setClientSecret(null);
-      setError(null);
-      setIsLoading(false);
-    } else {
-      // Reset when dialog closes
-      setClientSecret(null);
-      setError(null);
-      setPersonsToPayFor(1);
-      setIsLoading(false);
-    }
-  }, [open, remainingPersons]);
 
   const createSetupIntent = useCallback(async () => {
     setIsLoading(true);

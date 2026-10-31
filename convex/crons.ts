@@ -11,7 +11,7 @@ crons.cron(
   {}
 );
 
-// Hourly: charge saved cards for today's paid reservations (retries failed charges).
+// Hourly: charge saved cards for today's paid reservations; declined cards are retried daily for a few days.
 crons.cron(
   "check-and-fulfill-reservations",
   "0 * * * *",

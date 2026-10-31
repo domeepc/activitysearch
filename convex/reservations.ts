@@ -8,26 +8,13 @@ import {
 } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUserOrThrow, getCurrentUser } from "./users";
+import { organisationForActivity } from "./organisation";
 import { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { effectiveReservationTotalPrice } from "../lib/reservationsPricing";
 import { reservationStartMs, todayInAppZone } from "../lib/reservationTime";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-
-// Older activities are only linked through org.activityIDs, so fall back to a scan.
-async function organisationForActivity(
-  ctx: QueryCtx,
-  activityId: Id<"activities">
-): Promise<Doc<"organisations"> | null> {
-  const activity = await ctx.db.get(activityId);
-  if (activity?.organisationId) {
-    const org = await ctx.db.get(activity.organisationId);
-    if (org) return org;
-  }
-  const allOrganisations = await ctx.db.query("organisations").collect();
-  return allOrganisations.find((org) => org.activityIDs.includes(activityId)) ?? null;
-}
 
 // shortcut: scans organisations (one row per organiser), add a join table if that grows past a few thousand.
 async function organiserActivityIds(
@@ -151,8 +138,29 @@ async function nextQueueEntry(
     .sort((a, b) => a.createdAt - b.createdAt)[0];
 }
 
+// Points spent on a discount go back to whoever spent them (once: the refund row marks it done)
+async function refundLoyaltyPoints(ctx: MutationCtx, reservationId: Id<"reservations">) {
+  const rows = await ctx.db
+    .query("loyaltyTransactions")
+    .withIndex("by_reservation", (q) => q.eq("reservationId", reservationId))
+    .collect();
+  if (rows.some((t) => t.reason === "reservation_cancelled_refund")) return;
+  for (const spent of rows.filter((t) => t.reason === "reservation_discount")) {
+    const user = await ctx.db.get(spent.userId);
+    if (!user) continue;
+    await ctx.db.patch(user._id, { loyaltyPoints: (user.loyaltyPoints ?? BigInt(0)) - spent.amount });
+    await ctx.db.insert("loyaltyTransactions", {
+      userId: user._id,
+      amount: -spent.amount,
+      reason: "reservation_cancelled_refund",
+      reservationId,
+      createdAt: Date.now(),
+    });
+  }
+}
+
 // Cancels, releases payments and hands the slot to the queue. Shared by user and cron cancels.
-async function cancelAndRelease(
+export async function cancelAndRelease(
   ctx: MutationCtx,
   reservation: Doc<"reservations">,
   cancellationReason: string
@@ -190,6 +198,7 @@ async function cancelAndRelease(
     }
   }
 
+  await refundLoyaltyPoints(ctx, reservation._id);
   await sendReservationCardUpdate(ctx, reservation._id);
 
   if (reservation.date < todayInAppZone()) return null;
@@ -571,6 +580,10 @@ export const cancelReservation = mutation({
       throw new Error(
         "Only the activity organiser or the team creator can cancel reservations"
       );
+    }
+    // Cancelling refunds everyone, so a team can't cancel an activity that already started
+    if (!isOrganiser && reservationStartMs(reservation.date, reservation.time) <= Date.now()) {
+      throw new Error("This activity has already started, so it can no longer be cancelled. Contact the organiser.");
     }
 
     const result = await cancelAndRelease(ctx, reservation, cancellationReason.trim());
@@ -1320,13 +1333,17 @@ export const checkAndCancelUnpaidReservations = internalMutation({
 export const checkAndFulfillReservations = internalMutation({
   args: {},
   handler: async (ctx) => {
-    const today = todayInAppZone();
+    // Today plus the last few days, so declined cards get their daily retries
+    const dates = [0, 1, 2].map((daysAgo) => todayInAppZone(Date.now() - daysAgo * 86_400_000));
     const reservationsToCharge = (
-      await ctx.db
-        .query("reservations")
-        .withIndex("byDate", (q) => q.eq("date", today))
-        .collect()
-    ).filter((r) => r.paymentStatus === "on_hold" && !r.cancelledAt);
+      await Promise.all(
+        dates.map((date) =>
+          ctx.db.query("reservations").withIndex("byDate", (q) => q.eq("date", date)).collect()
+        )
+      )
+    )
+      .flat()
+      .filter((r) => r.paymentStatus === "on_hold" && !r.cancelledAt);
 
     for (const reservation of reservationsToCharge) {
       await ctx.scheduler.runAfter(0, internal.stripe.chargeReservation, {
@@ -1335,6 +1352,37 @@ export const checkAndFulfillReservations = internalMutation({
     }
 
     return { success: true, scheduled: reservationsToCharge.length };
+  },
+});
+
+// A card was declined on the activity day: count the attempt and ask the payer to fix it
+export const recordChargeFailure = internalMutation({
+  args: { paymentId: v.id("reservationPayments"), reason: v.string() },
+  handler: async (ctx, { paymentId, reason }) => {
+    const payment = await ctx.db.get(paymentId);
+    if (!payment) return;
+    const attempts = (payment.chargeAttempts ?? 0) + 1;
+    await ctx.db.patch(paymentId, { chargeAttempts: attempts, chargeFailedAt: Date.now() });
+
+    const reservation = await ctx.db.get(payment.reservationId);
+    if (!reservation) return;
+    const [activity, payer] = await Promise.all([
+      ctx.db.get(reservation.activityId),
+      ctx.db.get(payment.userId),
+    ]);
+    const retry =
+      attempts < 3 ? "We'll try the card again tomorrow." : "No more automatic retries; please contact the organiser.";
+    const text = `Payment for ${payer?.name ?? "a team member"}'s share of ${activity?.activityName ?? "this reservation"} on ${reservation.date} was declined (${reason}). ${retry}`;
+
+    // Where the team already sees its reservation cards; solo bookings use the organiser chat
+    for (const teamId of reservation.teamIds) {
+      await ctx.db.insert("groupMessages", { teamId, senderId: reservation.createdBy, text, messageType: "text" });
+    }
+    const conversation = reservation.reservationChatId ? await ctx.db.get(reservation.reservationChatId) : null;
+    if (reservation.teamIds.length === 0 && conversation) {
+      const organiserId = conversation.user1Id === reservation.createdBy ? conversation.user2Id : conversation.user1Id;
+      await ctx.db.insert("messages", { senderId: organiserId, receiverId: reservation.createdBy, text });
+    }
   },
 });
 

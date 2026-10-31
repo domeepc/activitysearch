@@ -69,7 +69,7 @@ const sections: LegalSectionData[] = [
         <p>We never sell your personal data. We share it only as needed to run ActivitySearch:</p>
         <ul>
           <li><strong>Organisers</strong> see the name and profile of people booked on their activities, and booking and payment status.</li>
-          <li><strong>Other users</strong> see your public profile (name, username, photo, description), your reviews, and your online status if you&apos;re friends.</li>
+          <li><strong>Other signed-in users</strong> see your profile: name, username, photo, description, the contact details you add, your friends list and level, plus your reviews and online status. Visitors who aren&apos;t signed in see only your name, username, photo and description.</li>
           <li><strong>Service providers</strong> who process data for us: Clerk (sign-in), Convex (database and hosting), Stripe (payments, payouts and tax calculation), PostHog (product analytics), Sentry (error reports), and OpenStreetMap Nominatim and OpenFreeMap (address search and map tiles).</li>
           <li><strong>Authorities,</strong> when the law requires it.</li>
         </ul>

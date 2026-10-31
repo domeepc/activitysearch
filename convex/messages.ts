@@ -78,6 +78,9 @@ export const sendMessage = mutation({
   },
 });
 
+// Sidebar reads only the latest messages per chat, not whole histories
+const SIDEBAR_UNREAD_SCAN = 100;
+
 export const getConversations = query({
   args: {},
   handler: async (ctx) => {
@@ -125,7 +128,8 @@ export const getConversations = query({
           .withIndex("byConversation", (q) =>
             q.eq("senderId", currentUser._id).eq("receiverId", friendId)
           )
-          .collect()
+          .order("desc")
+          .take(1)
       )
     );
 
@@ -136,7 +140,9 @@ export const getConversations = query({
           .withIndex("byConversation", (q) =>
             q.eq("senderId", friendId).eq("receiverId", currentUser._id)
           )
-          .collect()
+          .order("desc")
+          // Unread messages are the newest ones; the sidebar shows "99+" beyond this
+          .take(SIDEBAR_UNREAD_SCAN)
       )
     );
 
@@ -563,11 +569,9 @@ export const migrateMessageToEncrypted = mutation({
     }
 
     // Verify user has access to this message
-    const isSender = message.senderId === currentUser._id;
-    const isReceiver = message.receiverId === currentUser._id;
-
-    if (!isSender && !isReceiver) {
-      throw new Error("You do not have access to this message");
+    // Only the author may replace their message's text, or the other side could forge it
+    if (message.senderId !== currentUser._id) {
+      throw new Error("You can only encrypt messages you sent");
     }
 
     // Only migrate if not already encrypted
@@ -644,7 +648,8 @@ export const getReservationConversations = query({
           .withIndex("byConversation", (q) =>
             q.eq("senderId", currentUser._id).eq("receiverId", otherUserId)
           )
-          .collect()
+          .order("desc")
+          .take(1)
       )
     );
 
@@ -655,7 +660,8 @@ export const getReservationConversations = query({
           .withIndex("byConversation", (q) =>
             q.eq("senderId", otherUserId).eq("receiverId", currentUser._id)
           )
-          .collect()
+          .order("desc")
+          .take(SIDEBAR_UNREAD_SCAN)
       )
     );
 

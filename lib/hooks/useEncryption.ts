@@ -329,15 +329,8 @@ export function useEncryptionWithUser({
         return await EncryptionService.encryptMessage(text, teamKey);
       }
 
-      // Use legacy symmetric encryption if requested (for backward compatibility)
       if (encryptionVersion === "symmetric") {
-        if (!currentUserId || (!otherUserId && !teamId)) {
-          throw new Error("User IDs required for symmetric encryption");
-        }
-        const key = teamId
-          ? await EncryptionService.getOrCreateTeamKey(String(teamId))
-          : await EncryptionService.getOrCreateConversationKey(String(currentUserId), String(otherUserId!));
-        return await EncryptionService.encryptMessage(text, key);
+        throw new Error("The legacy symmetric scheme is no longer used for new messages");
       }
 
       // Asymmetric encryption
@@ -358,7 +351,7 @@ export function useEncryptionWithUser({
         );
       }
     },
-    [userKeyPair, receiverPublicKey, teamKey, isEncryptionAvailable, currentUserId, otherUserId, teamId]
+    [userKeyPair, receiverPublicKey, teamKey, isEncryptionAvailable]
   );
 
   /**
@@ -385,15 +378,9 @@ export function useEncryptionWithUser({
         return await EncryptionService.decryptMessage(encryptedText, teamKey);
       }
 
-      // Use legacy symmetric decryption if requested (for backward compatibility)
+      // Legacy rows are converted to plain text by convex/legacyEncryption.ts; any left didn't decrypt
       if (encryptionVersion === "symmetric") {
-        if (!currentUserId || (!otherUserId && !teamId)) {
-          throw new Error("Cannot decrypt: Missing user IDs");
-        }
-        const key = teamId
-          ? await EncryptionService.getOrCreateTeamKey(String(teamId))
-          : await EncryptionService.getOrCreateConversationKey(String(currentUserId), String(otherUserId!));
-        return await EncryptionService.decryptMessage(encryptedText, key);
+        throw new Error("Legacy message could not be recovered");
       }
 
       // Asymmetric decryption
@@ -409,24 +396,12 @@ export function useEncryptionWithUser({
           receiverPublicKey ?? undefined
         );
       } catch (error) {
-        // Try legacy symmetric decryption as fallback
-        try {
-          if (currentUserId && (otherUserId || teamId)) {
-            const key = teamId
-              ? await EncryptionService.getOrCreateTeamKey(String(teamId))
-              : await EncryptionService.getOrCreateConversationKey(String(currentUserId), String(otherUserId!));
-            return await EncryptionService.decryptMessage(encryptedText, key);
-          }
-        } catch {
-          // Both failed
-        }
-
         throw new Error(
           `Decryption failed: ${error instanceof Error ? error.message : "Unknown error"}`
         );
       }
     },
-    [userKeyPair, receiverPublicKey, teamKey, isEncryptionAvailable, currentUserId, otherUserId, teamId]
+    [userKeyPair, receiverPublicKey, teamKey, isEncryptionAvailable]
   );
 
   return {

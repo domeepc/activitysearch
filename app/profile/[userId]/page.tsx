@@ -109,7 +109,7 @@ export default function ProfilePage({
   }
 
   // Check if the user has blocked the current user
-  const hasBlockedYou = user.blocked?.includes(currentUser._id) ?? false;
+  const hasBlockedYou = user.hasBlockedYou;
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-6">
