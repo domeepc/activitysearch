@@ -58,6 +58,7 @@ export default function TeamChatPage({
     senderProfileUserId: msg.sender?._id,
     status: msg.status ?? undefined,
     encrypted: msg.encrypted || false,
+    encryptionVersion: msg.encryptionVersion,
     messageType: msg.messageType || "text",
     reservationCardData: msg.reservationCardData,
   }));

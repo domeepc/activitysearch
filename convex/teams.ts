@@ -4,6 +4,7 @@ import {
   mutation,
   query,
   type MutationCtx,
+  type QueryCtx,
 } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
@@ -88,6 +89,8 @@ async function deleteTeamAndAllRelatedData(
 
     await ctx.db.delete(reservation._id);
   }
+
+  await deleteTeamKeys(ctx, teamId);
 
   // Delete the team
   await ctx.db.delete(teamId);
@@ -194,6 +197,11 @@ export const getMyTeams = query({
           .withIndex("byTeam", (q) => q.eq("teamId", team._id))
           .collect();
 
+        const myTeamKey = await ctx.db
+          .query("teamKeys")
+          .withIndex("byTeamAndUser", (q) => q.eq("teamId", team._id).eq("userId", currentUser._id))
+          .unique();
+
         const lastMessage = messages.length > 0
           ? messages.reduce((latest, msg) =>
               msg._creationTime > latest._creationTime ? msg : latest
@@ -272,8 +280,14 @@ export const getMyTeams = query({
                 text: lastMessage.text,
                 timestamp: lastMessage._creationTime,
                 senderId: lastMessage.senderId,
+                encryptionVersion: lastMessage.encrypted ? (lastMessage.encryptionVersion ?? "symmetric") : null,
               }
             : null,
+          // Our copy of the team key, so the sidebar can decrypt the preview (valid only for our current public key)
+          myWrappedTeamKey:
+            myTeamKey && currentUser.publicKey && myTeamKey.memberPublicKey === currentUser.publicKey
+              ? myTeamKey.wrappedKey
+              : null,
           lastMessageReadStatus,
           lastMessageSenderName,
           unreadCount,
@@ -409,7 +423,9 @@ export const sendTeamMessage = mutation({
     teamId: v.id("teams"),
     text: v.optional(v.string()),
     encryptedText: v.optional(v.string()),
-    encryptionVersion: v.optional(v.union(v.literal("symmetric"), v.literal("asymmetric"))),
+    encryptionVersion: v.optional(
+      v.union(v.literal("symmetric"), v.literal("asymmetric"), v.literal("teamKey"))
+    ),
   },
   handler: async (ctx, { teamId, text, encryptedText, encryptionVersion }) => {
     const currentUser = await getCurrentUserOrThrow(ctx);
@@ -511,6 +527,7 @@ export const removeFromTeam = mutation({
       teammates: team.teammates.filter((id) => id !== userId),
       admins: (team.admins || []).filter((id) => id !== userId),
     });
+    await deleteTeamKeys(ctx, teamId, userId);
 
     return { success: true };
   },
@@ -799,12 +816,10 @@ export const migrateTeamMessageToEncrypted = mutation({
       return { success: true, alreadyEncrypted: true };
     }
 
-    // Update message with encrypted text
-    // Migration uses asymmetric encryption (new default)
     await ctx.db.patch(messageId, {
       text: encryptedText,
       encrypted: true,
-      encryptionVersion: "asymmetric",
+      encryptionVersion: "teamKey",
     });
 
     return { success: true };
@@ -839,6 +854,7 @@ export const leaveTeam = mutation({
       teammates: team.teammates.filter((id) => id !== currentUser._id),
       admins: (team.admins || []).filter((id) => id !== currentUser._id),
     });
+    await deleteTeamKeys(ctx, teamId, currentUser._id);
 
     return { success: true };
   },
@@ -919,73 +935,99 @@ export const removeUserFromTeamsAndDeleteEmptyOnes = internalMutation({
           teammates: team.teammates.filter((id) => id !== userId),
           admins: (team.admins || []).filter((id) => id !== userId),
         });
+        await deleteTeamKeys(ctx, team._id, userId);
       }
     }
   },
 });
 
+async function deleteTeamKeys(ctx: MutationCtx, teamId: Id<"teams">, userId?: Id<"users">) {
+  const rows = await ctx.db
+    .query("teamKeys")
+    .withIndex("byTeamAndUser", (q) =>
+      userId ? q.eq("teamId", teamId).eq("userId", userId) : q.eq("teamId", teamId)
+    )
+    .collect();
+  for (const row of rows) await ctx.db.delete(row._id);
+}
+
+/** Load the team, require membership, and report which members hold a key wrapped for their current public key */
+async function loadTeamKeyState(ctx: QueryCtx, teamId: Id<"teams">, currentUserId: Id<"users">) {
+  const team = await ctx.db.get(teamId);
+  if (!team || !team.teammates.includes(currentUserId)) return null;
+  const rows = await ctx.db
+    .query("teamKeys")
+    .withIndex("byTeamAndUser", (q) => q.eq("teamId", teamId))
+    .collect();
+  const members = await Promise.all(
+    team.teammates.map(async (userId) => {
+      const publicKey = (await ctx.db.get(userId))?.publicKey ?? null;
+      const row = rows.find((r) => r.userId === userId);
+      const validRow = row && publicKey && row.memberPublicKey === publicKey ? row : null;
+      return { userId, publicKey, validRow };
+    })
+  );
+  return { rows, members };
+}
+
 /**
- * Get a team's public key for encryption
+ * The caller's wrapped team key, plus each member's public key and whether they already hold the key.
+ * Clients use this to unwrap their key and to wrap it for members who are missing it.
  */
-export const getTeamPublicKey = query({
-  args: {
-    teamId: v.id("teams"),
-  },
+export const getTeamKeys = query({
+  args: { teamId: v.id("teams") },
   handler: async (ctx, { teamId }) => {
     const currentUser = await getCurrentUser(ctx);
-    if (!currentUser) {
-      return null;
-    }
-
-    const team = await ctx.db.get(teamId);
-    if (!team) {
-      // Return null instead of throwing - team might not exist or user might not have access
-      return null;
-    }
-
-    // Verify user is part of the team
-    if (!team.teammates.includes(currentUser._id)) {
-      // User doesn't have access to this team
-      return null;
-    }
-
-    return team.teamPublicKey || null;
+    if (!currentUser) return null;
+    const state = await loadTeamKeyState(ctx, teamId, currentUser._id);
+    if (!state) return null;
+    return {
+      myWrappedKey: state.members.find((m) => m.userId === currentUser._id)?.validRow?.wrappedKey ?? null,
+      members: state.members.map((m) => ({
+        userId: m.userId,
+        publicKey: m.publicKey,
+        hasKey: !!m.validRow,
+      })),
+    };
   },
 });
 
 /**
- * Set or update a team's public key
- * Only team creator or admins can set the team public key
+ * Store wrapped team keys. `reset: true` creates the team's first key and is refused
+ * once any member holds a valid key (so two clients racing can't fork the key).
+ * Otherwise the caller must hold the key, and only members missing a valid key are written.
  */
-export const setTeamPublicKey = mutation({
+export const setTeamKeys = mutation({
   args: {
     teamId: v.id("teams"),
-    publicKey: v.string(),
+    reset: v.boolean(),
+    keys: v.array(
+      v.object({ userId: v.id("users"), wrappedKey: v.string(), memberPublicKey: v.string() })
+    ),
   },
-  handler: async (ctx, { teamId, publicKey }) => {
+  handler: async (ctx, { teamId, reset, keys }) => {
     const currentUser = await getCurrentUserOrThrow(ctx);
-    const team = await ctx.db.get(teamId);
-    
-    if (!team) {
-      throw new Error("Team not found");
+    const state = await loadTeamKeyState(ctx, teamId, currentUser._id);
+    if (!state) throw new Error("You are not a member of this team");
+
+    if (reset) {
+      if (state.members.some((m) => m.validRow)) return { success: false };
+      for (const row of state.rows) await ctx.db.delete(row._id);
+    } else if (!state.members.find((m) => m.userId === currentUser._id)?.validRow) {
+      throw new Error("You don't hold this team's key");
     }
-    
-    // Only creator can set team public key
-    if (team.createdBy !== currentUser._id) {
-      throw new Error("Only team creator can set the team public key");
+
+    for (const key of keys) {
+      const member = state.members.find((m) => m.userId === key.userId);
+      // Skip non-members, stale public keys, and members who already hold a valid key
+      if (!member || member.publicKey !== key.memberPublicKey) continue;
+      if (!reset && member.validRow) continue;
+      if (!reset) {
+        const old = state.rows.find((r) => r.userId === key.userId);
+        if (old) await ctx.db.delete(old._id);
+      }
+      await ctx.db.insert("teamKeys", { teamId, ...key });
     }
-    
-    // Validate that publicKey is a valid JWK string
-    try {
-      JSON.parse(publicKey);
-    } catch {
-      throw new Error("Invalid public key format. Expected JWK JSON string.");
-    }
-    
-    await ctx.db.patch(teamId, {
-      teamPublicKey: publicKey,
-    });
-    
     return { success: true };
   },
 });

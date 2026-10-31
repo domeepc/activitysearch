@@ -11,6 +11,7 @@ import { usePathname } from "next/navigation";
 import { Id } from "@/convex/_generated/dataModel";
 import { Spinner } from "@/components/ui/spinner";
 import { ChatHeader } from "@/components/chat/ChatHeader";
+import { DeviceLinkApprover } from "@/components/chat/DeviceLinkApprover";
 import {
   ChatHeaderStateProvider,
   useChatHeaderState,
@@ -23,6 +24,7 @@ export default function ChatLayoutClient({
 }) {
   return (
     <ChatHeaderStateProvider>
+      <DeviceLinkApprover />
       <ChatLayoutClientContent>{children}</ChatLayoutClientContent>
     </ChatHeaderStateProvider>
   );

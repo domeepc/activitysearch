@@ -6,133 +6,53 @@ import { Id } from "@/convex/_generated/dataModel";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
-interface UseEncryptionOptions {
-  otherUserId?: Id<"users">;
-  teamId?: Id<"teams">;
-}
+type EncryptionVersion = "symmetric" | "asymmetric" | "teamKey";
 
 interface UseEncryptionReturn {
-  encryptMessage: (text: string, encryptionVersion?: "symmetric" | "asymmetric") => Promise<string>;
-  decryptMessage: (encryptedText: string, isEncrypted: boolean, encryptionVersion?: "symmetric" | "asymmetric") => Promise<string>;
+  encryptMessage: (text: string, encryptionVersion?: EncryptionVersion) => Promise<string>;
+  decryptMessage: (encryptedText: string, isEncrypted: boolean, encryptionVersion?: EncryptionVersion) => Promise<string>;
   isEncryptionReady: boolean;
   isEncryptionAvailable: boolean;
   encryptionError: string | null;
+  keyStatus: KeyStatus;
+  /** This browser's own public key (for security codes) and the contact's key as the server reports it */
+  ownPublicKey: CryptoKey | null;
+  otherPublicKeyJWK: string | null;
+  /** 6-digit code this browser shows while waiting for approval from another browser */
+  linkCode: string | null;
+  /** The link request was denied or expired */
+  linkFailed: boolean;
+  requestNewLink: () => Promise<void>;
+  startFresh: () => Promise<void>;
 }
 
-/**
- * Hook for managing end-to-end encryption in chat components (LEGACY)
- * @deprecated Use useEncryptionWithUser instead
- */
-export function useEncryption({
-  otherUserId,
-  teamId,
-}: UseEncryptionOptions): UseEncryptionReturn {
-  const [isEncryptionReady, setIsEncryptionReady] = useState(false);
-  const [encryptionError, setEncryptionError] = useState<string | null>(null);
-  const [conversationKey, setConversationKey] = useState<CryptoKey | null>(null);
-  const isEncryptionAvailable = EncryptionService.isEncryptionAvailable();
+type KeyStatus = "loading" | "ready" | "needsLink";
 
-  // Initialize encryption key (legacy symmetric)
-  useEffect(() => {
-    let cancelled = false;
+interface DeviceLinkRequest {
+  id: Id<"deviceLinks">;
+  tempPublicJWK: string;
+  tempPrivateJWK: string;
+}
 
-    const initializeKey = async () => {
-      if (!isEncryptionAvailable) {
-        setIsEncryptionReady(false);
-        setEncryptionError("Encryption is not available in this browser");
-        return;
-      }
+// One in-flight request per tab, so effects running twice (StrictMode, remounts) don't open two
+let linkInFlight: Promise<DeviceLinkRequest> | null = null;
 
-      try {
-        setEncryptionError(null);
-        let key: CryptoKey;
-
-        if (teamId) {
-          key = await EncryptionService.getOrCreateTeamKey(String(teamId));
-        } else if (otherUserId) {
-          key = await EncryptionService.getOrCreateConversationKey(
-            "current_user",
-            String(otherUserId)
-          );
-        } else {
-          setIsEncryptionReady(false);
-          return;
-        }
-
-        if (!cancelled) {
-          setConversationKey(key);
-          setIsEncryptionReady(true);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setEncryptionError(
-            error instanceof Error ? error.message : "Failed to initialize encryption"
-          );
-          setIsEncryptionReady(false);
-        }
-      }
-    };
-
-    initializeKey();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [otherUserId, teamId, isEncryptionAvailable]);
-
-  const encryptMessage = useCallback(
-    async (text: string): Promise<string> => {
-      if (!isEncryptionAvailable) {
-        throw new Error("Encryption is not available");
-      }
-
-      if (!conversationKey) {
-        throw new Error("Encryption key not ready");
-      }
-
-      try {
-        return await EncryptionService.encryptMessage(text, conversationKey);
-      } catch (error) {
-        throw new Error(
-          `Encryption failed: ${error instanceof Error ? error.message : "Unknown error"}`
-        );
-      }
-    },
-    [conversationKey, isEncryptionAvailable]
-  );
-
-  const decryptMessage = useCallback(
-    async (encryptedText: string, isEncrypted: boolean): Promise<string> => {
-      if (!isEncrypted) {
-        return encryptedText;
-      }
-
-      if (!isEncryptionAvailable) {
-        throw new Error("Encryption is not available - cannot decrypt message");
-      }
-
-      if (!conversationKey) {
-        throw new Error("Encryption key not ready - cannot decrypt message");
-      }
-
-      try {
-        return await EncryptionService.decryptMessage(encryptedText, conversationKey);
-      } catch (error) {
-        throw new Error(
-          `Decryption failed: ${error instanceof Error ? error.message : "Unknown error"}`
-        );
-      }
-    },
-    [conversationKey, isEncryptionAvailable]
-  );
-
-  return {
-    encryptMessage,
-    decryptMessage,
-    isEncryptionReady,
-    isEncryptionAvailable,
-    encryptionError,
-  };
+async function startDeviceLink(
+  keyName: string,
+  request: (args: { tempPublicKey: string }) => Promise<Id<"deviceLinks">>
+): Promise<DeviceLinkRequest> {
+  linkInFlight ??= (async () => {
+    const temp = await EncryptionService.generateKeyPair();
+    const tempPublicJWK = await EncryptionService.exportPublicKeyAsJWK(temp);
+    const tempPrivateJWK = JSON.stringify(await crypto.subtle.exportKey("jwk", temp.privateKey));
+    const id = await request({ tempPublicKey: tempPublicJWK });
+    const value = { id, tempPublicJWK, tempPrivateJWK };
+    sessionStorage.setItem(`${keyName}_link`, JSON.stringify(value));
+    return value;
+  })().finally(() => {
+    linkInFlight = null;
+  });
+  return linkInFlight;
 }
 
 /**
@@ -152,7 +72,7 @@ export function useEncryptionWithUser({
   const [encryptionError, setEncryptionError] = useState<string | null>(null);
   const [userKeyPair, setUserKeyPair] = useState<CryptoKeyPair | null>(null);
   const [receiverPublicKey, setReceiverPublicKey] = useState<CryptoKey | null>(null);
-  const [teamPublicKey, setTeamPublicKey] = useState<CryptoKey | null>(null);
+  const [teamKey, setTeamKey] = useState<CryptoKey | null>(null);
   const isEncryptionAvailable = EncryptionService.isEncryptionAvailable();
 
   // Fetch receiver's public key from database
@@ -161,17 +81,130 @@ export function useEncryptionWithUser({
     otherUserId ? { userId: otherUserId } : "skip"
   );
 
-  // Fetch team's public key from database
-  const teamPublicKeyJWK = useQuery(
-    api.teams.getTeamPublicKey,
-    teamId ? { teamId } : "skip"
-  );
+  // Our wrapped copy of the team key + which members still need one
+  const teamKeys = useQuery(api.teams.getTeamKeys, teamId ? { teamId } : "skip");
 
-  // Mutation to set user's public key
-  const setUserPublicKeyMutation = useMutation(api.users.setUserPublicKey);
+  const me = useQuery(api.users.current);
+  const serverPublicKey = me === undefined ? undefined : (me?.publicKey ?? null);
+  const setMyPublicKeyMutation = useMutation(api.users.setMyPublicKey);
+  const requestDeviceLinkMutation = useMutation(api.users.requestDeviceLink);
+  const deleteDeviceLinkMutation = useMutation(api.users.deleteDeviceLink);
+  const [keyStatus, setKeyStatus] = useState<KeyStatus>("loading");
+  const [link, setLink] = useState<DeviceLinkRequest | null>(null);
+  const [linkCode, setLinkCode] = useState<string | null>(null);
+  const [linkFailed, setLinkFailed] = useState(false);
+  const keyName = currentUserId ? EncryptionService.userKeyName(String(currentUserId)) : null;
+  const linkState = useQuery(api.users.getDeviceLink, link ? { linkId: link.id } : "skip");
 
-  // Mutation to set team's public key
-  const setTeamPublicKeyMutation = useMutation(api.teams.setTeamPublicKey);
+  // Use this browser's key if it's the one on the server; the very first browser creates one;
+  // any other browser has to be approved by one that already has it
+  useEffect(() => {
+    if (!keyName || serverPublicKey === undefined || !isEncryptionAvailable) return;
+    let cancelled = false;
+    (async () => {
+      const local = await EncryptionService.loadKeyPair(keyName);
+      if (serverPublicKey === null) {
+        const keyPair = local ?? (await EncryptionService.generateKeyPair());
+        await EncryptionService.storeKeyPair(keyName, keyPair);
+        // On success the `me` query updates and reruns this effect; if another browser won the race, we end up linking
+        await setMyPublicKeyMutation({
+          publicKey: await EncryptionService.exportPublicKeyAsJWK(keyPair),
+          replace: false,
+        }).catch(() => {});
+        return;
+      }
+      const matches =
+        !!local &&
+        EncryptionService.samePublicKey(await EncryptionService.exportPublicKeyAsJWK(local), serverPublicKey);
+      if (cancelled) return;
+      setUserKeyPair(matches ? local : null);
+      setKeyStatus(matches ? "ready" : "needsLink");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [keyName, serverPublicKey, isEncryptionAvailable, setMyPublicKeyMutation]);
+
+  const requestNewLink = useCallback(async () => {
+    if (!keyName) return;
+    setLinkFailed(false);
+    sessionStorage.removeItem(`${keyName}_link`);
+    const request = await startDeviceLink(keyName, requestDeviceLinkMutation);
+    setLink(request);
+    setLinkCode(await EncryptionService.linkCode(request.tempPublicJWK));
+  }, [keyName, requestDeviceLinkMutation]);
+
+  // Needs linking: resume this tab's pending request (survives navigation) or open a new one
+  useEffect(() => {
+    if (keyStatus !== "needsLink" || !keyName || link || linkFailed) return;
+    let cancelled = false;
+    (async () => {
+      const saved = sessionStorage.getItem(`${keyName}_link`);
+      const request: DeviceLinkRequest = saved
+        ? JSON.parse(saved)
+        : await startDeviceLink(keyName, requestDeviceLinkMutation);
+      const code = await EncryptionService.linkCode(request.tempPublicJWK);
+      if (cancelled) return;
+      setLink(request);
+      setLinkCode(code);
+    })().catch((error) => setEncryptionError(error instanceof Error ? error.message : "Linking failed"));
+    return () => {
+      cancelled = true;
+    };
+  }, [keyStatus, keyName, link, linkFailed, requestDeviceLinkMutation]);
+
+  // Approved: decrypt the key the other browser sent and adopt it. Gone: denied or expired.
+  useEffect(() => {
+    if (!link || !keyName || linkState === undefined || serverPublicKey === undefined) return;
+    if (linkState && !linkState.payload) return;
+    (async () => {
+      if (linkState === null) {
+        sessionStorage.removeItem(`${keyName}_link`);
+        setLink(null);
+        setLinkCode(null);
+        setLinkFailed(true);
+        return;
+      }
+      const tempPrivateKey = await crypto.subtle.importKey(
+        "jwk",
+        JSON.parse(link.tempPrivateJWK),
+        { name: "ECDH", namedCurve: "P-256" },
+        false,
+        ["deriveKey", "deriveBits"]
+      );
+      const privateJWK = await EncryptionService.decryptMessageAsymmetric(linkState.payload!, tempPrivateKey);
+      const { x, y } = JSON.parse(privateJWK);
+      if (!serverPublicKey || !EncryptionService.samePublicKey(JSON.stringify({ x, y }), serverPublicKey)) {
+        throw new Error("Received key doesn't match your account's key");
+      }
+      localStorage.setItem(keyName, privateJWK);
+      const keyPair = await EncryptionService.loadKeyPair(keyName);
+      if (!keyPair) throw new Error("Received key is invalid");
+      sessionStorage.removeItem(`${keyName}_link`);
+      // Clear local state before deleting, or the deletion would read as "denied"
+      setLink(null);
+      setLinkCode(null);
+      setUserKeyPair(keyPair);
+      setKeyStatus("ready");
+      deleteDeviceLinkMutation({ linkId: link.id }).catch(() => {});
+    })().catch((error) => setEncryptionError(error instanceof Error ? error.message : "Linking failed"));
+  }, [link, linkState, keyName, serverPublicKey, deleteDeviceLinkMutation]);
+
+  /** No other browser left: new key pair; messages encrypted to the old key become unreadable */
+  const startFresh = useCallback(async () => {
+    if (!keyName) return;
+    const keyPair = await EncryptionService.generateKeyPair();
+    await EncryptionService.storeKeyPair(keyName, keyPair);
+    await setMyPublicKeyMutation({ publicKey: await EncryptionService.exportPublicKeyAsJWK(keyPair), replace: true });
+    if (link) await deleteDeviceLinkMutation({ linkId: link.id }).catch(() => {});
+    sessionStorage.removeItem(`${keyName}_link`);
+    setLink(null);
+    setLinkCode(null);
+    setUserKeyPair(keyPair);
+    setKeyStatus("ready");
+  }, [keyName, link, setMyPublicKeyMutation, deleteDeviceLinkMutation]);
+
+  const setTeamKeysMutation = useMutation(api.teams.setTeamKeys);
 
   // Initialize user's private key pair and fetch receiver's public key
   useEffect(() => {
@@ -184,31 +217,14 @@ export function useEncryptionWithUser({
         return;
       }
 
-      if (!currentUserId) {
+      if (!currentUserId || !userKeyPair) {
         setIsEncryptionReady(false);
         return;
       }
 
       try {
         setEncryptionError(null);
-
-        // Generate or load user's private key pair
-        const keyPair = await EncryptionService.getOrCreateUserKeyPair(String(currentUserId));
-        
-        // Export and upload public key to database if not already there
-        const publicKeyJWK = await EncryptionService.exportPublicKeyAsJWK(keyPair);
-        
-        // Upload public key (this is idempotent - won't fail if already exists)
-        try {
-          await setUserPublicKeyMutation({ publicKey: publicKeyJWK });
-        } catch (error) {
-          // Ignore errors if key already exists or user doesn't have permission
-          console.warn("Failed to upload public key:", error);
-        }
-
-        if (!cancelled) {
-          setUserKeyPair(keyPair);
-        }
+        const keyPair = userKeyPair;
 
         // For individual chats: fetch receiver's public key
         if (otherUserId && !teamId) {
@@ -236,53 +252,40 @@ export function useEncryptionWithUser({
           }
         }
 
-        // For team chats: fetch team's public key or generate it
-        if (teamId) {
-          if (teamPublicKeyJWK) {
-            try {
-              const teamKey = await EncryptionService.importPublicKeyFromJWK(teamPublicKeyJWK);
-              if (!cancelled) {
-                setTeamPublicKey(teamKey);
-                setIsEncryptionReady(true);
-              }
-            } catch (error) {
-              if (!cancelled) {
-                setEncryptionError(
-                  `Failed to import team's public key: ${error instanceof Error ? error.message : "Unknown error"}`
-                );
-                setIsEncryptionReady(false);
-              }
+        // For team chats: unwrap our copy of the team key, share it with members missing one,
+        // or create the team's first key if nobody holds one
+        if (teamId && teamKeys) {
+          const wrapFor = async (key: CryptoKey, reset: boolean) => {
+            const targets = teamKeys.members.filter((m) => m.publicKey && (reset || !m.hasKey));
+            if (targets.length === 0) return;
+            const keys = await Promise.all(
+              targets.map(async (m) => ({
+                userId: m.userId,
+                memberPublicKey: m.publicKey!,
+                wrappedKey: await EncryptionService.wrapTeamKey(
+                  key,
+                  await EncryptionService.importPublicKeyFromJWK(m.publicKey!),
+                  keyPair
+                ),
+              }))
+            );
+            await setTeamKeysMutation({ teamId, reset, keys });
+          };
+
+          if (teamKeys.myWrappedKey) {
+            const key = await EncryptionService.unwrapTeamKey(teamKeys.myWrappedKey, keyPair.privateKey);
+            if (!cancelled) {
+              setTeamKey(key);
+              setIsEncryptionReady(true);
             }
-          } else if (teamPublicKeyJWK === null) {
-            // Team doesn't have a public key yet - generate one
-            try {
-              const teamKeyPair = await EncryptionService.getOrCreateTeamKeyPair(String(teamId));
-              const teamPublicKeyJWK = await EncryptionService.exportPublicKeyAsJWK(teamKeyPair);
-              
-              // Upload team public key
-              try {
-                await setTeamPublicKeyMutation({ teamId, publicKey: teamPublicKeyJWK });
-                const teamKey = await EncryptionService.importPublicKeyFromJWK(teamPublicKeyJWK);
-                if (!cancelled) {
-                  setTeamPublicKey(teamKey);
-                  setIsEncryptionReady(true);
-                }
-              } catch (error) {
-                console.warn("Failed to upload team public key:", error);
-                // Still use the key locally
-                if (!cancelled) {
-                  setTeamPublicKey(teamKeyPair.publicKey);
-                  setIsEncryptionReady(true);
-                }
-              }
-            } catch (error) {
-              if (!cancelled) {
-                setEncryptionError(
-                  `Failed to generate team key pair: ${error instanceof Error ? error.message : "Unknown error"}`
-                );
-                setIsEncryptionReady(false);
-              }
-            }
+            await wrapFor(key, false).catch((error) => console.warn("Failed to share team key:", error));
+          } else if (!teamKeys.members.some((m) => m.hasKey)) {
+            // Only used once the server accepts it and our wrapped copy comes back through the query
+            await wrapFor(await EncryptionService.generateTeamKey(), true);
+          } else if (!cancelled) {
+            setTeamKey(null);
+            setEncryptionError("Waiting for a teammate to open this chat and share the team key");
+            setIsEncryptionReady(false);
           }
         }
       } catch (error) {
@@ -306,9 +309,9 @@ export function useEncryptionWithUser({
     teamId,
     isEncryptionAvailable,
     receiverPublicKeyJWK,
-    teamPublicKeyJWK,
-    setUserPublicKeyMutation,
-    setTeamPublicKeyMutation,
+    teamKeys,
+    userKeyPair,
+    setTeamKeysMutation,
   ]);
 
   /**
@@ -316,9 +319,14 @@ export function useEncryptionWithUser({
    * Uses asymmetric encryption with receiver's public key
    */
   const encryptMessage = useCallback(
-    async (text: string, encryptionVersion: "symmetric" | "asymmetric" = "asymmetric"): Promise<string> => {
+    async (text: string, encryptionVersion: EncryptionVersion = "asymmetric"): Promise<string> => {
       if (!isEncryptionAvailable) {
         throw new Error("Encryption is not available");
+      }
+
+      if (encryptionVersion === "teamKey") {
+        if (!teamKey) throw new Error("Team key not available");
+        return await EncryptionService.encryptMessage(text, teamKey);
       }
 
       // Use legacy symmetric encryption if requested (for backward compatibility)
@@ -337,20 +345,20 @@ export function useEncryptionWithUser({
         throw new Error("Encryption key pair not ready");
       }
 
-      const publicKey = teamId ? teamPublicKey : receiverPublicKey;
+      const publicKey = receiverPublicKey;
       if (!publicKey) {
         throw new Error("Receiver's public key not available");
       }
 
       try {
-        return await EncryptionService.encryptMessageAsymmetric(text, publicKey);
+        return await EncryptionService.encryptMessageAsymmetric(text, publicKey, userKeyPair);
       } catch (error) {
         throw new Error(
           `Encryption failed: ${error instanceof Error ? error.message : "Unknown error"}`
         );
       }
     },
-    [userKeyPair, receiverPublicKey, teamPublicKey, isEncryptionAvailable, currentUserId, otherUserId, teamId]
+    [userKeyPair, receiverPublicKey, teamKey, isEncryptionAvailable, currentUserId, otherUserId, teamId]
   );
 
   /**
@@ -361,7 +369,7 @@ export function useEncryptionWithUser({
     async (
       encryptedText: string,
       isEncrypted: boolean,
-      encryptionVersion: "symmetric" | "asymmetric" = "asymmetric"
+      encryptionVersion: EncryptionVersion = "asymmetric"
     ): Promise<string> => {
       // If message is not encrypted, return as-is
       if (!isEncrypted) {
@@ -370,6 +378,11 @@ export function useEncryptionWithUser({
 
       if (!isEncryptionAvailable) {
         throw new Error("Encryption is not available - cannot decrypt message");
+      }
+
+      if (encryptionVersion === "teamKey") {
+        if (!teamKey) throw new Error("Team key not available - cannot decrypt message");
+        return await EncryptionService.decryptMessage(encryptedText, teamKey);
       }
 
       // Use legacy symmetric decryption if requested (for backward compatibility)
@@ -389,7 +402,12 @@ export function useEncryptionWithUser({
       }
 
       try {
-        return await EncryptionService.decryptMessageAsymmetric(encryptedText, userKeyPair.privateKey);
+        return await EncryptionService.decryptMessageAsymmetric(
+          encryptedText,
+          userKeyPair.privateKey,
+          userKeyPair.publicKey,
+          receiverPublicKey ?? undefined
+        );
       } catch (error) {
         // Try legacy symmetric decryption as fallback
         try {
@@ -408,7 +426,7 @@ export function useEncryptionWithUser({
         );
       }
     },
-    [userKeyPair, isEncryptionAvailable, currentUserId, otherUserId, teamId]
+    [userKeyPair, receiverPublicKey, teamKey, isEncryptionAvailable, currentUserId, otherUserId, teamId]
   );
 
   return {
@@ -417,5 +435,12 @@ export function useEncryptionWithUser({
     isEncryptionReady,
     isEncryptionAvailable,
     encryptionError,
+    keyStatus,
+    ownPublicKey: userKeyPair?.publicKey ?? null,
+    otherPublicKeyJWK: receiverPublicKeyJWK ?? null,
+    linkCode,
+    linkFailed,
+    requestNewLink,
+    startFresh,
   };
 }

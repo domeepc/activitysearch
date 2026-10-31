@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { MessageBubble } from "./MessageBubble";
 import { ChatInput } from "./ChatInput";
+import { ChatLinkPrompt } from "./ChatLinkPrompt";
+import { SecurityCodeDialog } from "./SecurityCodeDialog";
 import { useChatHeaderState } from "./ChatHeaderState";
 import { useEncryptionWithUser } from "@/lib/hooks/useEncryption";
 import { extractErrorMessage } from "@/lib/errors";
@@ -26,7 +28,7 @@ interface ChatViewProps {
     senderProfileUserId?: Id<"users">;
     status?: "sent" | "delivered" | "read";
     encrypted?: boolean;
-    encryptionVersion?: "symmetric" | "asymmetric";
+    encryptionVersion?: "symmetric" | "asymmetric" | "teamKey";
     messageType?: "text" | "reservation_card";
     reservationCardData?: {
       reservationId: Id<"reservations">;
@@ -80,11 +82,25 @@ export function ChatView({
     decryptMessage,
     isEncryptionReady,
     isEncryptionAvailable,
+    encryptionError,
+    keyStatus,
+    ownPublicKey,
+    otherPublicKeyJWK,
+    linkCode,
+    linkFailed,
+    requestNewLink,
+    startFresh,
   } = useEncryptionWithUser({
     currentUserId,
     otherUserId: individualUserId,
     teamId,
   });
+
+  const canEncrypt = isEncryptionAvailable && isEncryptionReady;
+  const [securityCodeOpen, setSecurityCodeOpen] = useState(false);
+  const keyChanges =
+    useQuery(api.users.getKeyChanges, individualUserId ? { otherUserId: individualUserId } : "skip") ?? [];
+  const sendVersion = type === "team" ? "teamKey" : "asymmetric";
 
   // Decrypt messages
   const [decryptedMessages, setDecryptedMessages] = useState<
@@ -98,7 +114,7 @@ export function ChatView({
       senderProfileUserId?: Id<"users">;
       status?: "sent" | "delivered" | "read";
       decryptionError?: boolean;
-      encryptionVersion?: "symmetric" | "asymmetric";
+      encryptionVersion?: "symmetric" | "asymmetric" | "teamKey";
       messageType?: "text" | "reservation_card";
       reservationCardData?: {
         reservationId: Id<"reservations">;
@@ -161,10 +177,10 @@ export function ChatView({
             }
           } else {
             // Message is not encrypted - migrate it if encryption is available
-            if (isEncryptionAvailable && isEncryptionReady && !msg.encrypted) {
+            if (canEncrypt && !msg.encrypted) {
               try {
                 // Encrypt the message
-                const encryptedText = await encryptMessage(msg.text);
+                const encryptedText = await encryptMessage(msg.text, sendVersion);
 
                 // Migrate to encrypted in background (don't wait for it)
                 if (type === "individual" && individualUserId) {
@@ -206,6 +222,8 @@ export function ChatView({
     isEncryptionAvailable,
     decryptMessage,
     encryptMessage,
+    canEncrypt,
+    sendVersion,
     type,
     individualUserId,
     teamId,
@@ -261,17 +279,19 @@ export function ChatView({
   ]);
 
   const handleSend = async (text: string) => {
+    if (keyStatus === "needsLink") {
+      toast.error("Link this browser to read and send encrypted messages");
+      throw new Error("Encryption key locked");
+    }
     try {
       // Encrypt message if encryption is available and ready
       const messageText = text;
       let encryptedText: string | undefined;
 
-      let encryptionVersion: "symmetric" | "asymmetric" | undefined = undefined;
-      if (isEncryptionAvailable && isEncryptionReady) {
+      if (canEncrypt) {
         try {
           // Use asymmetric encryption by default
-          encryptedText = await encryptMessage(text, "asymmetric");
-          encryptionVersion = "asymmetric";
+          encryptedText = await encryptMessage(text, sendVersion);
         } catch {
           // Fallback to unencrypted if encryption fails
         }
@@ -280,12 +300,12 @@ export function ChatView({
       if (type === "individual" && individualUserId) {
         await sendMessage({
           receiverId: individualUserId,
-          ...(encryptedText ? { encryptedText, encryptionVersion } : { text: messageText }),
+          ...(encryptedText ? { encryptedText, encryptionVersion: "asymmetric" as const } : { text: messageText }),
         });
       } else if (type === "team" && teamId) {
         await sendTeamMessage({
           teamId,
-          ...(encryptedText ? { encryptedText, encryptionVersion } : { text: messageText }),
+          ...(encryptedText ? { encryptedText, encryptionVersion: "teamKey" as const } : { text: messageText }),
         });
       }
       // Scroll to bottom after sending message
@@ -297,6 +317,21 @@ export function ChatView({
       throw error;
     }
   };
+
+  const keyChangeNotices = (after: number, upTo: number) =>
+    keyChanges
+      .filter((k) => k.changedAt > after && k.changedAt <= upTo)
+      .map((k) => (
+        <button
+          key={`${k.userId}-${k.changedAt}`}
+          type="button"
+          onClick={() => setSecurityCodeOpen(true)}
+          className="mx-auto w-fit rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-800 hover:bg-amber-100 dark:bg-amber-950/50 dark:text-amber-300"
+        >
+          {k.userId === currentUserId ? "Your" : `${otherUser?.name ?? "Their"}'s`} security code changed. Tap
+          to verify.
+        </button>
+      ));
 
   const displayName =
     type === "individual" && otherUser
@@ -333,10 +368,44 @@ export function ChatView({
       {/* Messages - Scrollable */}
 
       <div ref={messagesContainerRef} className="relative min-h-0 flex-1 overflow-y-auto bg-zinc-50 px-4 py-4 sm:px-5 dark:bg-zinc-950">
-        {isEncryptionAvailable && (
+        {canEncrypt && type === "individual" && (
+          <button
+            type="button"
+            onClick={() => setSecurityCodeOpen(true)}
+            className="mx-auto mb-4 flex w-fit select-none items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-300 dark:hover:bg-emerald-950"
+          >
+            <Lock className="h-3 w-3" aria-hidden="true" />
+            Messages are end-to-end encrypted. Tap to verify.
+          </button>
+        )}
+        {canEncrypt && type === "team" && (
           <p className="mx-auto mb-4 flex w-fit select-none items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
             <Lock className="h-3 w-3" aria-hidden="true" />
             Messages are end-to-end encrypted
+          </p>
+        )}
+        {type === "individual" && otherUser && currentUserId && (
+          <SecurityCodeDialog
+            open={securityCodeOpen}
+            onOpenChange={setSecurityCodeOpen}
+            contactName={otherUser.name}
+            ownUserId={currentUserId}
+            ownPublicKey={ownPublicKey}
+            otherUserId={otherUser._id}
+            otherPublicKeyJWK={otherPublicKeyJWK}
+          />
+        )}
+        {isEncryptionAvailable && keyStatus === "needsLink" && (
+          <ChatLinkPrompt
+            linkCode={linkCode}
+            linkFailed={linkFailed}
+            onRetry={requestNewLink}
+            onStartFresh={startFresh}
+          />
+        )}
+        {!canEncrypt && encryptionError && (
+          <p className="mx-auto mb-4 w-fit rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+            Not encrypted yet: {encryptionError}
           </p>
         )}
         {messages.length === 0 ? (
@@ -347,8 +416,10 @@ export function ChatView({
         ) : (
           <div className="flex flex-col gap-4">
             {decryptedMessages.map((message, index) => (
+              <Fragment key={message._id}>
+              {/* None before the first message: the conversation hadn't started yet */}
+              {index > 0 && keyChangeNotices(decryptedMessages[index - 1].timestamp, message.timestamp)}
               <MessageBubble
-                key={message._id}
                 text={message.text}
                 timestamp={message.timestamp}
                 isFromCurrentUser={message.isFromCurrentUser}
@@ -364,7 +435,10 @@ export function ChatView({
                 messageType={message.messageType}
                 reservationCardData={message.reservationCardData}
               />
+              </Fragment>
             ))}
+            {decryptedMessages.length > 0 &&
+              keyChangeNotices(decryptedMessages[decryptedMessages.length - 1].timestamp, Infinity)}
             <div ref={messagesEndRef} />
           </div>
         )}
