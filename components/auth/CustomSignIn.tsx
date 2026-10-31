@@ -40,17 +40,7 @@ export default function CustomSignIn() {
     }
   }, [userLoaded, isSignedIn, router]);
 
-  // Show loading state while checking authentication
-  if (!userLoaded || !isLoaded) {
-    return (
-      <AuthFormShell variant="signin" containerClassName="items-center">
-        <CardContent className="flex items-center justify-center py-8">
-          <div className="text-muted-foreground">Loading...</div>
-        </CardContent>
-      </AuthFormShell>
-    );
-  }
-
+  // The form renders straight away; only the actions wait for Clerk to load.
   // Don't render sign-in form if user is already authenticated
   if (isSignedIn) {
     return null;
@@ -110,7 +100,7 @@ export default function CustomSignIn() {
             onGoogleClick={() => signInWith("oauth_google")}
             onMicrosoftClick={() => signInWith("oauth_microsoft")}
             onFacebookClick={() => signInWith("oauth_facebook")}
-            disabled={loading}
+            disabled={loading || !isLoaded}
           />
 
           <div className="relative">
@@ -166,7 +156,7 @@ export default function CustomSignIn() {
             </div>
             {error && <div className={authFormStyles.error}>{error}</div>}
             <div id="clerk-captcha"></div>
-            <Button type="submit" className="w-full cursor-pointer" disabled={loading}>
+            <Button type="submit" className="w-full cursor-pointer" disabled={loading || !isLoaded}>
               {loading ? "Signing in..." : "Sign in"}
             </Button>
           </form>

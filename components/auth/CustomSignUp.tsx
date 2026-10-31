@@ -122,16 +122,7 @@ export default function CustomSignUp() {
     }
   };
 
-  if (!userLoaded || !isLoaded) {
-    return (
-      <AuthFormShell containerClassName="items-center">
-        <CardContent className="flex items-center justify-center py-8">
-          <div className="text-muted-foreground">Loading...</div>
-        </CardContent>
-      </AuthFormShell>
-    );
-  }
-
+  // The form renders straight away; only the actions wait for Clerk to load.
   if (isSignedIn) {
     return null;
   }
@@ -170,7 +161,7 @@ export default function CustomSignUp() {
             onGoogleClick={() => signUpWith("oauth_google")}
             onMicrosoftClick={() => signUpWith("oauth_microsoft")}
             onFacebookClick={() => signUpWith("oauth_facebook")}
-            disabled={loading}
+            disabled={loading || !isLoaded}
           />
 
           <div className="relative">
@@ -294,7 +285,7 @@ export default function CustomSignUp() {
             </div>
             {error && <div className={authFormStyles.error}>{error}</div>}
             <div id="clerk-captcha"></div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading || !isLoaded}>
               {loading ? "Creating account..." : "Create account"}
             </Button>
           </form>

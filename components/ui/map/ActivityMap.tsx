@@ -15,19 +15,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useTheme } from "next-themes";
 import ActivityCard from "@/components/ui/leafletMap/activityCard";
 import { ActivityData } from "@/lib/types/activity";
-
-/**
- * OpenFreeMap: free vector tiles, no API key or account, no request limits.
- * Override with NEXT_PUBLIC_MAP_STYLE_LIGHT / NEXT_PUBLIC_MAP_STYLE_DARK to self-host or switch.
- */
-const MAP_STYLE = {
-  light:
-    process.env.NEXT_PUBLIC_MAP_STYLE_LIGHT ??
-    "https://tiles.openfreemap.org/styles/liberty",
-  dark:
-    process.env.NEXT_PUBLIC_MAP_STYLE_DARK ??
-    "https://tiles.openfreemap.org/styles/dark",
-};
+import { MAP_STYLE } from "@/lib/mapStyle";
 
 // Worker is copied to /public by scripts/copy-maplibre-worker.mjs (postinstall,
 // predev, prebuild); the default lookup next to maplibre's own script breaks once

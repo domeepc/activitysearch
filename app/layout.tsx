@@ -3,7 +3,6 @@ import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import ConvexClientProvider from "@/components/providers/ConvexClientProvider";
-import { PostHogIdentify } from "@/components/providers/PostHogIdentify";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
 import { PresenceProvider } from "@/components/providers/PresenceProvider";
 import { ConditionalNavbar } from "@/components/ui/navBar/ConditionalNavbar";
@@ -64,13 +63,11 @@ export default function RootLayout({
               afterSignOutUrl="/"
             >
               <ConvexClientProvider>
-                <PostHogProvider>
-                  <PostHogIdentify />
-                  <PresenceProvider>
-                    <ConditionalNavbar />
-                    {children}
-                  </PresenceProvider>
-                </PostHogProvider>
+                <PostHogProvider />
+                <PresenceProvider>
+                  <ConditionalNavbar />
+                  {children}
+                </PresenceProvider>
               </ConvexClientProvider>
             </ClerkProvider>
           </Suspense>

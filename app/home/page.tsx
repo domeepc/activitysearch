@@ -3,7 +3,8 @@
 import { Authenticated } from "convex/react";
 import dynamic from "next/dynamic";
 import { useState, useMemo, useEffect } from "react";
-import { usePostHog } from "@posthog/react";
+import { preconnect } from "react-dom";
+import { capture } from "@/lib/posthog";
 import "../home.css";
 import { ActivityData } from "@/lib/types/activity";
 import DialogAddActivity from "@/components/activities/DialogAddActivity";
@@ -14,6 +15,7 @@ import { useActivityFilters } from "@/lib/hooks/useActivityFilters";
 import { useOrganiser } from "@/lib/hooks/useOrganiser";
 import { QueueNotificationDialog } from "@/components/reservations/QueueNotificationDialog";
 import { useMyQueueNotifications } from "@/lib/hooks/useReservations";
+import { MAP_STYLE } from "@/lib/mapStyle";
 
 const ActivityMap = dynamic(
   () => import("@/components/ui/map/ActivityMap"),
@@ -21,7 +23,8 @@ const ActivityMap = dynamic(
 );
 
 export default function Home() {
-  const posthog = usePostHog();
+  // Warm up the tile server while the map bundle is still downloading.
+  preconnect(new URL(MAP_STYLE.light).origin, { crossOrigin: "anonymous" });
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedActivity, setSelectedActivity] = useState<ActivityData | null>(
     null
@@ -68,7 +71,7 @@ export default function Home() {
   }, [currentNotification]);
 
   const handleActivitySelect = (activity: ActivityData) => {
-    posthog?.capture("activity_search_performed", {
+    capture("activity_search_performed", {
       activity_id: String(activity.id),
       activity_name: activity.title,
     });
@@ -78,7 +81,7 @@ export default function Home() {
 
   const handleCategoryChange = (categories: string[]) => {
     setSelectedCategories(categories);
-    posthog?.capture("activity_filter_applied", {
+    capture("activity_filter_applied", {
       categories,
       category_count: categories.length,
     });

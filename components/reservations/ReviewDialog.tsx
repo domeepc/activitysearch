@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { usePostHog } from "@posthog/react";
+import { capture } from "@/lib/posthog";
 import {
   Dialog,
   DialogContent,
@@ -35,7 +35,6 @@ export function ReviewDialog({
   activityImage,
   onSuccess,
 }: ReviewDialogProps) {
-  const posthog = usePostHog();
   const [rating, setRating] = useState<number | undefined>(undefined);
   const [hoverRating, setHoverRating] = useState<number | undefined>(undefined);
   const [text, setText] = useState("");
@@ -58,7 +57,7 @@ export function ReviewDialog({
         text: text.trim(),
         rating,
       });
-      posthog?.capture("review_submitted", {
+      capture("review_submitted", {
         activity_id: String(activityId),
         activity_name: activityName,
         rating,

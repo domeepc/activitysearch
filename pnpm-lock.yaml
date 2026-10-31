@@ -35,9 +35,6 @@ importers:
       '@clerk/nextjs':
         specifier: ^7.4.1
         version: 7.4.1(next@16.4.3(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@25.5.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@posthog/react':
-        specifier: ^1.11.3
-        version: 1.11.3(@types/react@19.2.14)(posthog-js@1.444.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
       '@radix-ui/react-avatar':
         specifier: ^1.1.11
         version: 1.1.11(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -898,16 +895,6 @@ packages:
 
   '@posthog/core@1.62.0':
     resolution: {integrity: sha512-KjNwGC7s0141wnWWHubNMdg1lOhZjqKRw2OTNstuzdVvNDfvv2RbFJQSSvvABmbCmTXwlMpdnbb/M/aAigDnNQ==}
-
-  '@posthog/react@1.11.3':
-    resolution: {integrity: sha512-YqvZb2y9jh/yW0ojUtAns0l4yHWqpu+5UeIBxZlXpyGuWlh8M4siXRMtqhEh1BKfqp6Sq2usdsQCuoUzx1QFWQ==}
-    peerDependencies:
-      '@types/react': '>=16.8.0'
-      posthog-js: '>=1.257.2'
-      react: '>=16.8.0'
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
 
   '@posthog/types@1.419.0':
     resolution: {integrity: sha512-XX7zRYt/vK8AzaD6V+oDquAzacZf5exJv971dja9En8Qf6g84Qvc3rpT0w6hDYYLWrjaSSkdjFfvvoXI0ouJDg==}
@@ -4848,13 +4835,6 @@ snapshots:
   '@posthog/core@1.62.0':
     dependencies:
       '@posthog/types': 1.419.0
-
-  '@posthog/react@1.11.3(@types/react@19.2.14)(posthog-js@1.444.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)':
-    dependencies:
-      posthog-js: 1.444.0(@types/react@19.2.14)(react@19.2.4)
-      react: 19.2.4
-    optionalDependencies:
-      '@types/react': 19.2.14
 
   '@posthog/types@1.419.0': {}
 

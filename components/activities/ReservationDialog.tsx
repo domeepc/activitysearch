@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { Id } from "@/convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { usePostHog } from "@posthog/react";
+import { capture } from "@/lib/posthog";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { toast } from "sonner";
 import { addDays, format, isSameDay } from "date-fns";
 import Link from "next/link";
+import Image from "next/image";
 
 interface ReservationDialogProps {
   activityId: Id<"activities">;
@@ -41,7 +42,6 @@ export function ReservationDialog({
   open,
   onOpenChange,
 }: ReservationDialogProps) {
-  const posthog = usePostHog();
 
   // Use open state and activityId as key to reset form when dialog opens
   const formKey = `${activityId}-${open}`;
@@ -224,7 +224,7 @@ export function ReservationDialog({
           userCount,
         });
         if (result.success) {
-          posthog?.capture("activity_queue_joined", {
+          capture("activity_queue_joined", {
             activity_id: String(activityId),
             date: dateStr,
             queue_position: result.position,
@@ -258,7 +258,7 @@ export function ReservationDialog({
     });
 
     if (result.success) {
-      posthog?.capture("activity_reservation_created", {
+      capture("activity_reservation_created", {
         activity_id: String(activityId),
         date: dateStr,
         time: selectedTime,
@@ -543,10 +543,7 @@ export function ReservationDialog({
           <aside className="flex flex-[1_1_260px] flex-col gap-4 border-t border-zinc-100 bg-zinc-50 p-5 sm:p-6 md:border-t-0 md:border-l dark:border-zinc-800 dark:bg-zinc-950/40">
             <div className="flex items-center gap-3">
               <span className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-blue-100 dark:bg-zinc-800">
-                {image && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={image} alt="" className="size-full object-cover" />
-                )}
+                {image && <Image src={image} alt="" fill sizes="64px" className="object-cover" />}
               </span>
               <span className="min-w-0">
                 <b className="line-clamp-2 text-sm font-semibold leading-snug">{activity?.activityName ?? "Activity"}</b>

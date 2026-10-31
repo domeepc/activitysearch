@@ -5,7 +5,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
-import { usePostHog } from "@posthog/react";
+import { capture } from "@/lib/posthog";
 import { Button } from "@/components/ui/button";
 import { ReservationDialog } from "@/components/activities/ReservationDialog";
 import DialogAddActivity from "@/components/activities/DialogAddActivity";
@@ -31,7 +31,6 @@ export default function ActivityPage({
   const resolvedParams = use(params);
   const router = useRouter();
   const activityId = resolvedParams.slug as Id<"activities">;
-  const posthog = usePostHog();
 
   const activity = useQuery(api.activity.getActivityById, { activityId });
   const databaseTags = useQuery(api.activity.getAllTags);
@@ -52,12 +51,12 @@ export default function ActivityPage({
   useEffect(() => {
     if (activity && !hasTrackedView.current) {
       hasTrackedView.current = true;
-      posthog?.capture("activity_viewed", {
+      capture("activity_viewed", {
         activity_id: String(activity._id),
         activity_name: activity.activityName,
       });
     }
-  }, [activity, posthog]);
+  }, [activity]);
 
   useEffect(() => {
     if (activity !== null) return;
@@ -98,7 +97,7 @@ export default function ActivityPage({
     <Button
       size="lg"
       onClick={() => {
-        posthog?.capture("reserve_activity_clicked", {
+        capture("reserve_activity_clicked", {
           activity_id: String(activityId),
           activity_name: activity.activityName,
         });
