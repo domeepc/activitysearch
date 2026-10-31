@@ -2,7 +2,7 @@
 
 ActivitySearch is a marketplace for group activities in Croatia. People find activities on a map, form teams with friends, book a time slot together, split the cost, and chat with end-to-end encryption. Organisers list their activities, manage bookings, and get paid through Stripe Connect.
 
-Production: https://activitysearch.eu · Support: domemdev@gmail.com
+Production: https://activitysearch.eu · Support: domemdev+activitysearch@gmail.com
 
 ---
 
@@ -32,14 +32,14 @@ Production: https://activitysearch.eu · Support: domemdev@gmail.com
 
 ### Architecture
 
-| Layer | Technology |
-| --- | --- |
-| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind v4, shadcn/ui |
-| Backend | [Convex](https://convex.dev): database, queries/mutations/actions, scheduler, crons, HTTP endpoints, file storage |
-| Auth | Clerk (email + password, Google / Microsoft / Facebook), synced to Convex by webhook |
-| Payments | Stripe: SetupIntents, off-session PaymentIntents, Connect destination charges, Stripe Tax |
-| Maps | MapLibre GL + OpenFreeMap tiles (no API key); OpenStreetMap Nominatim for address search |
-| Monitoring | Sentry (errors), PostHog (product analytics, proxied through `/ingest`) |
+| Layer      | Technology                                                                                                        |
+| ---------- | ----------------------------------------------------------------------------------------------------------------- |
+| Frontend   | Next.js 16 (App Router), React 19, TypeScript, Tailwind v4, shadcn/ui                                             |
+| Backend    | [Convex](https://convex.dev): database, queries/mutations/actions, scheduler, crons, HTTP endpoints, file storage |
+| Auth       | Clerk (email + password, Google / Microsoft / Facebook), synced to Convex by webhook                              |
+| Payments   | Stripe: SetupIntents, off-session PaymentIntents, Connect destination charges, Stripe Tax                         |
+| Maps       | MapLibre GL + OpenFreeMap tiles (no API key); OpenStreetMap Nominatim for address search                          |
+| Monitoring | Sentry (errors), PostHog (product analytics, proxied through `/ingest`)                                           |
 
 The browser talks to Convex directly; Clerk and Stripe notify the backend through signed webhooks.
 
@@ -87,7 +87,7 @@ Stripe's card processing fee is paid from the platform's share.
 ## Security
 
 - Both webhooks verify signatures and reject unsigned requests.
-- Please report security issues privately to domemdev@gmail.com.
+- Please report security issues privately to domemdev+activitysearch@gmail.com.
 
 ## Contributing
 
