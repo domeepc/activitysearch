@@ -1,25 +1,19 @@
-import type { FunctionReturnType } from "convex/server";
-import type { api } from "@/convex/_generated/api";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "@/convex/_generated/api";
 import { LandingPage } from "../components/landing/LandingPage";
-
-type Showcase = FunctionReturnType<typeof api.landing.showcase>;
 
 // Signed-in visitors are redirected to /home in proxy.ts, so this page stays static,
 // re-rendered at most hourly with fresh activities, quests and reviews.
 export const revalidate = 3600;
 
-// Convex's HTTP query API with a cacheable fetch: fetchQuery always uses no-store, which would make this page dynamic
-async function loadShowcase(): Promise<Showcase | null> {
+async function loadShowcase() {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_CONVEX_URL}/api/query`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: "landing:showcase", args: {}, format: "json" }),
-      next: { revalidate },
+    // Convex's client validates the deployment URL; the custom fetch only adds caching
+    // (convex/nextjs fetchQuery is always no-store, which would make this page dynamic)
+    const client = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!, {
+      fetch: (input, init) => fetch(input, { ...init, next: { revalidate } }),
     });
-    const body = await res.json();
-    if (body.status !== "success") throw new Error(body.errorMessage ?? `HTTP ${res.status}`);
-    return body.value as Showcase;
+    return await client.query(api.landing.showcase, {});
   } catch (error) {
     console.error("Landing showcase unavailable, showing sample content:", error);
     return null;
