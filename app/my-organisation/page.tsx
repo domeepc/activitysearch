@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { usePostHog } from "@posthog/react";
+import { capture } from "@/lib/posthog";
 import { Id } from "@/convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
@@ -55,7 +55,6 @@ function EditRow({
 
 export default function MyOrganisationPage() {
   const router = useRouter();
-  const posthog = usePostHog();
   const { isSignedIn, isLoaded: clerkLoaded } = useUser();
   const [isEditing, setIsEditing] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -136,7 +135,7 @@ export default function MyOrganisationPage() {
           console.error("Failed to sync to Stripe:", stripeError);
         }
       }
-      posthog?.capture("organisation_updated", {
+      capture("organisation_updated", {
         organisation_id: String(organisation._id),
         organisation_name: formData.name,
       });

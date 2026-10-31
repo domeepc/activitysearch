@@ -1,4 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
+import { SIGNED_IN_HOME_HREF } from '@/lib/routes';
 
 const isPublicRoute = createRouteMatcher([
   '/',
@@ -10,6 +12,15 @@ const isPublicRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+  // Signed-in users skip the marketing page; doing it here keeps `/` static.
+  if (req.nextUrl.pathname === '/') {
+    const { userId } = await auth();
+    if (userId) {
+      return NextResponse.redirect(new URL(SIGNED_IN_HOME_HREF, req.url));
+    }
+    return;
+  }
+
   // Allow public routes to pass through without any auth checks
   if (isPublicRoute(req)) {
     return;
@@ -37,7 +48,8 @@ export default clerkMiddleware(async (auth, req) => {
 export const config = {
   matcher: [
     // Skip Next.js internals and all static files, unless found in search params
-    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // monitoring (Sentry tunnel) and ingest (PostHog proxy) must never redirect to sign-in.
+    '/((?!_next|monitoring|ingest|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest|txt|xml)).*)',
     // Always run for API routes
     '/(api|trpc)(.*)',
   ],

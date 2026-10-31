@@ -28,6 +28,8 @@ const nextConfig: NextConfig = {
       },
     ],
     unoptimized: false,
+    // AVIF is ~20% smaller than WebP; browsers without it still get WebP.
+    formats: ["image/avif", "image/webp"],
   },
   skipTrailingSlashRedirect: true,
   async headers() {
@@ -46,6 +48,13 @@ const nextConfig: NextConfig = {
             key: "Strict-Transport-Security",
             value: "max-age=63072000; includeSubDomains",
           },
+        ],
+      },
+      {
+        // URL carries the maplibre version (?v=), so the file never changes in place.
+        source: "/maplibre-gl-worker.js",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
         ],
       },
     ];

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
 import { format } from "date-fns";
@@ -224,11 +225,12 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
       <div className="flex gap-3 p-4">
         <div className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-blue-100 dark:bg-zinc-800">
           {image && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={image}
               alt=""
-              className={cn("size-full object-cover", status === "cancelled" && "grayscale")}
+              fill
+              sizes="64px"
+              className={cn("object-cover", status === "cancelled" && "grayscale")}
             />
           )}
         </div>

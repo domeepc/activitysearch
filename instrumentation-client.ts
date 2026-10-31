@@ -5,13 +5,12 @@
 import * as Sentry from "@sentry/nextjs";
 
 Sentry.init({
-  dsn: "https://f94846645c7f9eb7cd326cbffbd21bc6@o4510738181914624.ingest.de.sentry.io/4511129174409296",
+  dsn:
+    process.env.NEXT_PUBLIC_SENTRY_DSN ??
+    "https://f94846645c7f9eb7cd326cbffbd21bc6@o4510738181914624.ingest.de.sentry.io/4511129174409296",
 
-  // Add optional integrations for additional features
-  integrations: [Sentry.replayIntegration()],
-
-  // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
-  tracesSampleRate: 1,
+  // Trace 10% of page loads; 100% sent a trace for every visit.
+  tracesSampleRate: 0.1,
   // Enable logs to be sent to Sentry
   enableLogs: true,
 
@@ -27,5 +26,16 @@ Sentry.init({
   // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
   sendDefaultPii: true,
 });
+
+// Session replay is ~50 KB gzipped, so fetch it once the page is idle instead of in the main bundle.
+const loadReplay = () =>
+  void Sentry.lazyLoadIntegration("replayIntegration")
+    .then((replayIntegration) => Sentry.addIntegration(replayIntegration()))
+    .catch(() => {});
+if ("requestIdleCallback" in window) {
+  window.requestIdleCallback(loadReplay, { timeout: 5000 });
+} else {
+  setTimeout(loadReplay, 3000);
+}
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
