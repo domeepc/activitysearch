@@ -4,6 +4,7 @@ import {
   internalQuery,
   mutation,
   query,
+  type QueryCtx,
 } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { generateSlug, getCurrentUser, getCurrentUserOrThrow } from "./users";
@@ -184,18 +185,24 @@ export const getByIdInternal = internalQuery({
   },
 });
 
+/** The organisation that owns an activity: direct link first, scan for activities created before it existed */
+export async function organisationForActivity(
+  ctx: QueryCtx,
+  activityId: Id<"activities">
+): Promise<Doc<"organisations"> | null> {
+  const activity = await ctx.db.get(activityId);
+  if (activity?.organisationId) {
+    const org = await ctx.db.get(activity.organisationId);
+    if (org) return org;
+  }
+  // shortcut: scans organisations (one row per organiser); backfill activities.organisationId past a few thousand
+  const allOrganisations = await ctx.db.query("organisations").collect();
+  return allOrganisations.find((o) => o.activityIDs.includes(activityId)) ?? null;
+}
+
 export const getOrganisationForActivityInternal = internalQuery({
   args: { activityId: v.id("activities") },
-  handler: async (ctx, { activityId }) => {
-    const activity = await ctx.db.get(activityId);
-    if (activity?.organisationId) {
-      return await ctx.db.get(activity.organisationId);
-    }
-    const allOrganisations = await ctx.db.query("organisations").collect();
-    return (
-      allOrganisations.find((o) => o.activityIDs.includes(activityId)) ?? null
-    );
-  },
+  handler: async (ctx, { activityId }) => organisationForActivity(ctx, activityId),
 });
 
 export const getMyOrganisationsAsOrganiser = query({

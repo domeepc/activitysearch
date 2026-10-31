@@ -219,7 +219,7 @@ export function StripeDashboard() {
   const [isRequestingPayout, setIsRequestingPayout] = useState(false);
   const [historyRange, setHistoryRange] = useState<BalanceHistoryRange>("30d");
   const [historyData, setHistoryData] = useState<StripeBalanceHistoryData | null>(null);
-  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState<string | null>(null);
 
   const getPaymentIntents = useAction(api.stripe.getStripePaymentIntentsForOrganiser);
@@ -227,13 +227,13 @@ export function StripeDashboard() {
   const getStripeBalanceHistory = useAction(api.stripe.getOrganiserStripeBalanceHistory);
   const requestPayout = useAction(api.stripe.requestOrganiserPayout);
 
+  // Refresh after a payout (the initial loads live in the effects below)
   const loadDashboardData = async () => {
-    setIsLoading(true);
-    setError(null);
     try {
       const [payments, balance] = await Promise.all([getPaymentIntents({}), getStripeBalance({})]);
       setPaymentIntents(payments);
       setBalanceData(balance);
+      setError(null);
     } catch (err) {
       console.error("Error fetching Stripe dashboard data:", err);
       setError(err instanceof Error ? err.message : "Failed to load payment data");
@@ -243,10 +243,9 @@ export function StripeDashboard() {
   };
 
   const loadHistoryData = async (range: BalanceHistoryRange) => {
-    setIsHistoryLoading(true);
-    setHistoryError(null);
     try {
       setHistoryData(await getStripeBalanceHistory({ range }));
+      setHistoryError(null);
     } catch (err) {
       setHistoryError(err instanceof Error ? err.message : "Failed to load balance history.");
     } finally {
@@ -254,8 +253,45 @@ export function StripeDashboard() {
     }
   };
 
-  useEffect(() => { void loadDashboardData(); }, [getPaymentIntents, getStripeBalance]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { void loadHistoryData(historyRange); }, [getStripeBalanceHistory, historyRange]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([getPaymentIntents({}), getStripeBalance({})])
+      .then(([payments, balance]) => {
+        if (cancelled) return;
+        setPaymentIntents(payments);
+        setBalanceData(balance);
+        setError(null);
+      })
+      .catch((err) => {
+        console.error("Error fetching Stripe dashboard data:", err);
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load payment data");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getPaymentIntents, getStripeBalance]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getStripeBalanceHistory({ range: historyRange })
+      .then((data) => {
+        if (cancelled) return;
+        setHistoryData(data);
+        setHistoryError(null);
+      })
+      .catch((err) => {
+        if (!cancelled) setHistoryError(err instanceof Error ? err.message : "Failed to load balance history.");
+      })
+      .finally(() => {
+        if (!cancelled) setIsHistoryLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getStripeBalanceHistory, historyRange]);
 
   const currency = balanceData?.currency ?? historyData?.currency ?? "EUR";
   const canPayout = !!balanceData?.hasConnectedAccount && !!balanceData.payoutsEnabled && balanceData.available > 0;
@@ -340,7 +376,11 @@ export function StripeDashboard() {
               type="button"
               role="radio"
               aria-checked={historyRange === r.key}
-              onClick={() => setHistoryRange(r.key)}
+              onClick={() => {
+                if (r.key === historyRange) return;
+                setIsHistoryLoading(true);
+                setHistoryRange(r.key);
+              }}
               className={cn(
                 "h-[30px] rounded-lg px-3 transition-colors",
                 historyRange === r.key

@@ -177,7 +177,8 @@ export function ChatView({
             }
           } else {
             // Message is not encrypted - migrate it if encryption is available
-            if (canEncrypt && !msg.encrypted) {
+            // Server only lets authors migrate their own messages
+            if (canEncrypt && !msg.encrypted && msg.isFromCurrentUser) {
               try {
                 // Encrypt the message
                 const encryptedText = await encryptMessage(msg.text, sendVersion);

@@ -902,7 +902,7 @@ export function ConversationList({
             consequences={[
               "All team messages are permanently deleted",
               "Every member loses access to the team",
-              "Reservations booked with this team are deleted",
+              "Teams with an upcoming reservation can't be deleted until it's cancelled",
             ]}
             icon={Trash2}
             confirmText="Delete team"

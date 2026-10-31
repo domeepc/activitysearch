@@ -22,7 +22,10 @@ export default defineSchema({
   })
     .index("byExternalId", ["externalId"])
     .index("byUsername", ["username"])
-    .index("bySlug", ["slug"]),
+    .index("bySlug", ["slug"])
+    .searchIndex("search_username", { searchField: "username" })
+    .searchIndex("search_name", { searchField: "name" })
+    .searchIndex("search_lastname", { searchField: "lastname" }),
 
   organisations: defineTable({
     organisationName: v.string(),
@@ -46,7 +49,8 @@ export default defineSchema({
     createdBy: v.id("users"),
     slug: v.string(),
     icon: v.optional(v.string()),
-    teamPublicKey: v.optional(v.string()), // unused legacy field
+    // Legacy, unused: remove after legacyEncryption:dropLegacyKeyData has run in every deployment
+    teamPublicKey: v.optional(v.string()),
   })
     .index("bySlug", ["slug"])
     .index("byCreatedBy", ["createdBy"]),
@@ -98,7 +102,9 @@ export default defineSchema({
     reason: v.string(),
     reservationId: v.optional(v.id("reservations")),
     createdAt: v.number(),
-  }).index("by_user", ["userId"]),
+  })
+    .index("by_user", ["userId"])
+    .index("by_reservation", ["reservationId"]),
   reservations: defineTable({
     date: v.string(),
     time: v.string(),
@@ -137,6 +143,9 @@ export default defineSchema({
     stripePaymentMethodId: v.optional(v.string()), // Payment method ID from SetupIntent
     capturedAt: v.optional(v.number()),
     captureScheduledFor: v.optional(v.number()),
+    // Declined charges on the activity day (retried daily, see chargeReservation)
+    chargeAttempts: v.optional(v.number()),
+    chargeFailedAt: v.optional(v.number()),
   }).index("byReservation", ["reservationId"]),
   reservationQueue: defineTable({
     activityId: v.id("activities"),
@@ -174,7 +183,7 @@ export default defineSchema({
     tempPublicKey: v.string(),
     payload: v.optional(v.string()),
   }).index("byUser", ["userId"]),
-  // Unused (passcode backups were removed); kept only so existing rows don't block schema push. Clear and drop.
+  // Legacy, unused (passcode backups were removed): remove after legacyEncryption:dropLegacyKeyData has run everywhere
   keyBackups: defineTable({
     userId: v.id("users"),
     backup: v.string(),

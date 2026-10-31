@@ -2,6 +2,7 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { Doc, Id } from "./_generated/dataModel";
 import { getCurrentUser, getCurrentUserOrThrow } from "./users";
+import { organisationForActivity } from "./organisation";
 
 export const getActivities = query({
     args: {},
@@ -22,10 +23,7 @@ export const isOrganiserOfActivity = query({
     handler: async (ctx, { activityId }) => {
         const currentUser = await getCurrentUser(ctx);
         if (!currentUser) return false;
-        const allOrganisations = await ctx.db.query("organisations").collect();
-        const organisation = allOrganisations.find((o) =>
-            o.activityIDs.includes(activityId)
-        );
+        const organisation = await organisationForActivity(ctx, activityId);
         return organisation?.organisersIDs.includes(currentUser._id) ?? false;
     },
 });
@@ -174,10 +172,7 @@ export const updateActivity = mutation({
         if (!activity) {
             throw new Error("Activity not found");
         }
-        const allOrganisations = await ctx.db.query("organisations").collect();
-        const organisation = allOrganisations.find((o) =>
-            o.activityIDs.includes(args.activityId)
-        );
+        const organisation = await organisationForActivity(ctx, args.activityId);
         if (!organisation || !organisation.organisersIDs.includes(currentUser._id)) {
             throw new Error("You can only edit activities of your organisation");
         }

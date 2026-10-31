@@ -21,6 +21,9 @@ const stripe = new Stripe(stripeSecretKey, {
   apiVersion: "2025-12-15.preview" as any,
 });
 
+const MAX_CHARGE_ATTEMPTS = 3;
+const CHARGE_RETRY_INTERVAL_MS = 20 * 60 * 60 * 1000; // ~daily, with slack for the hourly job
+
 const PLATFORM_FEE_BPS = 500; // 5.00% service fee, added on top for the customer
 const MINOR_UNITS_PER_MAJOR = 100;
 const HISTORY_LOOKBACK_BUFFER_DAYS = 14;
@@ -478,6 +481,10 @@ export const chargeReservation = internalAction({
 
     for (const row of payments) {
       if (row.capturedAt || row.amount <= 0) continue;
+      // Declined cards: retry once a day, at most MAX_CHARGE_ATTEMPTS times (repeated declines get cards flagged)
+      const attempt = row.chargeAttempts ?? 0;
+      if (attempt >= MAX_CHARGE_ATTEMPTS) continue;
+      if (row.chargeFailedAt && Date.now() - row.chargeFailedAt < CHARGE_RETRY_INTERVAL_MS) continue;
       try {
         // Older rows were held at payment time; capture those holds.
         if (row.stripePaymentIntentId) {
@@ -524,7 +531,7 @@ export const chargeReservation = internalAction({
           paymentMethod.billing_details?.address?.country ?? paymentMethod.card?.country ?? VAT_ESTIMATE_COUNTRY;
         let vat: Stripe.Tax.Calculation | null = null;
         try {
-          vat = await calculateVat(amountCents, customerCountry, `vat-${row._id}`);
+          vat = await calculateVat(amountCents, customerCountry, `vat-${row._id}-${attempt}`);
         } catch (error) {
           console.error(`Stripe Tax failed for payment ${row._id}; charging without VAT:`, error);
         }
@@ -561,7 +568,9 @@ export const chargeReservation = internalAction({
         }
 
         const paymentIntent = await stripe.paymentIntents.create(params, {
-          idempotencyKey: `charge-${row._id}`,
+          // One key per attempt: within an attempt a re-run can't charge twice, and a declined
+          // attempt (no money moved) doesn't block the next day's retry
+          idempotencyKey: `charge-${row._id}-${attempt}`,
         });
         await ctx.runMutation(internal.reservations.patchReservationPaymentIntentId, {
           paymentId: row._id,
@@ -574,8 +583,14 @@ export const chargeReservation = internalAction({
           });
         }
       } catch (error) {
-        // Declined cards stay uncaptured, so the reservation is not marked fulfilled.
         console.error(`Charging payment row ${row._id} failed:`, error);
+        // Only card errors are known to have moved no money; anything else is left for the next run
+        if (error instanceof Stripe.errors.StripeCardError) {
+          await ctx.runMutation(internal.reservations.recordChargeFailure, {
+            paymentId: row._id,
+            reason: error.message,
+          });
+        }
       }
     }
     return null;
@@ -657,7 +672,12 @@ export const refundPayment = internalAction({
     switch (paymentIntent.status) {
       case "succeeded":
         await stripe.refunds.create(
-          { payment_intent: paymentIntentId },
+          {
+            payment_intent: paymentIntentId,
+            // Destination charge: pull the organiser's transfer and the platform fee back too,
+            // otherwise the platform alone funds the whole refund
+            ...(paymentIntent.transfer_data && { reverse_transfer: true, refund_application_fee: true }),
+          },
           { idempotencyKey: `refund-${paymentIntentId}` }
         );
         break;

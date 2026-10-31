@@ -6,9 +6,9 @@ A modern platform for discovering, booking, and managing activities. Connect wit
 
 - 🔍 **Activity Discovery**: Search and filter activities by category, location, and more
 - 📅 **Reservation Management**: Book activities and manage your reservations
-- 💬 **Real-time Chat**: Private messaging and team chat with end-to-end encryption
+- 💬 **Real-time Chat**: Private messaging and team chat with end-to-end encryption, linked browsers and security codes
 - 👥 **Social Features**: Friend system, user profiles, and team collaboration
-- 💳 **Payment Processing**: Integrated Stripe payments for activity bookings
+- 💳 **Payment Processing**: Stripe Connect payments, split per person, with a 5% service fee and VAT via Stripe Tax
 - 🏢 **Organiser Dashboard**: Create and manage activities, connect Stripe accounts
 - 📍 **Location-based Search**: Interactive map view with activity locations
 - 🔐 **Secure Authentication**: Clerk-powered authentication with OAuth support
@@ -111,9 +111,20 @@ Do **not** point Clerk at a non-existent Next.js route such as `/api/webhooks/cl
 
 1. Create a Stripe account and get your API keys
 2. Add keys to `.env.local`
-3. Set up webhook endpoints:
-   - Webhook URL: `https://your-convex-deployment.convex.site/stripe-webhook`
-   - Events: `payment_intent.succeeded`, `account.updated`, etc.
+3. Set up the webhook endpoint:
+   - Webhook URL: `https://<your-convex-deployment>.convex.site/stripe/webhook`
+   - Events: `payment_intent.succeeded`, `payment_intent.canceled`, `setup_intent.succeeded`, `account.updated`
+   - Put the signing secret in Convex: `npx convex env set STRIPE_WEBHOOK_SECRET whsec_...`
+4. Turn on **Stripe Tax** (Dashboard → Tax): add the platform's business address and your VAT registration. Without a registration, VAT is calculated as €0.
+5. For emailed receipts, enable **Settings → Customer emails → Successful payments** (Stripe only sends receipts in live mode).
+
+#### How payments work
+
+- **Booking**: each payer saves a card (SetupIntent) for their share. Nothing is charged yet.
+- **Activity day**: an hourly cron charges every saved card off-session. The customer pays the price + 5% service fee + VAT; the organiser receives the full price through a destination charge, and the platform keeps the fee and the VAT it remits.
+- **Declined cards**: the team chat is told, and the card is retried once a day, up to 3 times.
+- **Cancelling**: the organiser can cancel any time; the team creator only until the activity starts. Charged payments are refunded in full (the organiser's transfer and the fee are reversed), saved cards are released, and spent loyalty points are returned.
+- Reservations still unpaid on the activity day are cancelled automatically.
 
 ### 7. Set up Sentry (optional)
 
@@ -171,6 +182,23 @@ activitysearch/
 - `pnpm build` - Build for production
 - `pnpm start` - Start production server
 - `pnpm lint` - Run ESLint
+- `pnpm test` - Run the Vitest + convex-test suite (`convex/**/*.test.ts`, `lib/**/*.test.ts`)
+
+## One-off data migrations
+
+Run these once per deployment (dev and production) after deploying the matching code:
+
+```bash
+# Turn messages from the first, insecure chat encryption back into plain text;
+# each author's browser then re-encrypts their own with the current scheme
+npx convex run legacyEncryption:decryptLegacyMessages
+
+# Delete the removed passcode key backups and unused team public keys.
+# Afterwards, `keyBackups` and `teams.teamPublicKey` can be dropped from convex/schema.ts
+npx convex run legacyEncryption:dropLegacyKeyData
+```
+
+Add `--prod` to run them against production.
 
 ## Deployment
 
@@ -217,7 +245,9 @@ If Google account selection succeeds but nothing happens in the app, or the user
 - Never commit `.env.local` or `.env` files
 - Use production API keys only in production environment
 - Ensure webhook secrets are properly configured
-- End-to-end encryption is enabled for chat messages
+- **Chat encryption**: 1:1 messages use ECDH (P-256) between the two users' keys with AES-256-GCM; team messages use a random team key, wrapped separately for each member. Each user has one key pair: the first browser creates it, and any other browser must be approved from one that already has it (WhatsApp-style linking with a 6-digit code). Each 1:1 chat has a 60-digit security code to verify contacts, and a "security code changed" notice when a key changes. It is not the Signal Protocol: there's no per-message key ratchet, so a stolen private key can read that user's past messages.
+- **Profiles**: signed-out visitors only see name, username, photo and description; contact details and friends are visible to signed-in users; blocked lists, emails and loyalty balances only to the owner.
+- **Uploads** are checked on the server: images only, up to 32MB.
 
 ## Contributing
 
@@ -233,4 +263,4 @@ See [LICENSE](LICENSE) file for details.
 
 ## Support
 
-For issues and questions, please open an issue on GitHub.
+For issues and questions, please open an issue on GitHub or email domemdev@gmail.com.

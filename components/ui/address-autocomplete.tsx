@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { MapPin, Loader2 } from "lucide-react";
 
 import type { AddressCoordinates } from "@/lib/types/coordinates";
+
+const noopSubscribe = () => () => {};
 
 export type { AddressCoordinates } from "@/lib/types/coordinates";
 
@@ -46,15 +48,14 @@ export function AddressAutocomplete({
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [isLoading, setIsLoading] = useState(false);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
-  const [mounted, setMounted] = useState(false);
+  // true in the browser, false during SSR: the portal needs document.body
+  const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
 
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<number | null>(null);
-
-  useEffect(() => { setMounted(true); }, []);
 
   // Stop native pointerdown only — Radix DismissableLayer listens for "pointerdown"
   // on document. Stopping mousedown/click would block React's delegated handlers

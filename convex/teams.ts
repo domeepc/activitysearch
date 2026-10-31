@@ -10,6 +10,8 @@ import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { getCurrentUser, getCurrentUserOrThrow } from "./users";
 import { internal } from "./_generated/api";
+import { cancelAndRelease } from "./reservations";
+import { reservationStartMs } from "../lib/reservationTime";
 
 // Helper function to generate secure random hash for team slug
 function generateSecureHash(): string {
@@ -20,79 +22,36 @@ function generateSecureHash(): string {
   return `${timestamp}-${randomPart}-${randomPart2}`.replace(/[^a-z0-9-]/g, '');
 }
 
+// shortcut: scans all reservations (teamIds is an array, so no index); add a reservationTeams join table past ~10k reservations
+async function reservationsOfTeam(ctx: QueryCtx, teamId: Id<"teams">) {
+  return (await ctx.db.query("reservations").collect()).filter((r) => r.teamIds.includes(teamId));
+}
+
 /**
- * Deletes a team and all related data (groupMessages, reservations with their
- * conversations and messages). Used by deleteTeam and removeUserFromTeamsAndDeleteEmptyOnes.
+ * Deletes a team, its messages and keys. Its active reservations are cancelled the normal way
+ * (refunds, queue hand-over, organiser sees the cancellation); reservations, payments and the
+ * organiser chat are kept as records.
  */
 async function deleteTeamAndAllRelatedData(
   ctx: MutationCtx,
   teamId: Id<"teams">
 ): Promise<void> {
-  // Delete all team messages first
+  for (const reservation of await reservationsOfTeam(ctx, teamId)) {
+    if (!reservation.cancelledAt) {
+      await cancelAndRelease(ctx, reservation, "The team was deleted");
+    }
+  }
+
+  // After cancelling: cancelAndRelease posts a reservation card into the team chat
   const teamMessages = await ctx.db
     .query("groupMessages")
     .withIndex("byTeam", (q) => q.eq("teamId", teamId))
     .collect();
-
   for (const msg of teamMessages) {
     await ctx.db.delete(msg._id);
   }
 
-  // Delete all reservations that reference this team
-  const allReservations = await ctx.db.query("reservations").collect();
-  const reservationsWithTeam = allReservations.filter((r) =>
-    r.teamIds.includes(teamId)
-  );
-
-  for (const reservation of reservationsWithTeam) {
-    // Find and delete conversation linked to this reservation
-    const allConversations = await ctx.db.query("conversations").collect();
-    const conversation = allConversations.find(
-      (c) => c.reservationId === reservation._id
-    );
-
-    if (conversation) {
-      // Delete all messages between the two users
-      const sentMessages = await ctx.db
-        .query("messages")
-        .withIndex("byConversation", (q) =>
-          q
-            .eq("senderId", conversation.user1Id)
-            .eq("receiverId", conversation.user2Id)
-        )
-        .collect();
-
-      const receivedMessages = await ctx.db
-        .query("messages")
-        .withIndex("byConversation", (q) =>
-          q
-            .eq("senderId", conversation.user2Id)
-            .eq("receiverId", conversation.user1Id)
-        )
-        .collect();
-
-      const allMessages = [...sentMessages, ...receivedMessages];
-      await Promise.all(allMessages.map((msg) => ctx.db.delete(msg._id)));
-
-      // Delete the conversation
-      await ctx.db.delete(conversation._id);
-    }
-
-    // Delete all reservationPayments for this reservation before deleting it
-    const payments = await ctx.db
-      .query("reservationPayments")
-      .withIndex("byReservation", (q) => q.eq("reservationId", reservation._id))
-      .collect();
-    for (const p of payments) {
-      await ctx.db.delete(p._id);
-    }
-
-    await ctx.db.delete(reservation._id);
-  }
-
   await deleteTeamKeys(ctx, teamId);
-
-  // Delete the team
   await ctx.db.delete(teamId);
 }
 
@@ -192,10 +151,12 @@ export const getMyTeams = query({
     // Get all messages for each team (to compute lastMessage, unreadCount)
     const teamsWithLastMessage = await Promise.all(
       myTeams.map(async (team) => {
+        // Latest messages only: enough for the preview and unread count (sidebar shows "99+")
         const messages = await ctx.db
           .query("groupMessages")
           .withIndex("byTeam", (q) => q.eq("teamId", team._id))
-          .collect();
+          .order("desc")
+          .take(100);
 
         const myTeamKey = await ctx.db
           .query("teamKeys")
@@ -810,6 +771,10 @@ export const migrateTeamMessageToEncrypted = mutation({
     if (!team.teammates.includes(currentUser._id)) {
       throw new Error("You are not a member of this team");
     }
+    // Only the author may replace their message's text, or another member could forge it
+    if (message.senderId !== currentUser._id) {
+      throw new Error("You can only encrypt messages you sent");
+    }
 
     // Only migrate if not already encrypted
     if (message.encrypted) {
@@ -900,6 +865,14 @@ export const deleteTeam = mutation({
     // Only creator can delete team
     if (team.createdBy !== currentUser._id) {
       throw new Error("Only team creator can delete the team");
+    }
+
+    // Deleting would cancel a booking the organiser is counting on; make that an explicit choice
+    const upcoming = (await reservationsOfTeam(ctx, teamId)).some(
+      (r) => !r.cancelledAt && reservationStartMs(r.date, r.time) > Date.now()
+    );
+    if (upcoming) {
+      throw new Error("This team has an upcoming reservation. Cancel the reservation first, then delete the team.");
     }
 
     await deleteTeamAndAllRelatedData(ctx, teamId);

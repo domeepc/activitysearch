@@ -72,7 +72,7 @@ async function setup() {
       createdBy: a,
       paymentStatus: "pending",
     });
-    return { a, b, c, reservationId };
+    return { a, b, c, organiser, teamId, reservationId };
   });
   return { t, ...ids };
 }
@@ -154,5 +154,111 @@ describe("reservation payments", () => {
     const saved = rows.find((r) => !r.stripePaymentIntentId);
     expect(charged?.refundedAt).toBeUndefined();
     expect(saved?.refundedAt).toBeTypeOf("number");
+  });
+});
+
+describe("audit fixes", () => {
+  test("the team creator can't cancel once the activity started; the organiser still can", async () => {
+    const { t, reservationId } = await setup();
+    await t.run((ctx) => ctx.db.patch(reservationId, { date: "2000-01-01" }));
+
+    await expect(
+      t.withIdentity({ subject: "a" }).mutation(api.reservations.cancelReservation, { reservationId, cancellationReason: "free trip" })
+    ).rejects.toThrow(/already started/);
+    await t
+      .withIdentity({ subject: "organiser" })
+      .mutation(api.reservations.cancelReservation, { reservationId, cancellationReason: "storm" });
+    expect((await t.run((ctx) => ctx.db.get(reservationId)))?.cancelledAt).toBeTypeOf("number");
+  });
+
+  test("a team with an upcoming booking can't be deleted; payment records are never deleted", async () => {
+    const { t, a, teamId, reservationId } = await setup();
+    await pay(t, reservationId, a, BigInt(1), "a");
+    const asCreator = t.withIdentity({ subject: "a" });
+
+    await expect(asCreator.mutation(api.teams.deleteTeam, { teamId })).rejects.toThrow(/upcoming reservation/);
+
+    await asCreator.mutation(api.reservations.cancelReservation, { reservationId, cancellationReason: "plans changed" });
+    await asCreator.mutation(api.teams.deleteTeam, { teamId });
+    const [reservation, payments] = await t.run(async (ctx) => [
+      await ctx.db.get(reservationId),
+      await ctx.db.query("reservationPayments").withIndex("byReservation", (q) => q.eq("reservationId", reservationId)).collect(),
+    ] as const);
+    expect(reservation?.cancelledAt).toBeTypeOf("number");
+    expect(payments).toHaveLength(1);
+  });
+
+  test("only the author can replace a message with its encrypted version", async () => {
+    const { t, a, b } = await setup();
+    const messageId = await t.run((ctx) => ctx.db.insert("messages", { senderId: a, receiverId: b, text: "I'll pay €50" }));
+
+    await expect(
+      t.withIdentity({ subject: "b" }).mutation(api.messages.migrateMessageToEncrypted, { messageId, encryptedText: "forged" })
+    ).rejects.toThrow(/messages you sent/);
+    await t.withIdentity({ subject: "a" }).mutation(api.messages.migrateMessageToEncrypted, { messageId, encryptedText: "ciphertext" });
+    expect((await t.run((ctx) => ctx.db.get(messageId)))?.text).toBe("ciphertext");
+  });
+
+  test("loyalty points come back when the reservation is cancelled", async () => {
+    const { t, a, reservationId } = await setup();
+    await t.run((ctx) => ctx.db.patch(a, { loyaltyPoints: BigInt(1000) }));
+    const asA = t.withIdentity({ subject: "a" });
+
+    await asA.mutation(api.loyalty.redeemLoyaltyPointsForReservation, { reservationId, pointsToSpend: 150 });
+    expect((await t.run((ctx) => ctx.db.get(a)))?.loyaltyPoints).toBe(BigInt(850));
+
+    await asA.mutation(api.reservations.cancelReservation, { reservationId, cancellationReason: "sick" });
+    expect((await t.run((ctx) => ctx.db.get(a)))?.loyaltyPoints).toBe(BigInt(1000));
+  });
+
+  test("signed-out visitors and other users don't get private profile fields", async () => {
+    const { t, a, b } = await setup();
+    await t.run(async (ctx) => {
+      await ctx.db.patch(a, { contact: "+385 91 000 0000", blocked: [b], loyaltyPoints: BigInt(42) });
+    });
+
+    const anonymous = await t.query(api.users.getUserById, { userId: a });
+    expect(anonymous).toMatchObject({ name: "a", contact: "", friends: [], hasBlockedYou: false });
+    expect(anonymous).not.toHaveProperty("blocked");
+    expect(anonymous).not.toHaveProperty("loyaltyPoints");
+
+    const asBlockedUser = await t.withIdentity({ subject: "b" }).query(api.users.getUserById, { userId: a });
+    expect(asBlockedUser).toMatchObject({ contact: "+385 91 000 0000", hasBlockedYou: true });
+    expect(asBlockedUser).not.toHaveProperty("blocked");
+
+    const asOwner = await t.withIdentity({ subject: "a" }).query(api.users.getUserById, { userId: a });
+    expect(asOwner).toMatchObject({ loyaltyPoints: BigInt(42), blocked: [b] });
+  });
+
+  test("user search finds people by username, first or last name (prefix), not yourself or organisers", async () => {
+    const { t, b, organiser } = await setup();
+    await t.run(async (ctx) => {
+      await ctx.db.patch(b, { name: "Ana", lastname: "Horvat", username: "anah" });
+      await ctx.db.patch(organiser, { role: "organiser" });
+    });
+    const search = (query: string) =>
+      t.withIdentity({ subject: "a" }).query(api.users.searchUsers, { query }).then((r) => r.map((u) => u.username));
+
+    expect(await search("horv")).toEqual(["anah"]);
+    expect(await search("ana horvat")).toEqual(["anah"]);
+    expect(await search("organiser")).toEqual([]);
+  });
+
+  test("a declined charge is counted and the team is told", async () => {
+    const { t, a, b, teamId, reservationId } = await setup();
+    await pay(t, reservationId, a, BigInt(1), "a");
+    await pay(t, reservationId, b, BigInt(2), "b");
+    const [payment] = await t.run((ctx) =>
+      ctx.db.query("reservationPayments").withIndex("byReservation", (q) => q.eq("reservationId", reservationId)).collect()
+    );
+
+    await t.mutation(internal.reservations.recordChargeFailure, { paymentId: payment._id, reason: "Your card has expired." });
+
+    const [row, teamMessages] = await t.run(async (ctx) => [
+      await ctx.db.get(payment._id),
+      await ctx.db.query("groupMessages").withIndex("byTeam", (q) => q.eq("teamId", teamId)).collect(),
+    ] as const);
+    expect(row?.chargeAttempts).toBe(1);
+    expect(teamMessages.some((m) => m.text.includes("declined") && m.text.includes("try the card again"))).toBe(true);
   });
 });
