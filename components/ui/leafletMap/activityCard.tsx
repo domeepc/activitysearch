@@ -154,10 +154,9 @@ export default function ActivityCard({ activity, onClose, isExpanded = false }: 
 
         <div className="mt-1 flex items-center gap-2 border-t border-zinc-100 pt-3 dark:border-zinc-800">
           <p className="flex-1 text-xs leading-tight text-zinc-600 dark:text-zinc-400">
-            From
+            Per booking
             <b className="block text-base text-zinc-900 dark:text-zinc-50">
               {formatPrice(activity.price.amount)}
-              <span className="text-xs font-normal text-zinc-600 dark:text-zinc-400"> / person</span>
             </b>
           </p>
           <Button asChild variant="outline" className="h-9 px-3">

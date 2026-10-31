@@ -226,10 +226,10 @@ export default function ActivityPage({
         >
           {activity.price ? (
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              From
+              Price
               <span className="block text-[28px] font-bold leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">
                 {formatPrice(activity.price)}
-                <span className="text-sm font-normal text-zinc-600 dark:text-zinc-400"> / person</span>
+                <span className="text-sm font-normal text-zinc-600 dark:text-zinc-400"> per booking</span>
               </span>
             </p>
           ) : null}
@@ -237,7 +237,7 @@ export default function ActivityPage({
           <ul className="flex flex-col gap-2.5 text-[13px] text-zinc-600 dark:text-zinc-400">
             <li className="flex gap-2">
               <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden="true" />
-              <span><b className="text-zinc-900 dark:text-zinc-50">Split the bill</b> — each teammate pays their own share</span>
+              <span><b className="text-zinc-900 dark:text-zinc-50">Split the bill</b> — the price is shared, each teammate pays their part</span>
             </li>
             <li className="flex gap-2">
               <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden="true" />
@@ -251,7 +251,7 @@ export default function ActivityPage({
       <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-zinc-200 bg-white/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden dark:border-zinc-800 dark:bg-zinc-950/95">
         {activity.price ? (
           <p className="min-w-0 flex-1 text-sm text-zinc-600 dark:text-zinc-400">
-            From <b className="text-lg text-zinc-900 dark:text-zinc-50">{formatPrice(activity.price)}</b> / person
+            <b className="text-lg text-zinc-900 dark:text-zinc-50">{formatPrice(activity.price)}</b> per booking
           </p>
         ) : (
           <span className="flex-1" />
