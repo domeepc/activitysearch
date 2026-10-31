@@ -13,7 +13,7 @@ import { Doc, Id } from "./_generated/dataModel";
 import { progressionFromTotalExp } from "../lib/gamification/levels";
 
 // Helper function to generate URL-safe slug from username
-function generateSlug(username: string): string {
+export function generateSlug(username: string): string {
   return username
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
@@ -454,7 +454,7 @@ export const getUsersByIds = query({
 
     // Batch fetch all users in parallel
     const users = await Promise.all(
-      filteredUserIds.map((id) => ctx.db.get(id))
+      filteredUserIds.map(async (id) => toProfileView(ctx, await ctx.db.get(id)))
     );
 
     return users.filter((u): u is NonNullable<typeof u> => u !== null);

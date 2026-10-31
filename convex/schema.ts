@@ -47,7 +47,9 @@ export default defineSchema({
     slug: v.string(),
     icon: v.optional(v.string()),
     teamPublicKey: v.optional(v.string()),
-  }).index("bySlug", ["slug"]),
+  })
+    .index("bySlug", ["slug"])
+    .index("byCreatedBy", ["createdBy"]),
 
   reviews: defineTable({
     text: v.string(),
@@ -121,7 +123,8 @@ export default defineSchema({
     loyaltyPointsSpent: v.optional(v.int64()),
   })
     .index("byActivity", ["activityId"])
-    .index("byDateTime", ["activityId", "date", "time"]),
+    .index("byDateTime", ["activityId", "date", "time"])
+    .index("byDate", ["date"]),
   reservationPayments: defineTable({
     reservationId: v.id("reservations"),
     userId: v.id("users"),
@@ -143,7 +146,9 @@ export default defineSchema({
     createdBy: v.id("users"),
     createdAt: v.number(),
     notifiedAt: v.optional(v.number()),
-  }).index("byActivityDate", ["activityId", "date"]),
+  })
+    .index("byActivityDate", ["activityId", "date"])
+    .index("byCreatedBy", ["createdBy"]),
   conversations: defineTable({
     user1Id: v.id("users"),
     user2Id: v.id("users"),

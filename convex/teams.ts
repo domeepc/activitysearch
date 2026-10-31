@@ -445,45 +445,6 @@ export const sendTeamMessage = mutation({
   },
 });
 
-export const sendReservationCardToTeam = internalMutation({
-  args: {
-    teamId: v.id("teams"),
-    reservationId: v.id("reservations"),
-  },
-  handler: async (ctx, { teamId, reservationId }) => {
-    // Get reservation to verify it exists
-    const reservation = await ctx.db.get(reservationId);
-    if (!reservation) {
-      throw new Error("Reservation not found");
-    }
-
-    // Verify team is part of the reservation
-    if (!reservation.teamIds.includes(teamId)) {
-      throw new Error("Team is not part of this reservation");
-    }
-
-    // Get team to verify it exists
-    const team = await ctx.db.get(teamId);
-    if (!team) {
-      throw new Error("Team not found");
-    }
-
-    // Use system user ID (the creator of the reservation) as sender
-    // This ensures the card appears as a system message
-    await ctx.db.insert("groupMessages", {
-      teamId,
-      senderId: reservation.createdBy,
-      text: "Reservation card", // Placeholder text for reservation card messages
-      messageType: "reservation_card",
-      reservationCardData: {
-        reservationId,
-      },
-    });
-
-    return { success: true };
-  },
-});
-
 export const inviteFriendToTeam = mutation({
   args: {
     teamId: v.id("teams"),
@@ -545,19 +506,11 @@ export const removeFromTeam = mutation({
       throw new Error("Cannot remove the team creator");
     }
 
-    // Remove user from teammates and admins
-    const newTeammates = team.teammates.filter((id) => id !== userId);
-    const newAdmins = (team.admins || []).filter((id) => id !== userId);
-
-    if (newAdmins.length === 0) {
-      // No admins left - delete the team and all related data
-      await deleteTeamAndAllRelatedData(ctx, teamId);
-    } else {
-      await ctx.db.patch(teamId, {
-        teammates: newTeammates,
-        admins: newAdmins,
-      });
-    }
+    // The creator stays, so the team survives. Old teams may have no admins field.
+    await ctx.db.patch(teamId, {
+      teammates: team.teammates.filter((id) => id !== userId),
+      admins: (team.admins || []).filter((id) => id !== userId),
+    });
 
     return { success: true };
   },
@@ -882,19 +835,10 @@ export const leaveTeam = mutation({
       throw new Error("Team creator cannot leave. Delete the team instead.");
     }
 
-    // Remove from teammates and admins
-    const newTeammates = team.teammates.filter((id) => id !== currentUser._id);
-    const newAdmins = (team.admins || []).filter((id) => id !== currentUser._id);
-
-    if (newAdmins.length === 0) {
-      // No admins left - delete the team and all related data
-      await deleteTeamAndAllRelatedData(ctx, teamId);
-    } else {
-      await ctx.db.patch(teamId, {
-        teammates: newTeammates,
-        admins: newAdmins,
-      });
-    }
+    await ctx.db.patch(teamId, {
+      teammates: team.teammates.filter((id) => id !== currentUser._id),
+      admins: (team.admins || []).filter((id) => id !== currentUser._id),
+    });
 
     return { success: true };
   },
@@ -950,8 +894,8 @@ export const deleteTeam = mutation({
 
 /**
  * Called when a user is deleted (e.g. from deleteFromClerk). Removes the user
- * from teammates and admins in all teams they belong to. Deletes any team that
- * has no admins left after the removal.
+ * from teammates and admins in all teams they belong to. Deletes the teams
+ * they created.
  */
 export const removeUserFromTeamsAndDeleteEmptyOnes = internalMutation({
   args: {
@@ -968,15 +912,12 @@ export const removeUserFromTeamsAndDeleteEmptyOnes = internalMutation({
         continue;
       }
 
-      const newTeammates = team.teammates.filter((id) => id !== userId);
-      const newAdmins = (team.admins || []).filter((id) => id !== userId);
-
-      if (newAdmins.length === 0) {
+      if (team.createdBy === userId) {
         await deleteTeamAndAllRelatedData(ctx, team._id);
       } else {
         await ctx.db.patch(team._id, {
-          teammates: newTeammates,
-          admins: newAdmins,
+          teammates: team.teammates.filter((id) => id !== userId),
+          admins: (team.admins || []).filter((id) => id !== userId),
         });
       }
     }

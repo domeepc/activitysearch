@@ -8,8 +8,8 @@
  * @module
  */
 
-import type * as ably from "../ably.js";
 import type * as activity from "../activity.js";
+import type * as crons from "../crons.js";
 import type * as gamification from "../gamification.js";
 import type * as http from "../http.js";
 import type * as loyalty from "../loyalty.js";
@@ -20,7 +20,6 @@ import type * as questLogic from "../questLogic.js";
 import type * as quests from "../quests.js";
 import type * as reservations from "../reservations.js";
 import type * as reviews from "../reviews.js";
-import type * as scheduled from "../scheduled.js";
 import type * as stripe from "../stripe.js";
 import type * as teams from "../teams.js";
 import type * as uploads from "../uploads.js";
@@ -33,8 +32,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  ably: typeof ably;
   activity: typeof activity;
+  crons: typeof crons;
   gamification: typeof gamification;
   http: typeof http;
   loyalty: typeof loyalty;
@@ -45,7 +44,6 @@ declare const fullApi: ApiFromModules<{
   quests: typeof quests;
   reservations: typeof reservations;
   reviews: typeof reviews;
-  scheduled: typeof scheduled;
   stripe: typeof stripe;
   teams: typeof teams;
   uploads: typeof uploads;
