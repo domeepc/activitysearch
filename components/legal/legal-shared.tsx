@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export const LEGAL_SUPPORT_EMAIL = "domemdev@gmail.com";
+export const LEGAL_SUPPORT_EMAIL = "domemdev+activitysearch@gmail.com";
 
 export interface LegalSectionData {
   /** Anchor for the table of contents, e.g. "payments" → /terms#payments */
