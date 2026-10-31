@@ -1,266 +1,241 @@
 # ActivitySearch
 
-A modern platform for discovering, booking, and managing activities. Connect with organisers, chat with friends, and manage your reservations all in one place.
+ActivitySearch is a marketplace for group activities in Croatia. People find activities on a map, form teams with friends, book a time slot together, split the cost, and chat with end-to-end encryption. Organisers list their activities, manage bookings, and get paid through Stripe Connect.
 
-## Features
+Production: https://activitysearch.eu · Support: domemdev@gmail.com
 
-- 🔍 **Activity Discovery**: Search and filter activities by category, location, and more
-- 📅 **Reservation Management**: Book activities and manage your reservations
-- 💬 **Real-time Chat**: Private messaging and team chat with end-to-end encryption, linked browsers and security codes
-- 👥 **Social Features**: Friend system, user profiles, and team collaboration
-- 💳 **Payment Processing**: Stripe Connect payments, split per person, with a 5% service fee and VAT via Stripe Tax
-- 🏢 **Organiser Dashboard**: Create and manage activities, connect Stripe accounts
-- 📍 **Location-based Search**: Interactive map view with activity locations
-- 🔐 **Secure Authentication**: Clerk-powered authentication with OAuth support
+---
 
-## Tech Stack
+## What the app does
 
-- **Frontend**: Next.js 16, React 19, TypeScript
-- **Backend**: Convex (real-time database and serverless functions)
-- **Authentication**: Clerk
-- **Payments**: Stripe
-- **Real-time**: Convex (presence via heartbeat)
-- **Maps**: MapLibre GL + OpenFreeMap (no API key)
-- **Styling**: Tailwind CSS, Radix UI
+### For people booking
 
-## Prerequisites
+- **Discover**: browse activities on a live map (MapLibre + OpenFreeMap) or as a filtered list, by category, price, difficulty and location. Each activity has photos, details, reviews and its available time slots.
+- **Teams**: create a team from your friends; the team gets its own encrypted group chat.
+- **Book**: the team creator books a date and time slot for one or more teams. If the slot is full, you can join a **waitlist**; when a booking is cancelled, the first team in line is offered the slot.
+- **Split the cost**: each member pays their own share, or one person pays for several. You see the breakdown before saving a card: activity price + **5% service fee** + **VAT**. Cards are saved now and **charged on the activity day**. A pay-by date (7 days before) is shown; bookings still unpaid on the activity day are cancelled automatically.
+- **Chat**: 1:1 and team chats, end-to-end encrypted. Reservation cards in team chats show payment progress live. Online status comes from a presence heartbeat.
+- **Quests, XP and loyalty**: completing quests (system quests such as "create a team", plus quests organisers create for their activities) gives XP. Every level-up gives 10 loyalty points; points can be spent for a discount of up to 20% of a reservation (10 points = €1).
+- **Reviews**: only people who attended a fulfilled (paid) reservation can review an activity, once.
+- **Profiles**: avatar (photo, or a generated "boring avatar" from your name), friends, blocking, quests and level.
 
-- Node.js 18+ 
-- pnpm 10+ (or npm/yarn)
-- Clerk account ([sign up here](https://clerk.com))
-- Convex account ([sign up here](https://convex.dev))
-- Stripe account ([sign up here](https://stripe.com))
+### For organisers
 
-## Getting Started
+- Sign up as an organisation (separate sign-up flow), connect a **Stripe Connect** account, and see exactly what Stripe still needs, in plain language.
+- Create and edit activities (photos, address with geocoding, time slots, capacity, minimum age, price).
+- See reservations, payment status, earnings, Stripe balance history, and request payouts.
+- Cancel any reservation (everyone is refunded), create quests, and mark quests complete for participants.
 
-### 1. Clone the repository
+---
 
-```bash
-git clone <repository-url>
-cd activitysearch
+## How it works
+
+### Architecture
+
+| Layer | Technology |
+| --- | --- |
+| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind v4, shadcn/ui |
+| Backend | [Convex](https://convex.dev): database, queries/mutations/actions, scheduler, crons, HTTP endpoints, file storage |
+| Auth | Clerk (email + password, Google / Microsoft / Facebook), synced to Convex by webhook |
+| Payments | Stripe: SetupIntents, off-session PaymentIntents, Connect destination charges, Stripe Tax |
+| Maps | MapLibre GL + OpenFreeMap tiles (no API key); OpenStreetMap Nominatim for address search |
+| Monitoring | Sentry (errors), PostHog (product analytics, proxied through `/ingest`) |
+
+There is no REST API of our own: the browser talks to Convex directly (`useQuery` / `useMutation`). External systems talk to Convex HTTP actions (`convex/http.ts`):
+
+| Endpoint | Caller | Purpose |
+| --- | --- | --- |
+| `POST /clerk-users-webhook` | Clerk (Svix-signed) | create, update and delete users |
+| `POST /stripe/webhook` | Stripe (signed) | mark payments captured |
+
+### Payment lifecycle
+
+1. **Booking**: each payer saves a card with a Stripe **SetupIntent**. The server records the share and computes the amount itself; the last payer covers rounding. Nothing is charged yet. Once all shares are covered, the reservation is `on_hold`.
+2. **Activity day**: an hourly cron charges every saved card **off-session**, one PaymentIntent per payer:
+   - the amount is price + 5% service fee + VAT (Stripe Tax, linked to the PaymentIntent so it appears in tax reports and on receipts);
+   - **destination charge**: the organiser receives the full activity price; the platform keeps the service fee and the VAT it remits (the platform is the merchant of record);
+   - Stripe emails the payer a receipt (live mode only).
+3. **Fulfilled**: once Stripe confirms every charge (webhook), the reservation is `fulfilled` and attendees can review.
+4. **Declined card**: the attempt is recorded, the team chat is told, and the card is retried once a day, up to 3 times. Only Stripe card errors count as declines, so a retry can never double-charge (one idempotency key per attempt).
+5. **Cancelling**: the organiser can cancel any time; the team creator only until the activity starts. Saved cards are released, charged payments are refunded in full (the organiser's transfer and the platform fee are reversed), spent loyalty points are returned, and the slot goes to the waitlist.
+6. **Unpaid**: reservations still not fully paid on the activity day are cancelled automatically (daily cron).
+
+Stripe's card processing fee is paid from the platform's share.
+
+### Chat encryption
+
+- **1:1 chats**: ECDH (P-256) between the two users' keys → HKDF → AES-256-GCM. Both sides can read their messages.
+- **Team chats**: a random AES-256 team key, encrypted ("wrapped") separately for each member's public key (`teamKeys` table). Members who hold it share it with new members automatically.
+- **One key pair per user, many browsers**: the first browser creates the key pair. A new browser shows a 6-digit code and must be **approved from a browser that already has the key** (like WhatsApp linked devices); the key travels encrypted to a one-time key of the new browser. If no linked browser is left, "Start fresh" creates a new key, and old messages can no longer be read.
+- **Security codes**: every 1:1 chat has a 60-digit code (Signal/WhatsApp style) to compare in person; a "security code changed" notice appears when a contact's key changes.
+- **Sidebar previews** are decrypted in the browser; the server only ever stores ciphertext.
+- **Not the Signal Protocol**: there's no per-message key ratchet, so a stolen private key can read that user's past messages. This trade-off keeps full history on every linked browser.
+
+### Privacy model
+
+- Signed-out visitors see only name, username, photo and description.
+- Signed-in users also see contact details, friends, level and online status.
+- Blocked lists, email and loyalty balance are visible to the owner only.
+- Uploads are checked on the server: images only, up to 32MB.
+- Legal pages: `/terms` and `/privacy`.
+
+---
+
+## Project structure
+
+```
+app/                  Next.js routes
+  (auth)/             sign-in, sign-up, organiser sign-up, Google "continue" step, SSO callback
+  home/               map + activity search
+  activities/[slug]/  activity detail and booking
+  chat/               1:1, team and reservation chats
+  reservations/       my reservations
+  my-organisation/    organiser dashboard (activities, Stripe, payouts)
+  profile/[userId]/   profiles and settings
+  terms/ privacy/     legal pages
+components/           UI by domain (chat, payments, reservations, organisation, profile, auth, ui)
+convex/               backend
+  schema.ts           all tables and indexes
+  http.ts             Clerk and Stripe webhooks
+  crons.ts            scheduled jobs
+  reservations.ts     booking, waitlist, cancellation, payment state
+  stripe.ts           SetupIntents, charges, VAT, refunds, Connect, payouts
+  messages.ts teams.ts users.ts quests.ts loyalty.ts reviews.ts organisation.ts activity.ts presence.ts
+  legacyEncryption.ts one-off migrations
+lib/                  shared logic: encryption, pricing, reservation time zone, hooks, gamification
 ```
 
-### 2. Install dependencies
+---
+
+## Setup
+
+### Prerequisites
+
+Node.js 20+, pnpm 10+, and accounts for Clerk, Convex and Stripe (Sentry and PostHog are optional).
+
+### 1. Install and start Convex
 
 ```bash
 pnpm install
+npx convex dev        # creates or links the deployment, pushes schema and functions, writes NEXT_PUBLIC_CONVEX_URL
 ```
 
-### 3. Set up environment variables
+Keep `npx convex dev` running next to `pnpm dev`: it pushes backend changes on save. If it isn't running, the frontend and backend drift apart.
 
-Create a `.env.local` file in the root directory and add the following variables:
+### 2. Environment variables
 
-```env
-# Clerk Authentication Configuration
-CLERK_SECRET_KEY=sk_test_...
-CLERK_FRONTEND_API_URL=https://your-app.clerk.accounts.dev
-CLERK_WEBHOOK_SECRET=whsec_...
+**Next.js (`.env.local`, and Vercel for production)**
 
-# Convex Backend Configuration
-NEXT_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
+| Variable | Notes |
+| --- | --- |
+| `NEXT_PUBLIC_CONVEX_URL` / `CONVEX_DEPLOYMENT` | written by `npx convex dev` |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` | Clerk API keys |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key |
+| `NEXT_PUBLIC_POSTHOG_KEY` / `NEXT_PUBLIC_POSTHOG_HOST` | optional; with the proxy, the host is the app origin (`/ingest` is appended) |
+| `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN` | optional; the auth token uploads source maps at build time |
+| `NEXT_PUBLIC_MAP_STYLE_LIGHT` / `NEXT_PUBLIC_MAP_STYLE_DARK` | optional; override the OpenFreeMap styles |
 
-# Stripe Payment Configuration
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+**Convex (`npx convex env set NAME value`, add `--prod` for production)**
 
-# Sentry (Error Monitoring and Session Replay)
-NEXT_PUBLIC_SENTRY_DSN=https://...@sentry.io/...
-SENTRY_DSN=https://...@sentry.io/...          # optional; falls back to NEXT_PUBLIC_SENTRY_DSN
-SENTRY_ORG=your-org-slug
-SENTRY_PROJECT=your-project-slug
-SENTRY_AUTH_TOKEN=sntrys_...                  # for source map upload at build time
+| Variable | Notes |
+| --- | --- |
+| `CLERK_FRONTEND_API_URL` | Clerk Frontend API URL, used to verify JWTs (`convex/auth.config.ts`) |
+| `CLERK_WEBHOOK_SECRET` | signing secret of the Clerk webhook |
+| `STRIPE_SECRET_KEY` | Stripe secret key |
+| `STRIPE_WEBHOOK_SECRET` | signing secret of the Stripe webhook |
 
-# PostHog (Analytics) – with proxy, use your app origin
-NEXT_PUBLIC_POSTHOG_KEY=phc_...
-NEXT_PUBLIC_POSTHOG_HOST=https://yourdomain.com   # app origin for proxy (or http://localhost:3000 in dev); /ingest is appended. For direct: https://us.i.posthog.com
+### 3. Clerk
 
-# Environment
-NODE_ENV=development
-```
+1. Create the application; enable the OAuth providers you want and **username** as a required field. Google sign-ups without a username finish on `/sign-up/continue`.
+2. Webhook → `https://<deployment>.convex.site/clerk-users-webhook`, events `user.created`, `user.updated`, `user.deleted`; put the signing secret in Convex as `CLERK_WEBHOOK_SECRET`.
+3. In the JWT templates, keep the `convex` template that Convex expects.
 
-### 4. Set up Convex
+### 4. Stripe
+
+1. Enable **Connect** (organisers onboard through the app).
+2. Webhook → `https://<deployment>.convex.site/stripe/webhook`, events `payment_intent.succeeded`, `payment_intent.canceled`, `setup_intent.succeeded`, `account.updated`; put the signing secret in Convex as `STRIPE_WEBHOOK_SECRET`.
+3. Turn on **Stripe Tax**: add the platform's business address and VAT registration. Without a registration, VAT is calculated as €0 and charges go through without VAT.
+4. For receipts: **Settings → Customer emails → Successful payments** (live mode only).
+
+### 5. Run
 
 ```bash
-# Install Convex CLI if you haven't already
-pnpm add -g convex
-
-# Login to Convex
-npx convex dev
-
-# This will:
-# - Create a new Convex project (if needed)
-# - Deploy your schema and functions
-# - Set up the NEXT_PUBLIC_CONVEX_URL automatically
+pnpm dev          # http://localhost:3000
 ```
 
-### 5. Set up Clerk
+---
 
-1. Create a new application in [Clerk Dashboard](https://dashboard.clerk.com)
-2. Configure OAuth providers (Google, Microsoft, Facebook) if needed
-3. Copy your API keys to `.env.local`
-4. Set up **webhooks in Clerk** (user sync runs on Convex, not Next.js):
-   - **Endpoint URL**: `https://<your-convex-deployment-name>.convex.site/clerk-users-webhook`  
-     (from the Convex dashboard: your deployment’s **HTTP Actions** URL + path `/clerk-users-webhook`)
-   - Subscribe to events: `user.created`, `user.updated`, `user.deleted`
-   - Copy the **Signing secret** into Convex: `npx convex env set CLERK_WEBHOOK_SECRET whsec_...` (use the **production** deployment when you deploy prod)
+## Scripts
 
-Do **not** point Clerk at a non-existent Next.js route such as `/api/webhooks/clerk` — this repo handles Clerk webhooks only via Convex [`convex/http.ts`](convex/http.ts).
+| Command | What it does |
+| --- | --- |
+| `pnpm dev` | Next.js dev server |
+| `pnpm build` / `pnpm start` | production build / server |
+| `pnpm lint` | ESLint (must be clean) |
+| `pnpm test` | Vitest + convex-test (`convex/**/*.test.ts`, `lib/**/*.test.ts`) |
+| `npx convex dev` | push backend changes to the dev deployment on save |
+| `npx convex deploy` | deploy backend to production |
 
-### 6. Set up Stripe
+The tests cover payments (amounts, rounding, fulfilment, cancellation, declines), permissions (cancelling, team deletion, message migration, profile privacy, team keys, key backups), VAT and fee split, encryption, Stripe requirement labels, search, and reservation time zones.
 
-1. Create a Stripe account and get your API keys
-2. Add keys to `.env.local`
-3. Set up the webhook endpoint:
-   - Webhook URL: `https://<your-convex-deployment>.convex.site/stripe/webhook`
-   - Events: `payment_intent.succeeded`, `payment_intent.canceled`, `setup_intent.succeeded`, `account.updated`
-   - Put the signing secret in Convex: `npx convex env set STRIPE_WEBHOOK_SECRET whsec_...`
-4. Turn on **Stripe Tax** (Dashboard → Tax): add the platform's business address and your VAT registration. Without a registration, VAT is calculated as €0.
-5. For emailed receipts, enable **Settings → Customer emails → Successful payments** (Stripe only sends receipts in live mode).
-
-#### How payments work
-
-- **Booking**: each payer saves a card (SetupIntent) for their share. Nothing is charged yet.
-- **Activity day**: an hourly cron charges every saved card off-session. The customer pays the price + 5% service fee + VAT; the organiser receives the full price through a destination charge, and the platform keeps the fee and the VAT it remits.
-- **Declined cards**: the team chat is told, and the card is retried once a day, up to 3 times.
-- **Cancelling**: the organiser can cancel any time; the team creator only until the activity starts. Charged payments are refunded in full (the organiser's transfer and the fee are reversed), saved cards are released, and spent loyalty points are returned.
-- Reservations still unpaid on the activity day are cancelled automatically.
-
-### 7. Set up Sentry (optional)
-
-1. Create a project at [sentry.io](https://sentry.io) and copy the DSN
-2. Add `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN` to `.env.local`
-3. `SENTRY_AUTH_TOKEN` is used at build time for source map uploads
-
-### 8. Set up PostHog (optional)
-
-1. Create a project at [posthog.com](https://posthog.com) and copy the Project API key
-2. Add `NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_POSTHOG_HOST` to `.env.local`
-3. With the built-in proxy, set `NEXT_PUBLIC_POSTHOG_HOST` to your app origin (e.g. `http://localhost:3000` in dev, `https://yourdomain.com` in production); `/ingest` is appended automatically. For direct ingest, set it to `https://us.i.posthog.com` or `https://eu.i.posthog.com`.
-
-### 9. Run the development server
-
-```bash
-pnpm dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-## Project Structure
-
-```
-activitysearch/
-├── app/                    # Next.js app directory
-│   ├── (auth)/            # Authentication routes
-│   ├── activities/        # Activity pages
-│   ├── chat/             # Chat pages
-│   ├── dashboard/        # Dashboard
-│   ├── profile/          # User profiles
-│   └── reservations/     # Reservation management
-├── components/           # React components
-│   ├── activities/       # Activity-related components
-│   ├── auth/            # Authentication components
-│   ├── chat/            # Chat components
-│   ├── payments/        # Payment components
-│   └── ui/              # UI components
-├── convex/              # Convex backend functions
-│   ├── activity.ts      # Activity mutations/queries
-│   ├── messages.ts      # Chat functionality
-│   ├── reservations.ts   # Reservation logic
-│   ├── stripe.ts        # Stripe integration
-│   └── schema.ts        # Database schema
-├── lib/                 # Utility libraries
-│   ├── hooks/           # Custom React hooks
-│   ├── types/           # TypeScript types
-│   └── encryption.ts    # End-to-end encryption
-└── public/              # Static assets
-```
-
-## Available Scripts
-
-- `pnpm dev` - Start development server
-- `pnpm build` - Build for production
-- `pnpm start` - Start production server
-- `pnpm lint` - Run ESLint
-- `pnpm test` - Run the Vitest + convex-test suite (`convex/**/*.test.ts`, `lib/**/*.test.ts`)
-
-## One-off data migrations
-
-Run these once per deployment (dev and production) after deploying the matching code:
-
-```bash
-# Turn messages from the first, insecure chat encryption back into plain text;
-# each author's browser then re-encrypts their own with the current scheme
-npx convex run legacyEncryption:decryptLegacyMessages
-
-# Delete the removed passcode key backups and unused team public keys.
-# Afterwards, `keyBackups` and `teams.teamPublicKey` can be dropped from convex/schema.ts
-npx convex run legacyEncryption:dropLegacyKeyData
-```
-
-Add `--prod` to run them against production.
+---
 
 ## Deployment
 
-### Deploy to Vercel
+1. **Backend**: `npx convex deploy`. It pushes the schema and functions to production, and fails if existing data doesn't match the schema.
+2. **Frontend**: Vercel builds the Next.js app from `main`; set the Next.js variables above in Vercel with **live** keys.
+3. **Production Convex env**: set the four Convex variables with `--prod`, using the live Stripe keys and the production Clerk instance.
+4. Point the Clerk and Stripe webhooks at the **production** `.convex.site` URL.
+5. Run any pending one-off migrations (below) with `--prod`.
 
-1. Push your code to GitHub
-2. Import your repository in [Vercel](https://vercel.com)
-3. Add all environment variables in Vercel dashboard
-4. Deploy!
+### Background jobs (`convex/crons.ts`)
 
-Vercel will automatically detect Next.js and configure the build settings.
+| Schedule | Job |
+| --- | --- |
+| Daily 00:00 UTC | cancel reservations still unpaid on the activity day, refund and notify |
+| Hourly | charge saved cards for today's reservations; retry declined cards daily for a few days |
 
-### Environment Variables for Production
+All dates and times are Europe/Zagreb wall-clock times (`lib/reservationTime.ts`).
 
-Make sure to set all environment variables in your deployment platform:
+### One-off migrations
 
-- **Vercel**: Go to Project Settings → Environment Variables
-- **Convex**: Set via `npx convex env set VARIABLE_NAME value`
-- **Clerk**: Use production keys from Clerk Dashboard
-- **Stripe**: Use live keys from Stripe Dashboard (not test keys)
+Run once per deployment after deploying the code that contains them:
 
-### Production: Google SSO on a custom domain
+```bash
+npx convex run legacyEncryption:decryptLegacyMessages --prod   # old, insecure chat encryption → plain text (authors re-encrypt)
+npx convex run legacyEncryption:dropLegacyKeyData --prod       # delete old passcode key backups and team public keys
+```
 
-If Google sign-in works on `localhost` but fails on production (for example `https://activitysearch.eu`):
+Status: done on dev. After they've run on production, drop `keyBackups` and `teams.teamPublicKey` from `convex/schema.ts`.
 
-1. **Clerk** — In the Clerk Dashboard for your **production** application, add the live domain under **Domains**. On Vercel, set production `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` (do not use test keys on production unless you intentionally use a single Clerk instance for both).
-2. **Google Cloud Console** — Edit the OAuth 2.0 client used by Clerk’s Google connection. Under **Authorized JavaScript origins**, add `https://activitysearch.eu` (and `https://www.activitysearch.eu` if you serve traffic on `www`). Under **Authorized redirect URIs**, add the **exact** callback URL from Clerk (**User & Authentication → Social connections → Google**). It is usually `https://<your-clerk-frontend-domain>/v1/oauth_callback`. A wrong or missing URI causes `redirect_uri_mismatch`.
-3. **Convex** — In the [Convex Dashboard](https://dashboard.convex.dev) for your **production** deployment, set `CLERK_FRONTEND_API_URL` to the same **Frontend API URL** as production Clerk (**Configure → Environment variables**). It must match the Clerk instance your production app uses; a dev-only URL here breaks auth after sign-in on the live site.
-4. Redeploy the Next.js app and run `npx convex deploy` (or your CI) after changing environment variables.
+---
 
-If you use a **custom Clerk Frontend API domain** (for example `clerk.yourdomain.com`), complete Clerk’s DNS steps first, then add that origin and any Clerk-provided redirect URIs to the Google OAuth client.
+## Operations and troubleshooting
 
-### Google works but the app has no user / infinite loading
+- **Logs**: Convex dashboard → Logs (webhooks, crons, Stripe errors); Sentry for frontend errors.
+- **Google sign-in works but no user appears**: the Clerk webhook isn't reaching Convex. Check the endpoint URL (production `.convex.site`) and `CLERK_WEBHOOK_SECRET` (a 401 in the logs means a wrong secret).
+- **Google sign-in fails only in production**: add the domain in Clerk; add the origin and Clerk's exact OAuth callback URL in the Google Cloud OAuth client; `CLERK_FRONTEND_API_URL` in Convex must match the production Clerk instance.
+- **Frontend error after a backend change** (for example `Cannot read properties of undefined`): the Convex deployment is running old code. Run `npx convex dev` (dev) or `npx convex deploy` (production).
+- **VAT shows €0**: Stripe Tax isn't active or has no VAT registration.
+- **A payment never got charged**: look for `Charging payment row … failed` in the Convex logs and for `chargeAttempts` on the `reservationPayments` row; after 3 declines the payer has to sort it out with the organiser.
+- **Someone can't read chat messages in a new browser**: the browser must be approved from one that already has the key (chat shows "Link this browser").
 
-If Google account selection succeeds but nothing happens in the app, or the user never appears in your data:
+---
 
-1. **Clerk Dashboard → Webhooks** — Confirm the endpoint is `https://<prod-deployment>.convex.site/clerk-users-webhook` (production Convex URL), not localhost and not a fake Next.js path.
-2. **Convex production env** — `CLERK_WEBHOOK_SECRET` must match the **Signing secret** of that same Clerk webhook endpoint. If it is missing or wrong, verification fails (HTTP 401) and users are never synced from Clerk into Convex.
-3. **Convex Dashboard → Logs** — Look for `Clerk webhook` or `upsertFromClerk` errors after a sign-up attempt.
-4. **Clerk Dashboard → Users** — If the user **exists in Clerk** but not in Convex, the webhook or sync step failed; fix steps 1–3.
+## Known limits and decisions
 
-## Security Notes
+- **Platform as merchant of record**: VAT is collected and remitted by the platform. One tax code (general services, taxed at the platform's place of supply) is used for every activity; taxing by activity location needs Stripe's Tax Locations API (preview).
+- **Invoices**: Stripe receipts are payment confirmations, not VAT invoices; Croatian fiscalization isn't implemented.
+- **Cookie consent**: PostHog analytics loads without a consent banner. A banner is needed before launch in the EU.
+- **Team keys aren't rotated** when a member leaves (they can no longer fetch messages, but could have kept the key).
+- **Scans that are fine at current scale** are marked in code with `shortcut:` comments, each with the point where it needs an upgrade.
 
-- Never commit `.env.local` or `.env` files
-- Use production API keys only in production environment
-- Ensure webhook secrets are properly configured
-- **Chat encryption**: 1:1 messages use ECDH (P-256) between the two users' keys with AES-256-GCM; team messages use a random team key, wrapped separately for each member. Each user has one key pair: the first browser creates it, and any other browser must be approved from one that already has it (WhatsApp-style linking with a 6-digit code). Each 1:1 chat has a 60-digit security code to verify contacts, and a "security code changed" notice when a key changes. It is not the Signal Protocol: there's no per-message key ratchet, so a stolen private key can read that user's past messages.
-- **Profiles**: signed-out visitors only see name, username, photo and description; contact details and friends are visible to signed-in users; blocked lists, emails and loyalty balances only to the owner.
-- **Uploads** are checked on the server: images only, up to 32MB.
+## Security notes
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+- Never commit `.env.local`; use live keys only in production.
+- Both webhooks verify signatures and reject unsigned requests.
+- Report security issues privately to domemdev@gmail.com.
 
 ## License
 
-See [LICENSE](LICENSE) file for details.
-
-## Support
-
-For issues and questions, please open an issue on GitHub or email domemdev@gmail.com.
+See [LICENSE](LICENSE).
