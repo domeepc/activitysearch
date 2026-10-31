@@ -89,6 +89,10 @@ Stripe's card processing fee is paid from the platform's share.
 - Both webhooks verify signatures and reject unsigned requests.
 - Please report security issues privately to domemdev@gmail.com.
 
+## Contributing
+
+Contributions are by invitation only; see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## License
 
 Proprietary. Copyright (c) 2026 Domagoj Milardovic. All rights reserved.
