@@ -1,26 +1,21 @@
 "use client";
 
 import { Id } from "@/convex/_generated/dataModel";
-import { usePostHog } from "@posthog/react";
+import { capture } from "@/lib/posthog";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
+import { cn } from "@/lib/utils";
 import {
   useAcceptQueueReservation,
   useDeclineQueueReservation,
 } from "@/lib/hooks/useReservations";
-import { Clock, AlertCircle, Check, X } from "lucide-react";
+import { AlertCircle, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { useState } from "react";
 
@@ -60,7 +55,6 @@ export function QueueNotificationDialog({
   onAccept,
   onDecline,
 }: QueueNotificationDialogProps) {
-  const posthog = usePostHog();
   const [selectedTime, setSelectedTime] = useState<string>("");
   const { acceptQueueReservation, isPending: isAccepting } =
     useAcceptQueueReservation();
@@ -74,7 +68,7 @@ export function QueueNotificationDialog({
 
   const formatDate = (dateStr: string) => {
     try {
-      return format(new Date(dateStr + "T00:00:00"), "MMM dd, yyyy");
+      return format(new Date(dateStr + "T00:00:00"), "EEE, d MMM");
     } catch {
       return dateStr;
     }
@@ -94,7 +88,7 @@ export function QueueNotificationDialog({
     setError(null);
     try {
       await acceptQueueReservation(notification._id, selectedTime);
-      posthog?.capture("queue_reservation_accepted", {
+      capture("queue_reservation_accepted", {
         activity_id: String(notification.activityId),
         activity_name: notification.activity?.activityName,
         date: notification.date,
@@ -114,7 +108,7 @@ export function QueueNotificationDialog({
     setError(null);
     try {
       await declineQueueReservation(notification._id);
-      posthog?.capture("queue_reservation_declined", {
+      capture("queue_reservation_declined", {
         activity_id: String(notification.activityId),
         activity_name: notification.activity?.activityName,
         date: notification.date,
@@ -128,109 +122,85 @@ export function QueueNotificationDialog({
     }
   };
 
+  const teamNames = notification.teams.map((t) => t.teamName).join(", ");
+  const busy = isAccepting || isDeclining;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
+        <span className="inline-flex items-center gap-2 self-start rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">
+          <Sparkles className="size-3.5" aria-hidden="true" />
+          From the queue
+        </span>
         <DialogHeader>
-          <DialogTitle>Queue Notification</DialogTitle>
+          <DialogTitle>A spot opened up</DialogTitle>
           <DialogDescription>
-            A slot has become available! You can now reserve this activity.
+            Your team was first in line. Pick a time and accept to reserve it — if you pass, the next team is offered the spot.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          {/* Activity Info */}
-          <div className="space-y-2">
-            <div>
-              <span className="text-sm font-medium">Activity: </span>
-              <span className="text-sm">
-                {notification.activity?.activityName || "Unknown Activity"}
-              </span>
-            </div>
-            <div>
-              <span className="text-sm font-medium">Date: </span>
-              <span className="text-sm">{formatDate(notification.date)}</span>
-            </div>
-            <div>
-              <span className="text-sm font-medium">Teams: </span>
-              <span className="text-sm">
-                {notification.teams.map((t) => t.teamName).join(", ")}
-              </span>
-            </div>
-            <div>
-              <span className="text-sm font-medium">Participants: </span>
-              <span className="text-sm">{Number(notification.userCount)}</span>
-            </div>
-          </div>
-
-          {/* Time Slot Selection */}
-          <div className="space-y-2">
-            <Label>
-              <Clock className="inline h-4 w-4 mr-2" />
-              Select Time Slot <span className="text-destructive">*</span>
-            </Label>
-            {availableTimeSlots.length === 0 ? (
-              <div className="p-3 border rounded-md bg-destructive/10 text-sm text-destructive">
-                No time slots available
-              </div>
-            ) : (
-              <NativeSelect
-                value={selectedTime}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                  setSelectedTime(e.target.value)
-                }
-                className="w-full"
-              >
-                <NativeSelectOption value="">
-                  Select a time slot
-                </NativeSelectOption>
-                {availableTimeSlots.map((time) => (
-                  <NativeSelectOption key={time} value={time}>
-                    {time}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-            )}
-          </div>
-
-          {/* Error Message */}
-          {error && (
-            <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
-              <AlertCircle className="h-4 w-4 text-destructive" />
-              <p className="text-sm text-destructive">{error}</p>
-            </div>
-          )}
-
-          <div className="p-3 bg-muted rounded-md">
-            <p className="text-xs text-muted-foreground">
-              You have been notified because a reservation was cancelled. If you
-              decline, the next team in the queue will be notified.
-            </p>
-          </div>
+        <div className="flex flex-col gap-1 rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">
+          <b className="text-sm text-zinc-900 dark:text-zinc-50">
+            {notification.activity?.activityName || "Activity"}
+          </b>
+          <span className="text-[13px] text-zinc-600 dark:text-zinc-400">
+            {formatDate(notification.date)} · {teamNames} · {Number(notification.userCount)} people
+          </span>
         </div>
 
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={handleDecline}
-            disabled={isAccepting || isDeclining}
-          >
-            <X className="h-4 w-4 mr-2" />
-            Decline
+        <div className="flex flex-col gap-2">
+          <span id="queue-time-label" className="text-sm font-medium">
+            Pick a time
+          </span>
+          {availableTimeSlots.length === 0 ? (
+            <p className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
+              No time slots are left on this day.
+            </p>
+          ) : (
+            <div role="radiogroup" aria-labelledby="queue-time-label" className="flex flex-wrap gap-2">
+              {availableTimeSlots.map((time) => (
+                <button
+                  key={time}
+                  type="button"
+                  role="radio"
+                  aria-checked={selectedTime === time}
+                  onClick={() => {
+                    setSelectedTime(time);
+                    setError(null);
+                  }}
+                  className={cn(
+                    "h-9 rounded-xl border px-4 text-sm font-medium tabular-nums transition-colors",
+                    selectedTime === time
+                      ? "border-blue-600 bg-blue-600 text-white"
+                      : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900"
+                  )}
+                >
+                  {time}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {error && (
+          <p role="alert" className="flex items-center gap-2 text-sm text-destructive">
+            <AlertCircle className="size-4" />
+            {error}
+          </p>
+        )}
+
+        <div className="flex gap-2">
+          <Button variant="outline" className="h-11 flex-1" onClick={handleDecline} disabled={busy}>
+            {isDeclining ? "Passing…" : "Pass"}
           </Button>
           <Button
+            className="h-11 flex-[2] bg-blue-600 font-semibold text-white hover:bg-blue-700"
             onClick={handleAccept}
-            disabled={
-              isAccepting ||
-              isDeclining ||
-              !selectedTime ||
-              availableTimeSlots.length === 0
-            }
+            disabled={busy || !selectedTime || availableTimeSlots.length === 0}
           >
-            <Check className="h-4 w-4 mr-2" />
-            {isAccepting ? "Accepting..." : "Accept & Reserve"}
+            {isAccepting ? "Reserving…" : "Accept spot"}
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );

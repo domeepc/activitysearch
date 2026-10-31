@@ -1,18 +1,16 @@
 "use client";
 
-import {
-  Dialog,
-  DialogPortal,
-  DialogOverlay,
-} from "@/components/ui/dialog";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { Search, SlidersHorizontal, X } from "lucide-react";
-import ActivityFilters from "./ActivityFilters";
+import { Check, Plus, Search, SlidersHorizontal, X } from "lucide-react";
+import { DialogOverlay, DialogPortal } from "@/components/ui/dialog";
+import SearchAutocomplete from "@/components/ui/search-autocomplete";
+import { getUniqueCategories } from "@/lib/activities";
 import { ActivityData } from "@/lib/types/activity";
 import { cn } from "@/lib/utils";
 
 interface MobileFilterDialogProps {
   activities: ActivityData[];
+  resultCount: number;
   selectedCategories: string[];
   onCategoryChange: (categories: string[]) => void;
   onActivitySelect: (activity: ActivityData) => void;
@@ -20,10 +18,14 @@ interface MobileFilterDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSearch: () => void;
+  /** Organisers get a round "+" next to the search pill. */
+  onAddActivity?: () => void;
 }
 
+/** Phone-only dock over the map (search pill + add button) and the search sheet it opens. */
 export default function MobileFilterDialog({
   activities,
+  resultCount,
   selectedCategories,
   onCategoryChange,
   onActivitySelect,
@@ -31,106 +33,144 @@ export default function MobileFilterDialog({
   open,
   onOpenChange,
   onSearch,
+  onAddActivity,
 }: MobileFilterDialogProps) {
+  const categories = getUniqueCategories(activities);
+  const filterCount = selectedCategories.length;
+  const toggle = (c: string) =>
+    onCategoryChange(selectedCategories.includes(c) ? selectedCategories.filter((x) => x !== c) : [...selectedCategories, c]);
+
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 md:hidden">
-      <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+      <div className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 flex items-center gap-2 md:hidden">
         <DialogPrimitive.Trigger asChild>
           <button
-            className={cn(
-              "group flex items-center gap-2.5 px-6 py-3.5",
-              "rounded-full",
-              "bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700",
-              "text-white font-semibold text-sm tracking-wide",
-              "shadow-[0_8px_32px_-4px_rgba(59,130,246,0.5)]",
-              "hover:shadow-[0_12px_40px_-4px_rgba(59,130,246,0.65)]",
-              "hover:scale-105 active:scale-95",
-              "transition-all duration-200 ease-out",
-              "border border-white/10",
-              "outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2"
-            )}
+            type="button"
+            className="flex h-14 min-w-0 flex-1 items-center gap-3 rounded-2xl border border-zinc-200 bg-white/95 pl-4 pr-2 text-left shadow-[0_12px_32px_-12px_rgba(0,0,0,0.35)] backdrop-blur transition-transform active:scale-[0.98] dark:border-zinc-800 dark:bg-zinc-900/95"
           >
-            <Search className="size-4 group-hover:rotate-12 transition-transform duration-200" />
-            <span>Find activities</span>
-            <div className="ml-0.5 flex items-center justify-center size-5 rounded-full bg-white/20 text-[10px] font-bold">
-              <SlidersHorizontal className="size-3" />
-            </div>
+            <Search className="size-5 shrink-0 text-blue-600 dark:text-blue-400" aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+              <b className="block truncate text-sm font-semibold text-zinc-900 dark:text-zinc-50">Find activities</b>
+              <span className="block truncate text-xs text-zinc-600 dark:text-zinc-400">
+                {filterCount > 0 ? selectedCategories.join(", ") : `${activities.length} near you · any category`}
+              </span>
+            </span>
+            <span
+              className={cn(
+                "relative inline-flex size-10 shrink-0 items-center justify-center rounded-xl",
+                filterCount > 0 ? "bg-blue-600 text-white" : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+              )}
+              aria-hidden="true"
+            >
+              <SlidersHorizontal className="size-4" />
+              {filterCount > 0 && (
+                <span className="absolute -right-1 -top-1 inline-flex size-5 items-center justify-center rounded-full border-2 border-white bg-zinc-900 text-[10px] font-bold text-white dark:border-zinc-900">
+                  {filterCount}
+                </span>
+              )}
+            </span>
           </button>
         </DialogPrimitive.Trigger>
-
-        {/* Custom bottom-sheet dialog */}
-        <DialogPortal>
-          <DialogOverlay className="bg-black/40 backdrop-blur-[2px]" />
-          <DialogPrimitive.Content
-            onOpenAutoFocus={(e) => e.preventDefault()}
-            className={cn(
-              "fixed bottom-0 left-0 right-0 z-50",
-              "w-full max-w-full",
-              "rounded-t-3xl",
-              "bg-white dark:bg-zinc-900",
-              "shadow-[0_-8px_60px_-8px_rgba(0,0,0,0.2)]",
-              "outline-none",
-              "data-[state=open]:animate-in data-[state=closed]:animate-out",
-              "data-[state=open]:slide-in-from-bottom-full data-[state=closed]:slide-out-to-bottom-full",
-              "duration-300"
-            )}
+        {onAddActivity && (
+          <button
+            type="button"
+            onClick={onAddActivity}
+            aria-label="Add activity"
+            className="inline-flex size-14 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-[0_12px_32px_-12px_rgba(37,99,235,0.7)] transition-transform hover:bg-blue-700 active:scale-95"
           >
-            {/* Handle bar */}
-            <div className="flex justify-center pt-3 pb-0">
-              <div className="w-10 h-1 rounded-full bg-zinc-200 dark:bg-zinc-700" />
-            </div>
+            <Plus className="size-6" />
+          </button>
+        )}
+      </div>
 
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 pt-4 pb-4">
-              <div>
-                <DialogPrimitive.Title className="text-lg font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">
-                  Find activities
-                </DialogPrimitive.Title>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {activities.length} activities available
-                </p>
-              </div>
-              <DialogPrimitive.Close className="flex items-center justify-center size-8 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
-                <X className="size-4" />
-              </DialogPrimitive.Close>
+      <DialogPortal>
+        <DialogOverlay />
+        <DialogPrimitive.Content
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] flex-col rounded-t-3xl bg-white shadow-[0_-12px_48px_-12px_rgba(0,0,0,0.3)] outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-bottom-full data-[state=closed]:slide-out-to-bottom-full duration-300 dark:bg-zinc-900"
+        >
+          <div className="flex justify-center pt-3" aria-hidden="true">
+            <span className="h-1 w-10 rounded-full bg-zinc-300 dark:bg-zinc-700" />
+          </div>
+          <div className="flex items-center gap-3 px-5 pb-3 pt-4">
+            <div className="min-w-0 flex-1">
+              <DialogPrimitive.Title className="text-lg font-bold tracking-tight">Find activities</DialogPrimitive.Title>
+              <DialogPrimitive.Description className="text-sm text-zinc-600 dark:text-zinc-400">
+                Search by name or place, or narrow by category.
+              </DialogPrimitive.Description>
             </div>
+            <DialogPrimitive.Close
+              aria-label="Close"
+              className="inline-flex size-9 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 transition-colors hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+            >
+              <X className="size-4" />
+            </DialogPrimitive.Close>
+          </div>
 
-            {/* Divider */}
-            <div className="h-px bg-zinc-100 dark:bg-zinc-800 mx-5" />
+          <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 pb-4">
+            <SearchAutocomplete
+              activities={activities}
+              onActivitySelect={onActivitySelect}
+              onClearSelection={onClearSelection}
+              placeholder="Activity, town or address"
+            />
+            {categories.length > 0 && (
+              <fieldset className="flex flex-col gap-3">
+                <legend className="mb-3 flex w-full items-baseline justify-between text-sm font-semibold">
+                  Categories
+                  {filterCount > 0 && (
+                    <button type="button" onClick={() => onCategoryChange([])} className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                      Clear
+                    </button>
+                  )}
+                </legend>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((c) => {
+                    const on = selectedCategories.includes(c);
+                    return (
+                      <button
+                        key={c}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => toggle(c)}
+                        className={cn(
+                          "inline-flex h-10 items-center gap-2 rounded-full border px-4 text-sm transition-colors",
+                          on
+                            ? "border-blue-600 bg-blue-600 font-medium text-white"
+                            : "border-zinc-200 bg-white text-zinc-800 hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+                        )}
+                      >
+                        {on && <Check className="size-4" aria-hidden="true" />}
+                        {c}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            )}
+          </div>
 
-            {/* Filters */}
-            <div className="px-5 py-4 flex flex-col gap-2">
-              <ActivityFilters
-                activities={activities}
-                selectedCategories={selectedCategories}
-                onCategoryChange={onCategoryChange}
-                onActivitySelect={onActivitySelect}
-                onClearSelection={onClearSelection}
-              />
-            </div>
-
-            {/* Footer */}
-            <div className="px-5 pb-8 pt-2">
-              <button
-                onClick={onSearch}
-                className={cn(
-                  "w-full py-3.5 rounded-full",
-                  "bg-gradient-to-r from-blue-500 to-blue-700",
-                  "text-white font-semibold text-sm tracking-wide",
-                  "shadow-[0_4px_20px_-4px_rgba(59,130,246,0.5)]",
-                  "hover:shadow-[0_8px_28px_-4px_rgba(59,130,246,0.65)]",
-                  "hover:brightness-110 active:scale-[0.98]",
-                  "transition-all duration-150",
-                  "flex items-center justify-center gap-2"
-                )}
-              >
-                <Search className="size-4" />
-                Search activities
-              </button>
-            </div>
-          </DialogPrimitive.Content>
-        </DialogPortal>
-      </Dialog>
-    </div>
+          <div className="flex items-center gap-3 border-t border-zinc-100 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 dark:border-zinc-800">
+            <button
+              type="button"
+              onClick={() => {
+                onCategoryChange([]);
+                onClearSelection?.();
+              }}
+              className="h-12 rounded-xl px-4 text-sm font-semibold text-zinc-900 underline-offset-4 hover:underline dark:text-zinc-50"
+            >
+              Clear all
+            </button>
+            <button
+              type="button"
+              onClick={onSearch}
+              className="h-12 flex-1 rounded-xl bg-blue-600 text-sm font-semibold text-white transition-colors hover:bg-blue-700 active:scale-[0.99]"
+            >
+              Show {resultCount} {resultCount === 1 ? "activity" : "activities"}
+            </button>
+          </div>
+        </DialogPrimitive.Content>
+      </DialogPortal>
+    </DialogPrimitive.Root>
   );
 }

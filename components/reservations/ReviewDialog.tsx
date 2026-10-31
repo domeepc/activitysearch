@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { usePostHog } from "@posthog/react";
+import { capture } from "@/lib/posthog";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -24,6 +23,7 @@ interface ReviewDialogProps {
   onOpenChange: (open: boolean) => void;
   activityId: Id<"activities">;
   activityName: string;
+  activityImage?: string;
   onSuccess: () => void;
 }
 
@@ -32,9 +32,9 @@ export function ReviewDialog({
   onOpenChange,
   activityId,
   activityName,
+  activityImage,
   onSuccess,
 }: ReviewDialogProps) {
-  const posthog = usePostHog();
   const [rating, setRating] = useState<number | undefined>(undefined);
   const [hoverRating, setHoverRating] = useState<number | undefined>(undefined);
   const [text, setText] = useState("");
@@ -57,7 +57,7 @@ export function ReviewDialog({
         text: text.trim(),
         rating,
       });
-      posthog?.capture("review_submitted", {
+      capture("review_submitted", {
         activity_id: String(activityId),
         activity_name: activityName,
         rating,
@@ -84,77 +84,84 @@ export function ReviewDialog({
     onOpenChange(next);
   };
 
-  const displayRating = hoverRating ?? rating;
+  const displayRating = hoverRating ?? rating ?? 0;
+  const ratingWord = ["Tap a star to rate (optional)", "Not great", "Okay", "Good", "Great", "Loved it"][displayRating];
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Leave a review</DialogTitle>
-          <DialogDescription>
-            Share your experience for {activityName}. Your review will help
-            others discover great activities.
-          </DialogDescription>
+        <DialogHeader className="flex-row items-center gap-3 text-left">
+          <span className="size-13 shrink-0 overflow-hidden rounded-xl bg-blue-100 dark:bg-zinc-800">
+            {activityImage && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={activityImage} alt="" className="size-full object-cover" />
+            )}
+          </span>
+          <div className="min-w-0">
+            <DialogTitle>How was it?</DialogTitle>
+            <DialogDescription className="truncate">{activityName}</DialogDescription>
+          </div>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>Rating (optional)</Label>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
             <div
-              className="flex gap-1"
+              role="radiogroup"
+              aria-label="Rating"
+              className="flex gap-2"
               onMouseLeave={() => setHoverRating(undefined)}
             >
-              {[1, 2, 3, 4, 5].map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  aria-label={`${v} star${v > 1 ? "s" : ""}`}
-                  className="p-0.5 rounded focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                  onMouseEnter={() => setHoverRating(v)}
-                  onClick={() => setRating(v)}
-                >
-                  <Star
+              {[1, 2, 3, 4, 5].map((v) => {
+                const on = displayRating >= v;
+                return (
+                  <button
+                    key={v}
+                    type="button"
+                    role="radio"
+                    aria-checked={rating === v}
+                    aria-label={`${v} star${v > 1 ? "s" : ""}`}
                     className={cn(
-                      "h-8 w-8 transition-colors",
-                      (displayRating ?? 0) >= v
-                        ? "fill-amber-400 text-amber-400"
-                        : "text-muted-foreground/40"
+                      "inline-flex size-11 items-center justify-center rounded-xl border transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                      on
+                        ? "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40"
+                        : "border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900"
                     )}
-                  />
-                </button>
-              ))}
+                    onMouseEnter={() => setHoverRating(v)}
+                    onClick={() => setRating(rating === v ? undefined : v)}
+                  >
+                    <Star
+                      className={cn(
+                        "size-[22px] transition-transform",
+                        on ? "scale-105 fill-amber-500 text-amber-500" : "text-zinc-400"
+                      )}
+                    />
+                  </button>
+                );
+              })}
             </div>
+            <span className="text-[13px] text-zinc-600 dark:text-zinc-400" aria-live="polite">
+              {ratingWord}
+            </span>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="review-text">
-              Your review <span className="text-destructive">*</span>
-            </Label>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="review-text">Tell others about it</Label>
             <Textarea
               id="review-text"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="What did you enjoy? Would you recommend it?"
-              className="min-h-[100px] resize-none"
+              placeholder="What stood out? Would you recommend it?"
+              rows={3}
+              className="resize-none"
               required
             />
           </div>
           {error && (
-            <p className="text-sm text-destructive flex items-center gap-1">
+            <p role="alert" className="text-sm text-destructive">
               {error}
             </p>
           )}
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => handleOpenChange(false)}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={!text.trim() || isSubmitting}>
-              {isSubmitting ? "Submitting…" : "Submit review"}
-            </Button>
-          </DialogFooter>
+          <Button type="submit" className="h-11 font-semibold" disabled={!text.trim() || isSubmitting}>
+            {isSubmitting ? "Posting…" : "Post review"}
+          </Button>
         </form>
       </DialogContent>
     </Dialog>

@@ -31,7 +31,7 @@ export function ThemePreference() {
             aria-checked={checked}
             onClick={() => setTheme(value)}
             className={cn(
-              "inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm transition-colors",
+              "inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm transition-colors",
               checked
                 ? "bg-background font-semibold text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"

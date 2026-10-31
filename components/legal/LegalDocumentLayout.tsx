@@ -11,10 +11,10 @@ interface LegalDocumentLayoutProps {
 }
 
 const labelBadgeClass =
-  "rounded-full border-0 bg-gradient-to-r from-sky-400 via-blue-500 to-blue-600 px-3 py-0.5 text-xs font-medium text-white shadow-sm shadow-blue-500/25 ring-1 ring-white/25 dark:from-sky-500 dark:via-blue-600 dark:to-blue-700 dark:shadow-blue-900/40 dark:ring-white/15";
+  "rounded-full border-0 bg-gradient-to-r from-sky-400 via-blue-500 to-blue-600 px-3 py-1 text-xs font-medium text-white shadow-sm shadow-blue-500/25 ring-1 ring-white/25 dark:from-sky-500 dark:via-blue-600 dark:to-blue-700 dark:shadow-blue-900/40 dark:ring-white/15";
 
 const lastUpdatedBadgeClass =
-  "rounded-full border-0 bg-gradient-to-r from-blue-800 via-blue-900 to-blue-950 px-3 py-0.5 text-xs font-medium text-sky-100 shadow-sm shadow-blue-950/40 ring-1 ring-blue-950/50 dark:from-blue-950 dark:via-slate-950 dark:to-blue-950 dark:text-sky-50 dark:ring-black/30";
+  "rounded-full border-0 bg-gradient-to-r from-blue-800 via-blue-900 to-blue-950 px-3 py-1 text-xs font-medium text-sky-100 shadow-sm shadow-blue-950/40 ring-1 ring-blue-950/50 dark:from-blue-950 dark:via-slate-950 dark:to-blue-950 dark:text-sky-50 dark:ring-black/30";
 
 export function LegalDocumentLayout({
   title,

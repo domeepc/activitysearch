@@ -1,28 +1,29 @@
 "use client";
 
-import posthog from "posthog-js";
-import { PostHogProvider as PHProvider } from "@posthog/react";
-import { useEffect, type ReactNode } from "react";
+import { useUser } from "@clerk/nextjs";
+import { useEffect } from "react";
+import { loadPostHog } from "@/lib/posthog";
 
-export function PostHogProvider({ children }: { children: ReactNode }) {
+/** Starts PostHog once the page is idle and identifies the signed-in user. */
+export function PostHogProvider() {
+  const { user } = useUser();
+  const userId = user?.id;
+  const email = user?.primaryEmailAddress?.emailAddress;
+
   useEffect(() => {
-    const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-    if (key) {
-      const base =
-        process.env.NEXT_PUBLIC_POSTHOG_HOST ||
-        (typeof window !== "undefined" ? window.location.origin : "");
-      const isPostHogHost = /\.posthog\.com$/i.test(new URL(base || "https://x").hostname);
-      const api_host = base
-        ? isPostHogHost
-          ? base.replace(/\/$/, "")
-          : `${base.replace(/\/$/, "")}/ingest`
-        : undefined;
-      posthog.init(key, {
-        person_profiles: "identified_only",
-        ...(api_host && { api_host }),
-      });
+    const start = () => void loadPostHog();
+    if ("requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(start, { timeout: 4000 });
+      return () => window.cancelIdleCallback(id);
     }
+    const id = setTimeout(start, 2000);
+    return () => clearTimeout(id);
   }, []);
 
-  return <PHProvider client={posthog}>{children}</PHProvider>;
+  useEffect(() => {
+    if (!userId) return;
+    void loadPostHog().then((posthog) => posthog?.identify(userId, { email }));
+  }, [userId, email]);
+
+  return null;
 }

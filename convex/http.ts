@@ -43,24 +43,6 @@ http.route({
 
 // Stripe routes
 http.route({
-  path: '/stripe/confirm-payment-intent',
-  method: 'POST',
-  handler: stripe.confirmPaymentIntent,
-});
-
-http.route({
-  path: '/stripe/create-connect-account-link',
-  method: 'POST',
-  handler: stripe.createConnectAccountLinkHttp,
-});
-
-http.route({
-  path: '/stripe/create-connect-account-with-details',
-  method: 'POST',
-  handler: stripe.createConnectAccountWithDetailsHttp,
-});
-
-http.route({
   path: '/stripe/webhook',
   method: 'POST',
   handler: stripe.stripeWebhook,

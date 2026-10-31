@@ -229,7 +229,7 @@ export function AddressAutocomplete({
         )}
       </div>
 
-      {error && <p className="text-sm text-destructive mt-1.5">{error}</p>}
+      {error && <p className="text-sm text-destructive mt-2">{error}</p>}
 
       {mounted && showDropdown && createPortal(
         <div
@@ -259,17 +259,17 @@ export function AddressAutocomplete({
                     onClick={() => handleSelect(suggestion)}
                     onMouseEnter={() => setHighlightedIndex(index)}
                     className={cn(
-                      "w-full text-left px-3 py-2.5 flex items-start gap-3",
+                      "w-full text-left px-3 py-3 flex items-start gap-3",
                       "hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer",
                       "border-b border-zinc-100 dark:border-zinc-800 last:border-0",
                       highlightedIndex === index && "bg-zinc-50 dark:bg-zinc-800"
                     )}
                   >
-                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                    <MapPin className="h-4 w-4 text-muted-foreground mt-1 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{display.primary}</div>
                       {display.secondary && (
-                        <div className="text-xs text-muted-foreground truncate mt-0.5">
+                        <div className="text-xs text-muted-foreground truncate mt-1">
                           {display.secondary}
                         </div>
                       )}

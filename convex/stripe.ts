@@ -7,20 +7,9 @@ import {
 } from "./_generated/server";
 import { v } from "convex/values";
 import { Doc, Id } from "./_generated/dataModel";
-
-type ReservationPaymentWithUser = Doc<"reservationPayments"> & {
-  user: {
-    _id: Id<"users">;
-    name: string;
-    lastname: string;
-    avatar?: string;
-    email: string;
-  } | null;
-};
 import { api, internal } from "./_generated/api";
 import Stripe from "stripe";
 import { STRIPE_SUPPORTED_COUNTRIES } from "../lib/countries";
-import { effectiveReservationTotalPrice } from "../lib/reservationsPricing";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
 if (!stripeSecretKey) {
@@ -85,7 +74,7 @@ async function requireOrganiserOfOrganisation(
 async function organisationForActivity(
   ctx: ActionCtx,
   activityId: Id<"activities">
-) {
+): Promise<Doc<"organisations"> | null> {
   return await ctx.runQuery(
     internal.organisation.getOrganisationForActivityInternal,
     { activityId }
@@ -178,35 +167,6 @@ async function getOrganiserStripeOrganisation(
     organisation,
     stripeAccountId: organisation.stripeAccountId,
   } as const;
-}
-
-// Map Stripe payment intent status to display status
-function mapStripeStatusToDisplayStatus(
-  stripeStatus: string,
-  capturedAt?: number,
-  refundedAt?: number
-): "on_hold" | "paid" | "canceled" | "pending" | "refunded" {
-  // If refunded, show dedicated refunded status.
-  if (refundedAt) {
-    return "refunded";
-  }
-
-  // Map Stripe statuses
-  switch (stripeStatus) {
-    case "requires_capture":
-      return "on_hold";
-    case "succeeded":
-      // If captured, it's paid
-      return capturedAt ? "paid" : "on_hold";
-    case "canceled":
-      return "canceled";
-    case "requires_payment_method":
-    case "requires_confirmation":
-    case "processing":
-      return "pending";
-    default:
-      return "pending";
-  }
 }
 
 async function getOrCreateStripeCustomerForPayer(
@@ -315,51 +275,43 @@ export const createSetupIntent = action({
     reservationId: v.id("reservations"),
     currency: v.optional(v.string()),
   },
-  handler: async (ctx, { reservationId }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
+  handler: async (
+    ctx,
+    { reservationId }
+  ): Promise<{ clientSecret: string | null; setupIntentId: string }> => {
+    const currentUser = await ctx.runQuery(api.users.current);
+    if (!currentUser) {
       throw new Error("Unauthorized");
     }
 
-    // Get current user
-    const currentUser = await ctx.runQuery(api.users.current);
-    if (!currentUser) {
-      throw new Error("User not found");
-    }
-
-    // Get reservation data
+    // Returns null unless the caller takes part in this reservation.
     const reservationData = await ctx.runQuery(
       api.reservations.getReservationCardData,
       { reservationId }
     );
-
     if (!reservationData) {
       throw new Error("Reservation not found");
-    }
-
-    // Get activity to find organisation
-    const activity = await ctx.runQuery(api.activity.getActivityById, {
-      activityId: reservationData.activity._id,
-    });
-
-    if (!activity) {
-      throw new Error("Activity not found");
     }
 
     const organisation = await organisationForActivity(
       ctx,
       reservationData.activity._id
     );
-
     if (!organisation) {
       throw new Error("Organisation not found");
     }
 
     try {
-      // Create SetupIntent to collect payment method
-      // SetupIntent is created on platform account (not connected account)
-      // The payment method will be used later in the team PaymentIntent
-      const setupIntentParams: Stripe.SetupIntentCreateParams = {
+      // Saved on a customer for off-session use: the card is charged on the activity day.
+      const customer = await getOrCreateStripeCustomerForPayer({
+        email: currentUser.email,
+        name: currentUser.name,
+        lastname: currentUser.lastname,
+        userId: currentUser._id,
+      });
+      const setupIntent = await stripe.setupIntents.create({
+        customer: customer.id,
+        usage: "off_session",
         payment_method_types: ["card"],
         metadata: {
           reservationId,
@@ -367,10 +319,7 @@ export const createSetupIntent = action({
           organisationId: organisation._id,
           userId: currentUser._id,
         },
-      };
-
-      const setupIntent: Stripe.SetupIntent =
-        await stripe.setupIntents.create(setupIntentParams);
+      });
 
       return {
         clientSecret: setupIntent.client_secret,
@@ -387,571 +336,157 @@ export const createSetupIntent = action({
   },
 });
 
-// Internal action to create payment intent for a team with collected payment methods
-// Must be an action (not mutation) because Stripe SDK uses setTimeout internally for retries
-// Type assertion breaks circular reference: function is referenced via internal.stripe.createTeamPaymentIntentInternal
-export const createTeamPaymentIntentInternal = internalAction({
+// Record a payer's share after the card form. Stripe is the source of truth, not the client.
+export const recordCardPayment = action({
   args: {
     reservationId: v.id("reservations"),
-    teamId: v.id("teams"),
-    currency: v.optional(v.string()),
+    setupIntentId: v.string(),
+    personsPaidFor: v.int64(),
   },
   handler: async (
     ctx,
-    { reservationId, teamId, currency = "eur" }
-  ): Promise<{ paymentIntentIds: string[] }> => {
+    { reservationId, setupIntentId, personsPaidFor }
+  ): Promise<{ amount: number }> => {
+    const currentUser = await ctx.runQuery(api.users.current);
+    if (!currentUser) {
+      throw new Error("Unauthorized");
+    }
+
+    const setupIntent = await stripe.setupIntents.retrieve(setupIntentId);
+    if (
+      setupIntent.status !== "succeeded" ||
+      setupIntent.metadata?.userId !== currentUser._id ||
+      setupIntent.metadata?.reservationId !== reservationId
+    ) {
+      throw new Error("Card authorisation could not be verified");
+    }
+    const paymentMethodId =
+      typeof setupIntent.payment_method === "string"
+        ? setupIntent.payment_method
+        : setupIntent.payment_method?.id;
+    if (!paymentMethodId) {
+      throw new Error("No card was saved");
+    }
+
+    return await ctx.runMutation(internal.reservations.recordPaymentInternal, {
+      reservationId,
+      userId: currentUser._id,
+      personsPaidFor,
+      stripeSetupIntentId: setupIntentId,
+      stripePaymentMethodId: paymentMethodId,
+    });
+  },
+});
+
+// Charge every saved card on the activity day (scheduled by the hourly cron).
+// Safe to re-run: the idempotency key stops a second charge for the same row.
+export const chargeReservation = internalAction({
+  args: {
+    reservationId: v.id("reservations"),
+  },
+  handler: async (ctx, { reservationId }): Promise<null> => {
     const resMeta = await ctx.runQuery(
       internal.reservations.getReservationActivityIdInternal,
       { reservationId }
     );
     if (!resMeta) {
-      throw new Error("Reservation not found");
+      return null;
     }
-
-    const activity = await ctx.runQuery(api.activity.getActivityById, {
-      activityId: resMeta.activityId,
-    });
-    if (!activity) {
-      throw new Error("Activity not found");
-    }
-
     const organisation = await organisationForActivity(ctx, resMeta.activityId);
     if (!organisation) {
       throw new Error("Organisation not found");
     }
-
     const stripeAccountId: string | undefined = organisation.stripeAccountId;
 
-    const allPayments = (await ctx.runQuery(
+    const payments = await ctx.runQuery(
       internal.reservations.getReservationPaymentsInternal,
       { reservationId }
-    )) as ReservationPaymentWithUser[];
-
-    const team = await ctx.runQuery(internal.teams.getTeamById, { teamId });
-    if (!team) {
-      throw new Error("Team not found");
-    }
-
-    const teamMemberIds = new Set(team.teammates);
-    const teamPayments = allPayments.filter(
-      (p: ReservationPaymentWithUser) =>
-        teamMemberIds.has(p.userId) &&
-        !p.refundedAt &&
-        p.stripePaymentMethodId &&
-        p.amount > 0
     );
 
-    teamPayments.sort((a: ReservationPaymentWithUser, b: ReservationPaymentWithUser) =>
-      a._id.localeCompare(b._id)
-    );
-
-    const createdIds: string[] = [];
-
-    for (const row of teamPayments) {
-      if (row.stripePaymentIntentId) {
-        continue;
-      }
-      const pmId = row.stripePaymentMethodId;
-      if (!pmId) {
-        continue;
-      }
-
-      const amountCents = Math.round(row.amount * 100);
-      if (amountCents < 50) {
-        console.warn(
-          `Skipping payment ${row._id}: amount below Stripe minimum (50 minor units)`
-        );
-        continue;
-      }
-
-      const payerUser = row.user;
-      if (!payerUser) {
-        console.error(`No user profile for payment row ${row._id}`);
-        continue;
-      }
-
+    for (const row of payments) {
+      if (row.capturedAt || row.amount <= 0) continue;
       try {
-        const customer = await getOrCreateStripeCustomerForPayer({
-          email: payerUser.email,
-          name: payerUser.name,
-          lastname: payerUser.lastname,
-          userId: row.userId,
-        });
+        // Older rows were held at payment time; capture those holds.
+        if (row.stripePaymentIntentId) {
+          await ctx.runAction(internal.stripe.capturePaymentIntent, {
+            paymentIntentId: row.stripePaymentIntentId,
+            reservationId,
+          });
+          continue;
+        }
 
-        await attachPaymentMethodToCustomer(pmId, customer.id);
+        const pmId = row.stripePaymentMethodId;
+        if (!pmId || !row.user) {
+          console.error(`Payment row ${row._id} has no saved card or payer`);
+          continue;
+        }
 
-        const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
+        const amountCents = Math.round(row.amount * 100);
+        // Stripe rejects charges under 0.50 EUR.
+        if (amountCents < 50) {
+          console.warn(`Skipping payment ${row._id}: below Stripe minimum`);
+          continue;
+        }
+
+        // Cards saved by createSetupIntent already sit on a customer; older ones need attaching.
+        const paymentMethod = await stripe.paymentMethods.retrieve(pmId);
+        let customerId =
+          typeof paymentMethod.customer === "string"
+            ? paymentMethod.customer
+            : paymentMethod.customer?.id;
+        if (!customerId) {
+          const customer = await getOrCreateStripeCustomerForPayer({
+            email: row.user.email,
+            name: row.user.name,
+            lastname: row.user.lastname,
+            userId: row.userId,
+          });
+          await attachPaymentMethodToCustomer(pmId, customer.id);
+          customerId = customer.id;
+        }
+
+        // One PaymentIntent per payer, so refunds go back to the card that paid.
+        const params: Stripe.PaymentIntentCreateParams = {
           amount: amountCents,
-          currency: currency.toLowerCase(),
-          capture_method: "manual",
+          currency: "eur",
           payment_method_types: ["card"],
           payment_method: pmId,
-          customer: customer.id,
+          customer: customerId,
           confirm: true,
-        metadata: {
-          reservationId: String(reservationId),
-          reservationPaymentId: String(row._id),
-          activityId: String(activity._id),
-          organisationId: String(organisation._id),
-          teamId: String(teamId),
-          userId: String(row.userId),
-        },
+          off_session: true,
+          metadata: {
+            reservationId: String(reservationId),
+            reservationPaymentId: String(row._id),
+            activityId: String(resMeta.activityId),
+            organisationId: String(organisation._id),
+            userId: String(row.userId),
+          },
         };
-
         if (stripeAccountId) {
-          paymentIntentParams.application_fee_amount = calculatePlatformFeeMinor(
-            amountCents
-          );
-          paymentIntentParams.transfer_data = {
-            destination: stripeAccountId,
-          };
+          params.application_fee_amount = calculatePlatformFeeMinor(amountCents);
+          params.transfer_data = { destination: stripeAccountId };
         }
 
-        const paymentIntent =
-          await stripe.paymentIntents.create(paymentIntentParams);
-
-        await ctx.runMutation(
-          internal.reservations.patchReservationPaymentIntentId,
-          {
-            paymentId: row._id,
-            paymentIntentId: paymentIntent.id,
-          }
-        );
-
-        createdIds.push(paymentIntent.id);
-      } catch (error) {
-        console.error(
-          `Error creating PaymentIntent for reservationPayment ${row._id}:`,
-          error
-        );
-      }
-    }
-
-    return { paymentIntentIds: createdIds };
-  },
-});
-
-// Create per-payer payment intents for a team (manual capture). Prefer scheduler via recordPayment.
-export const createTeamPaymentIntent = action({
-  args: {
-    reservationId: v.id("reservations"),
-    teamId: v.id("teams"),
-    /** @deprecated Ignored; each payer row uses its own amount */
-    amount: v.optional(v.number()),
-    currency: v.optional(v.string()),
-  },
-  handler: async (
-    ctx,
-    { reservationId, teamId, currency = "eur" }
-  ): Promise<{ paymentIntentIds: string[] }> => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Unauthorized");
-    }
-
-    const reservationData = await ctx.runQuery(
-      api.reservations.getReservationCardData,
-      { reservationId }
-    );
-
-    if (!reservationData) {
-      throw new Error("Reservation not found");
-    }
-
-    const activity = await ctx.runQuery(api.activity.getActivityById, {
-      activityId: reservationData.activity._id,
-    });
-
-    if (!activity) {
-      throw new Error("Activity not found");
-    }
-
-    const currentUser = await ctx.runQuery(api.users.current);
-    if (!currentUser) {
-      throw new Error("User not found");
-    }
-    const team = await ctx.runQuery(internal.teams.getTeamById, { teamId });
-    if (!team || !team.teammates.includes(currentUser._id)) {
-      throw new Error("Forbidden: not a member of this team");
-    }
-    const teamOnReservation = (reservationData.teams || []).some(
-      (t: { _id: Id<"teams"> }) => t._id === teamId
-    );
-    if (!teamOnReservation) {
-      throw new Error("Forbidden: team is not part of this reservation");
-    }
-
-    if (
-      !(await organisationForActivity(ctx, reservationData.activity._id))
-    ) {
-      throw new Error("Organisation not found");
-    }
-
-    return await ctx.runAction(internal.stripe.createTeamPaymentIntentInternal, {
-      reservationId,
-      teamId,
-      currency,
-    });
-  },
-});
-
-// Create payment intent with manual capture (hold funds) - Action version for frontend
-// This is kept for backward compatibility but should not be used for new payments
-export const createPaymentIntent = action({
-  args: {
-    reservationId: v.id("reservations"),
-    amount: v.number(),
-    currency: v.optional(v.string()),
-  },
-  handler: async (ctx, { reservationId, amount, currency = "eur" }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Unauthorized");
-    }
-
-    if (!reservationId || !amount) {
-      throw new Error("Missing required fields");
-    }
-
-    // Get current user
-    const currentUser = await ctx.runQuery(api.users.current);
-    if (!currentUser) {
-      throw new Error("User not found");
-    }
-
-    // Get reservation data
-    const reservationData = await ctx.runQuery(
-      api.reservations.getReservationCardData,
-      { reservationId }
-    );
-
-    if (!reservationData) {
-      throw new Error("Reservation not found");
-    }
-
-    // Get teams for this reservation to find which team the user belongs to
-    // Use getReservationCardData which includes teams information
-    const reservationWithTeams = reservationData.teams || [];
-    
-    // Get full team details to check teammates
-    const teams = await Promise.all(
-      reservationWithTeams.map((team: { _id: Id<"teams"> }) =>
-        ctx.runQuery(internal.teams.getTeamById, { teamId: team._id })
-      )
-    );
-    const validTeams = teams.filter(
-      (t): t is NonNullable<typeof t> => t !== null
-    );
-
-    // Find which team(s) the current user belongs to for this reservation
-    const userTeams = validTeams.filter((team) =>
-      team.teammates.includes(currentUser._id)
-    );
-
-    if (userTeams.length === 0) {
-      throw new Error("User is not a member of any team for this reservation");
-    }
-
-    // Use the first team the user belongs to (or we could use all teams, but let's use first for simplicity)
-    const teamId = userTeams[0]._id;
-
-    // Get activity to find organisation
-    const activity = await ctx.runQuery(api.activity.getActivityById, {
-      activityId: reservationData.activity._id,
-    });
-
-    if (!activity) {
-      throw new Error("Activity not found");
-    }
-
-    const organisation = await organisationForActivity(
-      ctx,
-      reservationData.activity._id
-    );
-
-    if (!organisation) {
-      throw new Error("Organisation not found");
-    }
-
-    // Get Stripe account ID if using Connect
-    const stripeAccountId: string | undefined = organisation.stripeAccountId;
-
-    try {
-      // Check for existing payment intents for the same reservation and team
-      const existingPayments = await ctx.runQuery(
-        api.reservations.getReservationPayments,
-        { reservationId }
-      );
-
-      // Find existing payment intents for the same team that are still modifiable
-      // Get all teams for this reservation to check which team each payment belongs to
-      const allReservationTeams = await Promise.all(
-        reservationWithTeams.map((team: { _id: Id<"teams"> }) =>
-          ctx.runQuery(internal.teams.getTeamById, { teamId: team._id })
-        )
-      );
-      const validReservationTeams = allReservationTeams.filter(
-        (t): t is NonNullable<typeof t> => t !== null
-      );
-
-      // Create a map of userId -> teamIds for quick lookup
-      const userToTeamsMap = new Map<Id<"users">, Id<"teams">[]>();
-      for (const team of validReservationTeams) {
-        for (const teammateId of team.teammates) {
-          const existing = userToTeamsMap.get(teammateId) || [];
-          existing.push(team._id);
-          userToTeamsMap.set(teammateId, existing);
-        }
-      }
-
-      // Find existing payment intents for the same team that are still modifiable
-      const teamPaymentIntents = existingPayments
-        .filter((p) => {
-          // Check if payment is from a user in the same team
-          const paymentUserTeamIds = userToTeamsMap.get(p.userId) || [];
-          return (
-            paymentUserTeamIds.includes(teamId) &&
-            p.stripePaymentIntentId &&
-            !p.capturedAt &&
-            !p.refundedAt
-          );
-        })
-        .map((p) => p.stripePaymentIntentId)
-        .filter((id): id is string => id !== undefined);
-
-      // Try to find a modifiable payment intent
-      // Priority: requires_capture > requires_confirmation > requires_payment_method
-      let existingPaymentIntent: Stripe.PaymentIntent | null = null;
-      let bestPriority = -1;
-      
-      for (const paymentIntentId of teamPaymentIntents) {
-        try {
-          const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
-          // Check if payment intent is in a modifiable state
-          // Priority: requires_capture (3) > requires_confirmation (2) > requires_payment_method (1)
-          let priority = -1;
-          if (pi.status === "requires_capture") {
-            priority = 3;
-          } else if (pi.status === "requires_confirmation") {
-            priority = 2;
-          } else if (pi.status === "requires_payment_method") {
-            priority = 1;
-          }
-          // Note: succeeded payment intents are typically captured and cannot be updated
-          // We only update requires_capture, requires_confirmation, or requires_payment_method
-          
-          if (priority > bestPriority) {
-            existingPaymentIntent = pi;
-            bestPriority = priority;
-          }
-        } catch (error) {
-          // Payment intent might not exist or be accessible, continue
-          console.warn(`Could not retrieve payment intent ${paymentIntentId}:`, error);
-        }
-      }
-
-      const amountInCents = Math.round(amount * 100);
-
-      if (existingPaymentIntent) {
-        // Update existing payment intent
-        // Note: Payment intents in requires_capture state can be updated
-        const updateParams: Stripe.PaymentIntentUpdateParams = {
-          amount: existingPaymentIntent.amount + amountInCents,
-          payment_method_types: ["card"], // Ensure payment method is set
-        };
-
-        // If using Stripe Connect, update application fee
-        if (stripeAccountId) {
-          const updatedAmountMinor = existingPaymentIntent.amount + amountInCents;
-          updateParams.application_fee_amount = calculatePlatformFeeMinor(
-            updatedAmountMinor
-          );
-        }
-
-        try {
-          const updatedPaymentIntent = await stripe.paymentIntents.update(
-            existingPaymentIntent.id,
-            updateParams
-          );
-
-          return {
-            clientSecret: updatedPaymentIntent.client_secret,
-            paymentIntentId: updatedPaymentIntent.id,
-          };
-        } catch (updateError) {
-          // If update fails (e.g., payment intent in wrong state), create new one
-          console.warn(
-            `Failed to update payment intent ${existingPaymentIntent.id}, creating new one:`,
-            updateError
-          );
-          // Fall through to create new payment intent
-        }
-      }
-
-      // Create new payment intent with manual capture
-      const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
-        amount: amountInCents,
-        currency: currency.toLowerCase(),
-        capture_method: "manual", // Hold funds, don't capture immediately
-        payment_method_types: ["card"], // Specify card as payment method
-        metadata: {
-          reservationId,
-          activityId: reservationData.activity._id,
-          organisationId: organisation._id,
-          teamId: teamId, // Store team ID in metadata
-        },
-      };
-
-      // If using Stripe Connect, transfer to connected account
-      // When using transfer_data, create on platform account (not on connected account)
-      if (stripeAccountId) {
-        paymentIntentParams.application_fee_amount =
-          calculatePlatformFeeMinor(amountInCents);
-        paymentIntentParams.transfer_data = {
-          destination: stripeAccountId,
-        };
-        // Create on platform account - transfer_data handles the transfer
-        const paymentIntent: Stripe.PaymentIntent =
-          await stripe.paymentIntents.create(paymentIntentParams);
-
-        return {
-          clientSecret: paymentIntent.client_secret,
+        const paymentIntent = await stripe.paymentIntents.create(params, {
+          idempotencyKey: `charge-${row._id}`,
+        });
+        await ctx.runMutation(internal.reservations.patchReservationPaymentIntentId, {
+          paymentId: row._id,
           paymentIntentId: paymentIntent.id,
-        };
-      }
-
-      // Create payment intent on platform account (no Connect)
-      const paymentIntent: Stripe.PaymentIntent =
-        await stripe.paymentIntents.create(paymentIntentParams);
-
-      return {
-        clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id,
-      };
-    } catch (error) {
-      console.error("Error creating payment intent:", error);
-      throw new Error(
-        error instanceof Error
-          ? error.message
-          : "Failed to create payment intent"
-      );
-    }
-  },
-});
-
-// Consolidate multiple payment intents into a single payment intent for a reservation/team
-export const consolidatePaymentIntents = action({
-  args: {
-    reservationId: v.id("reservations"),
-    teamId: v.optional(v.id("teams")),
-  },
-  handler: async (
-    ctx,
-    { reservationId, teamId: _teamId }
-  ): Promise<{
-    success: boolean;
-    paymentIntentId: string | null;
-    message?: string;
-    amount?: number;
-    consolidatedCount?: number;
-  }> => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Unauthorized");
-    }
-
-    // Get reservation data
-    const reservationData = await ctx.runQuery(
-      api.reservations.getReservationCardData,
-      { reservationId }
-    );
-
-    if (!reservationData) {
-      throw new Error("Reservation not found");
-    }
-
-    // Get activity to find organisation
-    const activity = await ctx.runQuery(api.activity.getActivityById, {
-      activityId: reservationData.activity._id,
-    });
-
-    if (!activity) {
-      throw new Error("Activity not found");
-    }
-
-    const organisation = await organisationForActivity(
-      ctx,
-      reservationData.activity._id
-    );
-
-    if (!organisation) {
-      throw new Error("Organisation not found");
-    }
-
-    void _teamId;
-
-    return {
-      success: true,
-      paymentIntentId: null,
-      message:
-        "Consolidation is disabled. Each payer has a separate card authorisation so refunds return to the correct payment method.",
-    };
-  },
-});
-
-// Confirm payment intent (after user completes payment)
-export const confirmPaymentIntent = httpAction(async (ctx, request) => {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
-  const body = await request.json();
-  const { paymentIntentId } = body;
-
-  if (!paymentIntentId) {
-    return new Response("Missing paymentIntentId", { status: 400 });
-  }
-
-  try {
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-
-    if (paymentIntent.status !== "requires_capture") {
-      return new Response(
-        JSON.stringify({
-          error: "Payment intent is not in a state to be confirmed",
-          status: paymentIntent.status,
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
+        });
+        if (paymentIntent.status === "succeeded") {
+          await ctx.runMutation(internal.stripe.applyPaymentCaptureDb, {
+            paymentIntentId: paymentIntent.id,
+            reservationId,
+          });
         }
-      );
+      } catch (error) {
+        // Declined cards stay uncaptured, so the reservation is not marked fulfilled.
+        console.error(`Charging payment row ${row._id} failed:`, error);
+      }
     }
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        status: paymentIntent.status,
-        amount: paymentIntent.amount / 100,
-      }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
-  } catch (error) {
-    console.error("Error confirming payment intent:", error);
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
-  }
+    return null;
+  },
 });
 
 /** DB updates after a successful Stripe capture (called from capturePaymentIntent). */
@@ -1024,36 +559,37 @@ export const refundPayment = internalAction({
     reservationId: v.id("reservations"),
   },
   handler: async (ctx, { paymentIntentId, reservationId }) => {
-    try {
-      // Cancel the payment intent (if not captured) or create refund (if captured)
-      const paymentIntent = await stripe.paymentIntents.retrieve(
-        paymentIntentId
-      );
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
-      if (paymentIntent.status === "requires_capture") {
-        // Cancel the payment intent
+    switch (paymentIntent.status) {
+      case "succeeded":
+        await stripe.refunds.create(
+          { payment_intent: paymentIntentId },
+          { idempotencyKey: `refund-${paymentIntentId}` }
+        );
+        break;
+      case "requires_capture":
+      case "requires_payment_method":
+      case "requires_confirmation":
+      case "requires_action":
+        // Not charged yet: cancelling releases the hold.
         await stripe.paymentIntents.cancel(paymentIntentId);
-      } else if (paymentIntent.status === "succeeded") {
-        // Create a refund
-        await stripe.refunds.create({
-          payment_intent: paymentIntentId,
-        });
-      }
-
-      // Update payment record via mutation
-      await ctx.runMutation(internal.reservations.updatePaymentRefundedAt, {
-        paymentIntentId,
-        reservationId,
-        refundedAt: Date.now(),
-      });
-
-      return { success: true };
-    } catch (error) {
-      console.error("Error refunding payment:", error);
-      throw new Error(
-        error instanceof Error ? error.message : "Failed to refund payment"
-      );
+        break;
+      case "canceled":
+        break;
+      default:
+        // e.g. "processing": leave refundedAt unset so it shows as not refunded.
+        throw new Error(
+          `Cannot refund PaymentIntent ${paymentIntentId} in status ${paymentIntent.status}`
+        );
     }
+
+    await ctx.runMutation(internal.reservations.updatePaymentRefundedAt, {
+      paymentIntentId,
+      reservationId,
+      refundedAt: Date.now(),
+    });
+    return { success: true };
   },
 });
 
@@ -1082,7 +618,6 @@ export const createConnectAccountWithDetails = action({
     currency: v.optional(v.string()),
     bankCountry: v.optional(v.string()),
     externalAccountToken: v.optional(v.string()),
-    defaultForCurrency: v.optional(v.boolean()),
     routingNumber: v.optional(v.string()),
   },
   handler: async (
@@ -1115,7 +650,6 @@ export const createConnectAccountWithDetails = action({
       currency,
       bankCountry,
       externalAccountToken,
-      defaultForCurrency,
       routingNumber,
     } = args;
 
@@ -1324,7 +858,7 @@ export const createConnectAccountWithDetails = action({
           }
           
         } else {
-          console.warn("Invalid IBAN format, skipping external account in account creation");
+          throw new Error("Invalid IBAN format");
         }
       }
 
@@ -1356,10 +890,9 @@ export const createConnectAccountWithDetails = action({
             errorMessage
           );
 
-          // Remove phone from individual params and retry
-          if (accountParams.individual && accountParams.individual.phone) {
-            delete accountParams.individual.phone;
-          }
+          // Remove phone everywhere and retry
+          delete accountParams.individual?.phone;
+          delete accountParams.business_profile?.support_phone;
 
           // Retry without phone number
           account = await stripe.accounts.create(accountParams);
@@ -1373,186 +906,6 @@ export const createConnectAccountWithDetails = action({
         organisationId,
         stripeAccountId: account.id,
       });
-
-      // Check if external account was already added during account creation
-      // If it was added, we don't need to create it separately
-      const externalAccountAlreadyAdded = !!(accountParams.external_account);
-      
-      if (!externalAccountAlreadyAdded) {
-        // Create bank account separately if token is provided OR IBAN is provided
-        // (This handles the case where account creation didn't include external_account)
-        const hasToken = !!externalAccountToken;
-        const hasIBAN = !!(IBAN && IBAN.trim() && IBAN.trim().length > 0);
-        console.log("External account creation condition check:", {
-          hasToken,
-          hasIBAN,
-          IBANValue: IBAN || "undefined",
-          IBANTrimmed: IBAN?.trim() || "empty",
-          willCreate: hasToken || hasIBAN,
-        });
-        
-        if (hasToken || hasIBAN) {
-          try {
-          // Prepare account holder name (first name + last name)
-          const accountHolderName = `${firstName} ${lastName}`.trim();
-          
-          // Build the external account parameter
-          // If token is provided, use it directly; otherwise use bank account details
-          let externalAccountParam: string | {
-            object: "bank_account";
-            country: string;
-            currency: string;
-            account_number: string;
-            account_holder_name: string;
-            account_holder_type: "individual";
-            routing_number?: string;
-          };
-          
-          if (externalAccountToken) {
-            // Token-based bank account (from Stripe.js)
-            // Token should be in format: btok_... (bank account token)
-            // Validate token format
-            if (!externalAccountToken.startsWith("btok_")) {
-              console.warn("Bank account token format may be incorrect. Expected 'btok_...' but got:", externalAccountToken.substring(0, 10) + "...");
-            }
-            externalAccountParam = externalAccountToken;
-            console.log("Creating external account with token:", {
-              accountId: account.id,
-              token: externalAccountToken.substring(0, 10) + "...", // Log partial token for security
-              tokenLength: externalAccountToken.length,
-            });
-          } else if (IBAN && IBAN.trim()) {
-            // Direct bank account details (IBAN)
-            // Clean IBAN (remove spaces and convert to uppercase)
-            const cleanedIBAN = IBAN.replace(/\s/g, "").toUpperCase();
-            
-            // Validate IBAN format (should start with country code)
-            if (!cleanedIBAN.match(/^[A-Z]{2}\d{2}[A-Z0-9]+$/)) {
-              throw new Error(`Invalid IBAN format: ${cleanedIBAN}`);
-            }
-            
-            console.log("Creating external account with IBAN:", {
-              accountId: account.id,
-              IBAN: cleanedIBAN.substring(0, 4) + "..." + cleanedIBAN.substring(cleanedIBAN.length - 4), // Log partial IBAN for security
-              currency: externalAccountCurrency,
-              country: externalAccountCountry,
-              accountHolderName: accountHolderName,
-              accountHolderType: "individual",
-            });
-            
-            // Build external account object
-            const externalAccountObject: {
-              object: "bank_account";
-              country: string;
-              currency: string;
-              account_number: string;
-              account_holder_name: string;
-              account_holder_type: "individual";
-              routing_number?: string;
-            } = {
-              object: "bank_account",
-              country: externalAccountCountry.toUpperCase(),
-              currency: externalAccountCurrency.toLowerCase(),
-              account_number: cleanedIBAN,
-              account_holder_name: accountHolderName,
-              account_holder_type: "individual", // Since we're using business_type: "individual"
-            };
-            
-            // Add routing number if provided (for US accounts)
-            if (routingNumber && routingNumber.trim()) {
-              externalAccountObject.routing_number = routingNumber.trim();
-            }
-            
-            externalAccountParam = externalAccountObject;
-          } else {
-            throw new Error("Either externalAccountToken or IBAN must be provided");
-          }
-          
-          // Build the create parameters
-          const createParams: {
-            external_account: string | {
-              object: "bank_account";
-              country: string;
-              currency: string;
-              account_number: string;
-              account_holder_name: string;
-              account_holder_type: "individual";
-              routing_number?: string;
-            };
-            default_for_currency?: boolean;
-          } = {
-            external_account: externalAccountParam,
-          };
-          
-          // Add optional parameters
-          if (defaultForCurrency !== undefined) {
-            createParams.default_for_currency = defaultForCurrency;
-          }
-          
-          // Create external account for bank payouts
-          // Using stripe.accounts.createExternalAccount() - the standard SDK method
-          // This works with both tokens (btok_...) and direct bank account details
-          // Returns a single external account object
-          const externalAccount = await stripe.accounts.createExternalAccount(
-            account.id,
-            createParams
-          );
-          
-          console.log("External account created successfully:", {
-            externalAccountId: externalAccount.id,
-            currency: externalAccount.currency,
-            country: externalAccount.country,
-            status: externalAccount.status,
-            last4: externalAccount.last4,
-            object: externalAccount.object,
-          });
-        } catch (externalAccountError: unknown) {
-          // Log error but don't fail the account creation
-          console.error("Error creating external account:", externalAccountError);
-          const errorMessage = externalAccountError instanceof Error
-            ? externalAccountError.message
-            : String(externalAccountError);
-          
-          // Check if it's a Stripe error with more details
-          const errorDetails: {
-            error: string;
-            IBAN?: string;
-            token?: string;
-            currency: string;
-            country: string;
-            stripeErrorType?: string;
-            stripeErrorCode?: string;
-            stripeErrorParam?: string;
-            stripeErrorMessage?: string;
-          } = {
-            error: errorMessage,
-            currency: externalAccountCurrency,
-            country: externalAccountCountry,
-          };
-          
-          if (externalAccountToken) {
-            errorDetails.token = externalAccountToken.substring(0, 10) + "...";
-          } else if (IBAN) {
-            errorDetails.IBAN = IBAN.substring(0, 4) + "...";
-          }
-          
-          if (externalAccountError && typeof externalAccountError === "object" && "type" in externalAccountError) {
-            const stripeError = externalAccountError as { type?: string; code?: string; param?: string; message?: string };
-            errorDetails.stripeErrorType = stripeError.type;
-            errorDetails.stripeErrorCode = stripeError.code;
-            errorDetails.stripeErrorParam = stripeError.param;
-            errorDetails.stripeErrorMessage = stripeError.message;
-          }
-          
-          console.error("External account error details:", errorDetails);
-          // Continue - user can add external account later through Stripe dashboard
-          }
-        } else {
-          console.warn("Neither externalAccountToken nor IBAN provided, skipping external account creation. Account can add it later.");
-        }
-      } else {
-        console.log("External account was already added during account creation, skipping separate creation.");
-      }
 
       return {
         success: true,
@@ -1586,82 +939,6 @@ export const createConnectAccountWithDetails = action({
     }
   },
 });
-
-// Create Stripe Connect account with business details - HTTP Action version (kept for backward compatibility)
-export const createConnectAccountWithDetailsHttp = httpAction(
-  async (ctx, request) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      return new Response("Unauthorized", { status: 401 });
-    }
-
-    const body = await request.json();
-    const {
-      organisationId,
-      country,
-      businessType,
-      email,
-      businessName,
-      taxId,
-      phone,
-      addressLine1,
-      addressLine2,
-      city,
-      state,
-      postalCode,
-      dateOfBirth,
-      businessWebsite,
-      firstName,
-      lastName,
-    } = body;
-
-    if (!organisationId || !country || !businessType || !email) {
-      return new Response("Missing required fields", { status: 400 });
-    }
-
-    try {
-      // Use the action version
-      const result = await ctx.runAction(
-        api.stripe.createConnectAccountWithDetails,
-        {
-          organisationId,
-          country,
-          businessType,
-          email,
-          businessName,
-          taxId,
-          phone,
-          addressLine1,
-          addressLine2,
-          city,
-          state,
-          postalCode,
-          dateOfBirth,
-          businessWebsite,
-          firstName,
-          lastName,
-        }
-      );
-
-      return new Response(JSON.stringify(result), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
-    } catch (error) {
-      console.error("Error creating Stripe Connect account:", error);
-
-      return new Response(
-        JSON.stringify({
-          error: "Internal server error",
-        }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-  }
-);
 
 // Create Stripe Connect account link for onboarding - Action version
 export const createConnectAccountLink = action({
@@ -1882,11 +1159,9 @@ export const updateStripeAccountFromOrganisation = action({
       // Get owner user to extract name
       if (organisation.organisersIDs.length > 0) {
         const ownerId = organisation.organisersIDs[0];
-        // Get user data using a query that can access the database
-        const allUsers = await ctx.runQuery(api.users.getUsersByIds, {
-          userIds: [ownerId],
+        const owner = await ctx.runQuery(internal.users.getUserByIdInternal, {
+          userId: ownerId,
         });
-        const owner = allUsers.length > 0 ? allUsers[0] : null;
 
         if (owner) {
           // Parse address
@@ -2400,387 +1675,41 @@ export const requestOrganiserPayout = action({
   },
 });
 
-export const refundSelectedPayments = action({
-  args: {
-    reservationId: v.id("reservations"),
-    paymentIds: v.array(v.id("reservationPayments")),
-  },
-  handler: async (
-    ctx,
-    { reservationId, paymentIds }
-  ): Promise<{ refunded: number; skipped: number; errors: string[] }> => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Unauthorized");
-
-    const currentUser = await ctx.runQuery(api.users.current);
-    if (!currentUser || currentUser.role !== "organiser") {
-      throw new Error("Forbidden: only organisers can issue refunds");
-    }
-
-    const resMeta = await ctx.runQuery(
-      internal.reservations.getReservationActivityIdInternal,
-      { reservationId }
-    );
-    if (!resMeta) throw new Error("Reservation not found");
-    const organisation = await organisationForActivity(ctx, resMeta.activityId);
-    if (!organisation?.organisersIDs.includes(currentUser._id)) {
-      throw new Error("Forbidden");
-    }
-
-    let refunded = 0;
-    let skipped = 0;
-    const errors: string[] = [];
-
-    for (const paymentId of paymentIds) {
-      try {
-        const payments = await ctx.runQuery(
-          internal.reservations.getReservationPaymentsInternal,
-          { reservationId }
-        ) as Array<{
-          _id: Id<"reservationPayments">;
-          stripePaymentIntentId?: string;
-          refundedAt?: number;
-          amount: number;
-        }>;
-
-        const payment = payments.find((p) => p._id === paymentId);
-        if (!payment) { skipped++; continue; }
-        if (payment.refundedAt) { skipped++; continue; }
-
-        if (payment.stripePaymentIntentId) {
-          await ctx.runAction(internal.stripe.refundPayment, {
-            paymentIntentId: payment.stripePaymentIntentId,
-            reservationId,
-          });
-        } else {
-          await ctx.runMutation(internal.reservations.markPaymentRefundedById, {
-            paymentId,
-            refundedAt: Date.now(),
-          });
-        }
-        refunded++;
-      } catch (err) {
-        errors.push(err instanceof Error ? err.message : String(err));
-      }
-    }
-
-    return { refunded, skipped, errors };
-  },
-});
-
-// Keep HTTP action version for webhook compatibility (if needed)
-export const createConnectAccountLinkHttp = httpAction(async (ctx, request) => {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
-  const body = await request.json();
-  const { organisationId, returnUrl, refreshUrl, country } = body;
-
-  if (!organisationId || !returnUrl || !refreshUrl) {
-    return new Response(JSON.stringify({ error: "Missing required fields" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  try {
-    const result = await ctx.runAction(api.stripe.createConnectAccountLink, {
-      organisationId,
-      returnUrl,
-      refreshUrl,
-      country,
-    });
-
-    return new Response(JSON.stringify(result), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (error: unknown) {
-    console.error("Error creating account link:", error);
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : error && typeof error === "object" && "message" in error
-        ? String(error.message)
-        : "Unknown error";
-
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-});
-
-// Get Stripe payment intents for organiser
+// Organiser payments table. Built from our own rows so it needs no Stripe call per payment.
 export const getStripePaymentIntentsForOrganiser = action({
   args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Unauthorized");
-    }
-
-    // Get current user
+  handler: async (ctx): Promise<OrganiserPaymentRow[]> => {
     const currentUser = await ctx.runQuery(api.users.current);
     if (!currentUser || currentUser.role !== "organiser") {
       return [];
     }
-
-    const userOrganisations = await ctx.runQuery(
-      api.organisation.getMyOrganisationsAsOrganiser
-    );
-
-    if (userOrganisations.length === 0) {
-      return [];
-    }
-
-    // Get all activity IDs from user's organisations
-    const activityIds = new Set<Id<"activities">>();
-    for (const org of userOrganisations) {
-      for (const activityId of org.activityIDs) {
-        activityIds.add(activityId);
-      }
-    }
-
-    if (activityIds.size === 0) {
-      return [];
-    }
-
-    // Get all reservations for these activities
-    const allReservations = await ctx.runQuery(
-      api.reservations.getReservationsForOrganiser
-    );
-    const organiserReservations = allReservations;
-
-    if (organiserReservations.length === 0) {
-      return [];
-    }
-
-    const reservationIds = organiserReservations.map((r: Doc<"reservations">) => r._id);
-
-    // Get all payment records for these reservations
-    // We need to get payments for each reservation
-    const allPayments: Array<{
-      reservationId: Id<"reservations">;
-      userId: Id<"users">;
-      personsPaidFor: number;
-      stripePaymentIntentId?: string;
-      capturedAt?: number;
-      refundedAt?: number;
-      amount: number;
-    }> = [];
-
-    for (const reservationId of reservationIds) {
-      const payments = await ctx.runQuery(internal.reservations.getReservationPaymentsInternal, {
-        reservationId,
-      });
-      for (const payment of payments) {
-        if (payment.stripePaymentIntentId) {
-          allPayments.push({
-            reservationId,
-            userId: payment.userId,
-            personsPaidFor: Number(payment.personsPaidFor),
-            stripePaymentIntentId: payment.stripePaymentIntentId,
-            capturedAt: payment.capturedAt,
-            refundedAt: payment.refundedAt,
-            amount: payment.amount,
-          });
-        }
-      }
-    }
-
-    const relevantPayments = allPayments;
-
-    const paymentIntentIds: string[] = Array.from(
-      new Set(
-        relevantPayments
-          .map((p) => p.stripePaymentIntentId)
-          .filter((id): id is string => !!id)
-      )
-    );
-
-    if (paymentIntentIds.length === 0) {
-      return [];
-    }
-
-    const paymentIntentsData = await Promise.allSettled(
-      paymentIntentIds.map(async (paymentIntentId: string) => {
-        try {
-          const paymentIntent =
-            await stripe.paymentIntents.retrieve(paymentIntentId);
-
-          const teamIdFromMetadata = paymentIntent.metadata?.teamId as
-            | Id<"teams">
-            | undefined;
-
-          const paymentRecords = relevantPayments.filter(
-            (p) => p.stripePaymentIntentId === paymentIntentId
-          );
-
-          if (paymentRecords.length === 0) {
-            return null;
-          }
-
-          const pr = paymentRecords[0];
-          const reservation = organiserReservations.find(
-            (r: Doc<"reservations">) => r._id === pr.reservationId
-          );
-          if (!reservation) {
-            return null;
-          }
-
-          const reservationTeams = await Promise.all(
-            reservation.teamIds.map((tid: Id<"teams">) =>
-              ctx.runQuery(internal.teams.getTeamById, { teamId: tid })
-            )
-          );
-          const validTeams = reservationTeams.filter(
-            (t: Doc<"teams"> | null): t is Doc<"teams"> => t !== null
-          );
-
-          let finalTeamId: Id<"teams"> | null = teamIdFromMetadata ?? null;
-          if (!finalTeamId) {
-            for (const team of validTeams) {
-              if (team.teammates.includes(pr.userId)) {
-                finalTeamId = team._id;
-                break;
-              }
-            }
-          }
-          if (!finalTeamId && validTeams.length > 0) {
-            finalTeamId = validTeams[0]._id;
-          }
-
-          let teamName = "Unknown Team";
-          let teamMemberIds = new Set<Id<"users">>();
-          if (finalTeamId) {
-            const team = await ctx.runQuery(internal.teams.getTeamById, {
-              teamId: finalTeamId,
-            });
-            if (team) {
-              teamName = team.teamName;
-              teamMemberIds = new Set(team.teammates);
-            }
-          }
-
-          const activity = await ctx.runQuery(api.activity.getActivityById, {
-            activityId: reservation.activityId,
-          });
-
-          const teamCollectedAmount = relevantPayments
-            .filter(
-              (p) =>
-                p.reservationId === pr.reservationId &&
-                !p.refundedAt &&
-                teamMemberIds.has(p.userId)
-            )
-            .reduce((sum, p) => sum + p.amount, 0);
-
-          const totalAmount = activity
-            ? effectiveReservationTotalPrice(
-                activity.price,
-                reservation.loyaltyDiscountTotal
-              )
-            : 0;
-          const allReservationPayments = relevantPayments.filter(
-            (p) => p.reservationId === pr.reservationId && !p.refundedAt
-          );
-          const totalCollectedAmount = allReservationPayments.reduce(
-            (sum, p) => sum + p.amount,
-            0
-          );
-          const remainingAmount =
-            reservation.paymentStatus === "fulfilled"
-              ? 0
-              : Math.max(0, totalAmount - totalCollectedAmount);
-
-          const payer = await ctx.runQuery(internal.users.getUserByIdInternal, {
-            userId: pr.userId,
-          });
-          const payerName = payer
-            ? `${payer.name} ${payer.lastname}`.trim()
-            : "Teammate";
-
-          const displayStatus = mapStripeStatusToDisplayStatus(
-            paymentIntent.status,
-            pr.capturedAt,
-            pr.refundedAt
-          );
-
-          return {
-            paymentIntentId: paymentIntent.id,
-            reservationId: pr.reservationId,
-            teamId: finalTeamId,
-            teamName,
-            payerName,
-            personsPaidFor: pr.personsPaidFor,
-            activityName:
-              reservation.activity?.activityName || "Unknown Activity",
-            activityAddress: reservation.activity?.address || "",
-            date: reservation.date,
-            time: reservation.time,
-            status: displayStatus,
-            stripeStatus: paymentIntent.status,
-            amount: paymentIntent.amount / 100,
-            collectedAmount: teamCollectedAmount,
-            remainingAmount,
-            currency: paymentIntent.currency.toUpperCase(),
-            createdAt: paymentIntent.created * 1000,
-            capturedAt: pr.capturedAt,
-            refundedAt: pr.refundedAt,
-          };
-        } catch (error) {
-          console.error(
-            `Error retrieving payment intent ${paymentIntentId}:`,
-            error
-          );
-          return null;
-        }
-      })
-    );
-
-    const allResults: Array<{
-      paymentIntentId: string;
-      reservationId: Id<"reservations">;
-      teamId: Id<"teams"> | null;
-      teamName: string;
-      payerName: string;
-      personsPaidFor: number;
-      activityName: string;
-      activityAddress: string;
-      date: string;
-      time: string;
-      status: "on_hold" | "paid" | "canceled" | "pending" | "refunded";
-      stripeStatus: string;
-      amount: number;
-      collectedAmount: number;
-      remainingAmount: number;
-      currency: string;
-      createdAt: number;
-      capturedAt?: number;
-      refundedAt?: number;
-    }> = [];
-
-    for (const result of paymentIntentsData) {
-      if (
-        result.status === "fulfilled" &&
-        result.value !== null &&
-        result.value !== undefined
-      ) {
-        allResults.push(result.value);
-      }
-    }
-
-    // Sort by date (most recent first)
-    return allResults.sort((a, b) => {
-      const dateCompare = b.date.localeCompare(a.date);
-      if (dateCompare !== 0) return dateCompare;
-      return b.time.localeCompare(a.time);
+    return await ctx.runQuery(internal.reservations.getOrganiserPaymentRows, {
+      userId: currentUser._id,
     });
   },
 });
+
+type OrganiserPaymentRow = {
+  paymentIntentId: string;
+  reservationId: Id<"reservations">;
+  teamId: Id<"teams"> | null;
+  teamName: string;
+  payerName: string;
+  personsPaidFor: number;
+  activityName: string;
+  activityAddress: string;
+  date: string;
+  time: string;
+  status: "on_hold" | "paid" | "canceled" | "pending" | "refunded";
+  stripeStatus: string;
+  amount: number;
+  collectedAmount: number;
+  remainingAmount: number;
+  currency: string;
+  createdAt: number;
+  capturedAt?: number;
+  refundedAt?: number;
+};
 
 // Webhook handler for Stripe events
 export const stripeWebhook = httpAction(async (ctx, request) => {

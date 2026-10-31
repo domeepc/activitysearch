@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { AlertCircle } from "lucide-react";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -48,7 +49,12 @@ export function ConfirmDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
+        {variant === "destructive" && (
+          <span className="inline-flex size-11 items-center justify-center rounded-xl bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300">
+            <AlertCircle className="size-5" />
+          </span>
+        )}
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -56,7 +62,7 @@ export function ConfirmDialog({
         <DialogFooter>
           <Button
             variant="outline"
-            className="rounded-full border-zinc-200 dark:border-zinc-700"
+            className="h-10"
             onClick={() => onOpenChange(false)}
             disabled={isLoading}
           >
@@ -66,9 +72,9 @@ export function ConfirmDialog({
             variant={variant}
             onClick={handleConfirm}
             disabled={isLoading}
-            className="rounded-full"
+            className="h-10 font-semibold"
           >
-            {isLoading ? "Processing..." : confirmText}
+            {isLoading ? "Working…" : confirmText}
           </Button>
         </DialogFooter>
       </DialogContent>

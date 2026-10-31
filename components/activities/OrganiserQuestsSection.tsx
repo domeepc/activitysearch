@@ -123,7 +123,7 @@ export function OrganiserQuestsSection({
 
   if (dashboard === undefined) {
     return (
-      <Card className="border-border border-2">
+      <Card className="rounded-3xl border border-zinc-200 shadow-none dark:border-zinc-800">
         <CardHeader>
           <CardTitle>Manage quests</CardTitle>
           <CardDescription>Loading…</CardDescription>
@@ -133,7 +133,7 @@ export function OrganiserQuestsSection({
   }
 
   return (
-    <Card className="border-border border-2">
+    <Card className="rounded-3xl border border-zinc-200 shadow-none dark:border-zinc-800">
       <CardHeader>
         <CardTitle>Manage quests</CardTitle>
         <CardDescription>

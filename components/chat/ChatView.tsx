@@ -332,19 +332,20 @@ export function ChatView({
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden relative">
       {/* Messages - Scrollable */}
 
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 min-h-0 bg-zinc-50 dark:bg-zinc-950 relative">
+      <div ref={messagesContainerRef} className="relative min-h-0 flex-1 overflow-y-auto bg-zinc-50 px-4 py-4 sm:px-5 dark:bg-zinc-950">
         {isEncryptionAvailable && (
-          <p className="mx-auto mb-4 flex w-fit select-none items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+          <p className="mx-auto mb-4 flex w-fit select-none items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
             <Lock className="h-3 w-3" aria-hidden="true" />
             Messages are end-to-end encrypted
           </p>
         )}
         {messages.length === 0 ? (
-          <div className="flex items-center justify-center h-[80%] text-sm text-muted-foreground">
-            <p>No messages yet. Say hi!</p>
+          <div className="flex h-[80%] flex-col items-center justify-center gap-1 text-center">
+            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">No messages yet</p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">Say hi — or plan your next activity together.</p>
           </div>
         ) : (
-          <div>
+          <div className="flex flex-col gap-4">
             {decryptedMessages.map((message, index) => (
               <MessageBubble
                 key={message._id}
@@ -372,9 +373,7 @@ export function ChatView({
       </div>
 
 
-      {/* Message Input Section with E2E Encryption Badge */}
       <div className="relative shrink-0">
-
         <ChatInput onSend={handleSend} />
       </div>
     </div>

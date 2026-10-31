@@ -8,15 +8,14 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery as useConvexQuery } from "convex/react";
+import { toast } from "sonner";
 
 interface TeamInviteDialogProps {
   open: boolean;
@@ -34,6 +33,7 @@ export function TeamInviteDialog({
   const [selectedFriends, setSelectedFriends] = useState<Set<Id<"users">>>(
     new Set()
   );
+  const [submitting, setSubmitting] = useState(false);
   const inviteFriend = useMutation(api.teams.inviteFriendToTeam);
   const currentUser = useConvexQuery(api.users.current);
   const team = useConvexQuery(api.teams.getTeamBySlug, { slug: teamSlug });
@@ -66,8 +66,8 @@ export function TeamInviteDialog({
   };
 
   const handleInvite = async () => {
-    if (selectedFriends.size === 0 || !team) return;
-
+    if (selectedFriends.size === 0 || !team || submitting) return;
+    setSubmitting(true);
     try {
       await Promise.all(
         Array.from(selectedFriends).map((friendId) =>
@@ -78,95 +78,81 @@ export function TeamInviteDialog({
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
-      console.error("Failed to invite friends:", error);
-      alert(
-        error instanceof Error ? error.message : "Failed to invite friends"
-      );
+      toast.error(error instanceof Error ? error.message : "Failed to invite friends");
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Invite Friends to Team</DialogTitle>
-          <DialogDescription>
-            Select friends to add to this team
-          </DialogDescription>
+          <DialogTitle>Invite to {currentTeam?.teamName ?? "team"}</DialogTitle>
+          <DialogDescription>Friends you pick are added to the chat straight away.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
-          {currentTeam && (
-            <div className="space-y-2">
-              <Label>Current Members</Label>
-              <div className="flex flex-wrap gap-2">
-                {currentTeam.teammates.map((teammate) => (
-                  <div
-                    key={teammate._id}
-                    className="flex items-center gap-2 px-2 py-1 bg-muted rounded-md"
-                  >
-                    <Avatar className="h-6 w-6">
-                      <AvatarImage src={teammate.avatar} alt={teammate.name} />
-                      <AvatarFallback>
-                        {teammate.name[0]}
-                        {teammate.lastname[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm">
-                      {teammate.name} {teammate.lastname}
-                    </span>
-                  </div>
-                ))}
-              </div>
+        {currentTeam && (
+          <div className="flex items-center gap-2">
+            <div className="flex -space-x-2">
+              {currentTeam.teammates.slice(0, 5).map((teammate) => (
+                <Avatar key={teammate._id} className="size-7 border-2 border-white dark:border-zinc-900">
+                  <AvatarImage src={teammate.avatar} alt="" />
+                  <AvatarFallback className="text-[10px] font-bold">
+                    {teammate.name[0]}
+                    {teammate.lastname[0]}
+                  </AvatarFallback>
+                </Avatar>
+              ))}
             </div>
-          )}
-          <div className="space-y-2">
-            <Label>Select Friends to Invite</Label>
-            {availableFriends.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                All your friends are already in this team, or you don&apos;t
-                have any friends yet.
-              </p>
-            ) : (
-              <div className="max-h-60 overflow-y-auto border rounded-md p-2 space-y-2">
-                {availableFriends.map((friend) => (
-                  <div
-                    key={friend._id}
-                    className="flex items-center gap-3 p-2 hover:bg-accent rounded-md cursor-pointer"
-                    onClick={() => handleToggleFriend(friend._id)}
-                  >
-                    <Checkbox
-                      checked={selectedFriends.has(friend._id)}
-                      onCheckedChange={() => handleToggleFriend(friend._id)}
-                    />
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={friend.avatar} alt={friend.name} />
-                      <AvatarFallback>
-                        {friend.name[0]}
-                        {friend.lastname[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">
-                        {friend.name} {friend.lastname}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        @{friend.username}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <span className="text-xs text-zinc-600 dark:text-zinc-400">
+              {currentTeam.teammates.length} in the team now
+            </span>
           </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" className="rounded-full border-zinc-200 dark:border-zinc-700" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleInvite} disabled={selectedFriends.size === 0} className="rounded-full">
-            Invite {selectedFriends.size > 0 && `(${selectedFriends.size})`}
-          </Button>
-        </DialogFooter>
+        )}
+        {availableFriends.length === 0 ? (
+          <p className="rounded-xl bg-zinc-50 p-3 text-sm text-zinc-600 dark:bg-zinc-800/60 dark:text-zinc-400">
+            Everyone you&apos;re friends with is already here. Add more friends from the Messages list.
+          </p>
+        ) : (
+          <ul className="-mx-2 flex max-h-72 flex-col overflow-y-auto">
+            {availableFriends.map((friend) => (
+              <li key={friend._id}>
+                <label className="flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800/60">
+                  <Avatar className="size-9">
+                    <AvatarImage src={friend.avatar} alt="" />
+                    <AvatarFallback className="text-xs font-bold">
+                      {friend.name[0]}
+                      {friend.lastname[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="min-w-0 flex-1">
+                    <b className="block truncate text-sm font-semibold">
+                      {friend.name} {friend.lastname}
+                    </b>
+                    <span className="block truncate text-xs text-zinc-600 dark:text-zinc-400">@{friend.username}</span>
+                  </span>
+                  <Checkbox
+                    checked={selectedFriends.has(friend._id)}
+                    onCheckedChange={() => handleToggleFriend(friend._id)}
+                    aria-label={`Invite ${friend.name}`}
+                    className="size-5 rounded-md"
+                  />
+                </label>
+              </li>
+            ))}
+          </ul>
+        )}
+        <Button
+          onClick={handleInvite}
+          disabled={selectedFriends.size === 0 || submitting}
+          className="h-11 bg-blue-600 font-semibold text-white hover:bg-blue-700"
+        >
+          {submitting
+            ? "Inviting…"
+            : selectedFriends.size > 0
+              ? `Invite ${selectedFriends.size} ${selectedFriends.size === 1 ? "friend" : "friends"}`
+              : "Pick friends to invite"}
+        </Button>
       </DialogContent>
     </Dialog>
   );

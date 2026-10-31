@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
 import { useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
+import { format } from "date-fns";
+import { toast } from "sonner";
+import { AlertCircle, Check, MoreHorizontal, Star, X } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,17 +20,51 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar, Clock, Wallet, X, AlertCircle, Star } from "lucide-react";
-import { toast } from "sonner";
-import { format } from "date-fns";
-import { PaymentButton } from "@/components/payments/PaymentButton";
 import { PaymentDialog } from "@/components/payments/PaymentDialog";
 import { ReviewDialog } from "@/components/reservations/ReviewDialog";
 import { useCancelReservation } from "@/lib/hooks/useReservations";
-import { cn } from "@/lib/utils";
+import { cn, formatPrice } from "@/lib/utils";
+
+type Status = "pending" | "on_hold" | "fulfilled" | "cancelled";
+
+const STATUS_STYLES: Record<Status, { label: string; chip: string; bar: string }> = {
+  pending: {
+    label: "Pending",
+    chip: "bg-orange-50 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300",
+    bar: "bg-orange-500",
+  },
+  on_hold: {
+    label: "On hold",
+    chip: "bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300",
+    bar: "bg-green-600",
+  },
+  fulfilled: {
+    label: "Done",
+    chip: "bg-green-50 text-green-700 dark:bg-green-950/60 dark:text-green-300",
+    bar: "bg-green-600",
+  },
+  cancelled: {
+    label: "Cancelled",
+    chip: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+    bar: "bg-zinc-400",
+  },
+};
+
+function errorMessage(e: unknown, fallback: string) {
+  if (e instanceof ConvexError) {
+    return typeof e.data === "string" ? e.data : JSON.stringify(e.data);
+  }
+  return e instanceof Error ? e.message : fallback;
+}
 
 interface ReservationCardProps {
   reservationId: Id<"reservations">;
@@ -39,6 +75,7 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
+  const [loyaltyOpen, setLoyaltyOpen] = useState(false);
   const [loyaltyPointsInput, setLoyaltyPointsInput] = useState("");
   const [loyaltyRedeeming, setLoyaltyRedeeming] = useState(false);
   const { cancelReservation, isPending } = useCancelReservation();
@@ -50,119 +87,114 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
 
   if (reservationData === undefined) {
     return (
-      <Card className="w-full">
-        <CardContent className="p-4">
-          <p className="text-sm text-muted-foreground">
-            Loading reservation...
-          </p>
-        </CardContent>
-      </Card>
+      <div className="w-full max-w-[420px] animate-pulse rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+        <div className="flex gap-3">
+          <div className="size-16 shrink-0 rounded-xl bg-zinc-100 dark:bg-zinc-800" />
+          <div className="flex flex-1 flex-col gap-2 pt-1">
+            <div className="h-3 w-16 rounded-full bg-zinc-100 dark:bg-zinc-800" />
+            <div className="h-4 w-3/4 rounded-full bg-zinc-100 dark:bg-zinc-800" />
+            <div className="h-3 w-1/2 rounded-full bg-zinc-100 dark:bg-zinc-800" />
+          </div>
+        </div>
+      </div>
     );
   }
 
-  if (reservationData === null) {
+  if (reservationData === null || !reservationData.reservation || !reservationData.activity) {
     return (
-      <Card className="w-full">
-        <CardContent className="p-4">
-          <p className="text-sm text-muted-foreground">Reservation not found</p>
-        </CardContent>
-      </Card>
+      <div className="w-full max-w-[420px] rounded-2xl border border-dashed border-zinc-300 p-4 text-sm text-muted-foreground dark:border-zinc-700">
+        This reservation is no longer available.
+      </div>
     );
   }
 
-  const { isTeamCreator, reservation, activity, paymentProgress, participants, canLeaveReview } =
-    reservationData;
+  const {
+    isTeamCreator,
+    hasPaid,
+    reservation,
+    activity,
+    teams,
+    paymentProgress,
+    participants,
+    canLeaveReview,
+  } = reservationData;
 
-  if (!reservation || !activity) {
-    return (
-      <Card className="w-full">
-        <CardContent className="p-4">
-          <p className="text-sm text-muted-foreground">Reservation not found</p>
-        </CardContent>
-      </Card>
-    );
+  const status: Status = reservation.cancelledAt
+    ? "cancelled"
+    : (reservation.paymentStatus ?? "pending");
+  const style = STATUS_STYLES[status];
+
+  // Time is either "HH:MM" or already a "HH:MM-HH:MM" range.
+  const startTime = reservation.time.split("-")[0].trim();
+  const activityDate = new Date(`${reservation.date}T${startTime}`);
+  const dateLabel = format(activityDate, "EEE, d MMM");
+  let timeLabel = reservation.time.replace(/\s*-\s*/, "–");
+  if (!reservation.time.includes("-")) {
+    const minutes = activity.duration ? Number(activity.duration) : 60;
+    const end = new Date(activityDate.getTime() + minutes * 60000);
+    timeLabel = `${format(activityDate, "HH:mm")}–${format(end, "HH:mm")}`;
   }
 
-  // Check if cancelled - prioritize cancelledAt over paymentStatus
-  const isCancelled = !!reservation.cancelledAt;
-  const status = isCancelled ? "cancelled" : (reservation.paymentStatus || "pending");
+  const loyaltyDiscountTotal = paymentProgress.loyaltyDiscountTotal ?? 0;
+  const listPrice = paymentProgress.listPrice ?? paymentProgress.totalAmount;
+  const pct =
+    status === "cancelled"
+      ? 0
+      : paymentProgress.totalAmount > 0
+        ? Math.min(100, (paymentProgress.collectedAmount / paymentProgress.totalAmount) * 100)
+        : 0;
 
-  // Parse time - it might be in "HH:MM" format or already a range
-  let activityDate: Date;
-  let timeRange: string;
+  const paidLabel =
+    status === "cancelled"
+      ? "Refunded"
+      : status === "fulfilled"
+        ? "Paid out"
+        : `${paymentProgress.personsPaidFor} of ${paymentProgress.totalParticipants} paid`;
+  const amountLabel =
+    status === "fulfilled" || status === "cancelled"
+      ? formatPrice(status === "cancelled" ? paymentProgress.collectedAmount : paymentProgress.totalAmount)
+      : `${formatPrice(paymentProgress.collectedAmount)} / ${formatPrice(paymentProgress.totalAmount)}`;
 
-  if (reservation.time.includes("-")) {
-    // Already a range, use the start time for the date
-    const startTime = reservation.time.split("-")[0].trim();
-    activityDate = new Date(`${reservation.date}T${startTime}`);
-    timeRange = reservation.time;
+  let note: string;
+  if (status === "cancelled") {
+    note = reservation.cancellationReason
+      ? `Cancelled · ${reservation.cancellationReason}`
+      : "Cancelled · everyone was refunded";
+  } else if (status === "fulfilled") {
+    note = canLeaveReview ? "How was it? Your review helps others" : "Thanks for going — see you next time";
+  } else if (status === "on_hold") {
+    note = "Held until the activity, then paid out";
+  } else if (reservation.paymentDeadline) {
+    note = `Everyone must pay by ${format(new Date(reservation.paymentDeadline), "EEE, d MMM · HH:mm")}`;
   } else {
-    // Single time, calculate end time from duration
-    activityDate = new Date(`${reservation.date}T${reservation.time}`);
-    // Convert BigInt to number for duration
-    const durationMinutes = activity.duration ? Number(activity.duration) : 60;
-    const endTime = new Date(activityDate.getTime() + durationMinutes * 60000);
-    const startTimeStr = format(activityDate, "h:mm a");
-    const endTimeStr = format(endTime, "h:mm a");
-    timeRange = `${startTimeStr} - ${endTimeStr}`;
+    note = `Everyone must pay by ${dateLabel}`;
   }
 
-  const formattedDate = format(activityDate, "EEE, MMM d, yyyy");
+  const loyaltyPoints = loyaltyBalance ? Number(loyaltyBalance.balance) : 0;
+  const canPay = status === "pending" && paymentProgress.remainingAmount > 0 && !hasPaid;
+  const canRedeem =
+    status === "pending" &&
+    paymentProgress.collectedAmount === 0 &&
+    loyaltyDiscountTotal === 0 &&
+    loyaltyPoints >= 10;
+  const canCancel = isTeamCreator && (status === "pending" || status === "on_hold");
+  const teamName = teams[0]?.teamName;
+  const image = activity.images?.[0];
 
-  // Status badge text and variant
-  const getStatusBadge = () => {
-    switch (status) {
-      case "on_hold":
-        return { text: "Payment On Hold", variant: "secondary" as const };
-      case "fulfilled":
-        return { text: "Payment Fulfilled", variant: "default" as const, className: "bg-green-500 dark:bg-green-700" as const };
-      case "cancelled":
-        return { text: "Cancelled", variant: "destructive" as const };
-      default:
-        return { text: "Payment Pending", variant: "outline" as const };
+  const handleRedeem = async () => {
+    const n = Math.floor(Number(loyaltyPointsInput));
+    if (n < 10) return;
+    setLoyaltyRedeeming(true);
+    try {
+      const r = await redeemLoyalty({ reservationId, pointsToSpend: n });
+      setLoyaltyPointsInput("");
+      setLoyaltyOpen(false);
+      toast.success(`Saved ${formatPrice(r.discount)} with ${r.pointsUsed} points`);
+    } catch (e) {
+      toast.error(errorMessage(e, "Could not redeem points"));
+    } finally {
+      setLoyaltyRedeeming(false);
     }
-  };
-
-  const statusBadge = getStatusBadge();
-  const pp = paymentProgress as typeof paymentProgress & {
-    listPrice?: number;
-    loyaltyDiscountTotal?: number;
-  };
-  const listPrice =
-    typeof pp.listPrice === "number" ? pp.listPrice : paymentProgress.totalAmount;
-  const loyaltyDiscountTotal =
-    typeof pp.loyaltyDiscountTotal === "number" ? pp.loyaltyDiscountTotal : 0;
-
-  const progressPercentage =
-    paymentProgress.totalAmount > 0
-      ? (paymentProgress.collectedAmount / paymentProgress.totalAmount) * 100
-      : 0;
-
-  // Format currency
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "EUR",
-      minimumFractionDigits: 2,
-    }).format(amount);
-  };
-
-  // Get deadline text
-  const getDeadlineText = () => {
-    if (status === "cancelled") {
-      return "Refunded";
-    }
-    if (status === "fulfilled") {
-      return "Payment released";
-    }
-    if (status === "on_hold") {
-      return `Held until ${formattedDate}`;
-    }
-    if (reservation.paymentDeadline) {
-      const deadlineDate = new Date(reservation.paymentDeadline);
-      return `Pay by ${format(deadlineDate, "MMM d, yyyy")}`;
-    }
-    return `Pay by ${formattedDate}`;
   };
 
   const handleCancelConfirm = async () => {
@@ -171,234 +203,224 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
       const result = await cancelReservation(reservationId, cancellationReason.trim());
       setCancelDialogOpen(false);
       setCancellationReason("");
-      toast.success("Reservation cancelled.");
+      toast.success("Reservation cancelled. Everyone who paid will be refunded.");
       if (result.autoAssigned) {
-        toast.info("The first team in queue has been assigned the freed slot.");
+        toast.info("The first team in the queue got the freed spot.");
       } else if (result.queueNotified) {
-        toast.info("The first team in queue has been notified.");
+        toast.info("The first team in the queue has been notified.");
       }
     } catch (error) {
-      console.error("Failed to cancel reservation:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to cancel reservation"
-      );
+      toast.error(errorMessage(error, "Failed to cancel reservation"));
     }
   };
 
   return (
-    <Card className="w-full md:w-full sm:w-3/4 lg:w-2/3 xl:w-1/3 overflow-hidden border border-zinc-200 dark:border-zinc-700 shadow-sm">
-      <CardHeader className="pb-3 px-4 sm:px-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-          <h3 className="text-base sm:text-lg font-semibold leading-tight">
+    <article
+      aria-label={`Reservation: ${activity.activityName}`}
+      className={cn(
+        "w-full max-w-[420px] overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_6px_20px_-10px_rgba(0,0,0,0.18)] dark:border-zinc-700 dark:bg-zinc-900",
+        status === "cancelled" && "opacity-75"
+      )}
+    >
+      <div className="flex gap-3 p-4">
+        <div className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-blue-100 dark:bg-zinc-800">
+          {image && (
+            <Image
+              src={image}
+              alt=""
+              fill
+              sizes="64px"
+              className={cn("object-cover", status === "cancelled" && "grayscale")}
+            />
+          )}
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <span
+            className={cn(
+              "inline-flex items-center gap-2 self-start rounded-full px-2 py-1 text-[11px] font-semibold",
+              style.chip
+            )}
+          >
+            <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
+            {style.label}
+          </span>
+          <h3 className="truncate text-[15px] font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
             {activity.activityName}
           </h3>
-          <Badge variant={statusBadge.variant} className={cn(statusBadge.className, "w-fit")}>
-            {statusBadge.text}
-          </Badge>
+          <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
+            {dateLabel} · {timeLabel} · {paymentProgress.totalParticipants}{" "}
+            {paymentProgress.totalParticipants === 1 ? "person" : "people"}
+          </p>
         </div>
-        <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
-          {activity.description}
-        </p>
-      </CardHeader>
+      </div>
 
-      <CardContent className="space-y-3 sm:space-y-4 px-4 sm:px-6">
-        {/* Date and Time */}
-        <div className="space-y-1.5 sm:space-y-2">
-          <div className="flex items-center gap-2 text-xs sm:text-sm">
-            <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
-            <span className="wrap-break-word">{formattedDate}</span>
+      <div className="flex flex-col gap-3 px-4 pb-4">
+        <div className="flex flex-col gap-2 rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800/60">
+          <div className="flex justify-between text-[13px]">
+            <span className="text-zinc-600 dark:text-zinc-400">{paidLabel}</span>
+            <b className="tabular-nums text-zinc-900 dark:text-zinc-50">{amountLabel}</b>
           </div>
-          <div className="flex items-center gap-2 text-xs sm:text-sm">
-            <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
-            <span className="wrap-break-word">{timeRange}</span>
+          <div
+            className="h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700"
+            role="progressbar"
+            aria-label="Amount collected"
+            aria-valuenow={Math.round(pct)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
+            <div
+              className={cn("h-full rounded-full transition-[width] duration-500", pct >= 100 ? "bg-green-600" : style.bar)}
+              style={{ width: `${pct}%` }}
+            />
           </div>
-        </div>
-
-        {/* Payment Progress Section */}
-        <div className="rounded-2xl bg-zinc-50 dark:bg-zinc-800 p-3 sm:p-4 space-y-2.5 sm:space-y-3">
-          <div className="flex items-center gap-2">
-            <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
-            <span className="text-xs text-muted-foreground">
-              Saldo collected
-            </span>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-baseline justify-between">
-              <span className="text-base sm:text-lg font-semibold wrap-break-word">
-                {formatCurrency(paymentProgress.collectedAmount)} /{" "}
-                {formatCurrency(paymentProgress.totalAmount)}
-              </span>
-            </div>
-            <Progress value={progressPercentage} className="h-2" />
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs text-muted-foreground">
-              <span className="wrap-break-word">
-                {paymentProgress.personsPaidFor} of{" "}
-                {paymentProgress.totalParticipants} paid (
-                {formatCurrency(paymentProgress.perPersonAmount)} each)
-              </span>
-            </div>
-            <div className="text-xs text-muted-foreground wrap-break-word">
-              {getDeadlineText()}
-            </div>
-            {loyaltyDiscountTotal > 0 && (
-              <p className="text-xs font-medium text-green-700 dark:text-green-400">
-                Loyalty discount applied: −{formatCurrency(loyaltyDiscountTotal)}{" "}
-                (list {formatCurrency(listPrice)})
-              </p>
+          <p
+            className={cn(
+              "text-xs",
+              status === "pending" ? "text-orange-800 dark:text-orange-300" : "text-zinc-600 dark:text-zinc-400"
             )}
-          </div>
+          >
+            {note}
+          </p>
+          {loyaltyDiscountTotal > 0 && (
+            <p className="text-xs font-medium text-green-700 dark:text-green-400">
+              Points discount −{formatPrice(loyaltyDiscountTotal)} (was {formatPrice(listPrice)})
+            </p>
+          )}
         </div>
 
-        {status === "pending" &&
-          paymentProgress.collectedAmount === 0 &&
-          loyaltyDiscountTotal === 0 &&
-          loyaltyBalance !== undefined &&
-          loyaltyBalance !== null && (
-            <div className="rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 p-3 space-y-2">
-              <p className="text-xs font-medium">Use loyalty points</p>
-              <p className="text-[11px] text-muted-foreground">
-                Balance: {loyaltyBalance.balance} pts · 10 pts ≈ €1 off · max{" "}
-                {formatCurrency(listPrice * 0.2)} off (20% of activity price).
-                Apply before anyone pays on this reservation.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
-                <div className="flex-1 space-y-1">
+        {canRedeem && (
+          <div className="rounded-xl border border-dashed border-zinc-300 px-3 py-3 text-xs dark:border-zinc-700">
+            {loyaltyOpen ? (
+              <form
+                className="flex items-end gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void handleRedeem();
+                }}
+              >
+                <div className="flex flex-1 flex-col gap-1">
                   <Label htmlFor={`loyalty-${reservationId}`} className="text-xs">
-                    Points to spend
+                    Points to spend · you have {loyaltyPoints}
                   </Label>
                   <Input
                     id={`loyalty-${reservationId}`}
                     type="number"
+                    inputMode="numeric"
                     min={10}
-                    step={1}
+                    max={loyaltyPoints}
                     value={loyaltyPointsInput}
                     onChange={(e) => setLoyaltyPointsInput(e.target.value)}
                     placeholder="e.g. 100"
-                    className="h-9"
+                    className="h-8 rounded-lg"
+                    autoFocus
                   />
                 </div>
                 <Button
+                  type="submit"
+                  size="sm"
+                  disabled={loyaltyRedeeming || Number(loyaltyPointsInput) < 10}
+                >
+                  {loyaltyRedeeming ? "Applying…" : "Apply"}
+                </Button>
+                <Button
                   type="button"
                   size="sm"
-                  className="w-full sm:w-auto"
-                  disabled={
-                    loyaltyRedeeming ||
-                    !loyaltyPointsInput ||
-                    Number(loyaltyPointsInput) < 10
-                  }
-                  onClick={async () => {
-                    const n = Math.floor(Number(loyaltyPointsInput));
-                    if (n < 10) return;
-                    setLoyaltyRedeeming(true);
-                    try {
-                      const r = await redeemLoyalty({
-                        reservationId,
-                        pointsToSpend: n,
-                      });
-                      setLoyaltyPointsInput("");
-                      toast.success(
-                        `Saved ${formatCurrency(r.discount)} with ${r.pointsUsed} points`
-                      );
-                    } catch (e) {
-                      const msg =
-                        e instanceof ConvexError
-                          ? typeof e.data === "string"
-                            ? e.data
-                            : JSON.stringify(e.data)
-                          : e instanceof Error
-                            ? e.message
-                            : "Could not redeem points";
-                      toast.error(msg);
-                    } finally {
-                      setLoyaltyRedeeming(false);
-                    }
-                  }}
+                  variant="ghost"
+                  aria-label="Close points"
+                  onClick={() => setLoyaltyOpen(false)}
                 >
-                  {loyaltyRedeeming ? "Applying…" : "Apply discount"}
+                  <X />
+                </Button>
+              </form>
+            ) : (
+              <div className="flex items-center gap-3">
+                <span className="flex-1">
+                  <b className="block text-[13px] text-zinc-900 dark:text-zinc-50">
+                    Use {loyaltyPoints} points
+                  </b>
+                  <span className="text-zinc-600 dark:text-zinc-400">
+                    10 pts = €1 · up to {formatPrice(Math.round(listPrice * 0.2 * 100) / 100)} off · before anyone pays
+                  </span>
+                </span>
+                <Button type="button" size="sm" variant="outline" onClick={() => setLoyaltyOpen(true)}>
+                  Use
                 </Button>
               </div>
-            </div>
-          )}
-
-        {/* Payment Button */}
-        {paymentProgress.remainingAmount > 0 && status !== "cancelled" && (
-          <div className="pt-2">
-            <PaymentButton
-              paymentStatus={status}
-              remainingAmount={paymentProgress.remainingAmount}
-              onPaymentClick={() => setPaymentDialogOpen(true)}
-              disabled={status === "fulfilled"}
-            />
+            )}
           </div>
         )}
 
-        {/* Leave a review (fulfilled + paid, participant, not yet reviewed) */}
-        {canLeaveReview && (
-          <div className="pt-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              className="w-full"
-              onClick={() => setReviewDialogOpen(true)}
-            >
-              <Star className="h-4 w-4 mr-2" />
-              Leave a review
-            </Button>
-          </div>
-        )}
-
-        {/* Cancel Reservation (team creator only) */}
-        {isTeamCreator && status !== "cancelled" && status !== "fulfilled" && (
-          <div className="pt-2">
-            <Button
-              variant="destructive"
-              size="sm"
-              className="w-full"
-              onClick={() => {
-                setCancellationReason("");
-                setCancelDialogOpen(true);
-              }}
-              disabled={isPending}
-            >
-              <X className="h-4 w-4 mr-2" />
-              Cancel Reservation
-            </Button>
-          </div>
-        )}
-
-        {/* Participants */}
         {participants.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
             <div className="flex -space-x-2">
-              {participants.slice(0, 4).map((participant) => (
-                <Avatar
-                  key={participant._id}
-                  className="h-7 w-7 sm:h-8 sm:w-8 border-2 border-background"
-                >
-                  <AvatarImage
-                    src={participant.avatar}
-                    alt={participant.name}
-                  />
-                  <AvatarFallback className="text-xs">
-                    {participant.name?.[0]?.toUpperCase() || "?"}
+              {participants.slice(0, 4).map((p) => (
+                <Avatar key={p._id} className="size-[26px] border-2 border-white dark:border-zinc-900">
+                  <AvatarImage src={p.avatar} alt={p.name} />
+                  <AvatarFallback className="text-[10px]">
+                    {p.name?.[0]?.toUpperCase() || "?"}
                   </AvatarFallback>
                 </Avatar>
               ))}
               {participants.length > 4 && (
-                <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full border-2 border-background bg-muted flex items-center justify-center text-xs font-medium">
+                <span className="flex size-[26px] items-center justify-center rounded-full border-2 border-white bg-zinc-100 text-[10px] font-bold text-zinc-600 dark:border-zinc-900 dark:bg-zinc-800 dark:text-zinc-300">
                   +{participants.length - 4}
-                </div>
+                </span>
               )}
             </div>
-            <span className="text-xs sm:text-sm text-muted-foreground">
-              {participants.length} participant
-              {participants.length !== 1 ? "s" : ""}
+            <span className="truncate text-xs text-zinc-600 dark:text-zinc-400">
+              {teamName ? `${teamName} · ` : ""}
+              {participants.length}
             </span>
           </div>
         )}
-      </CardContent>
 
-      {/* Payment Dialog */}
+        {status !== "cancelled" && (
+          <div className="flex gap-2">
+            {canPay ? (
+              <Button
+                className="h-10 flex-1 bg-blue-600 font-semibold text-white hover:bg-blue-700"
+                onClick={() => setPaymentDialogOpen(true)}
+              >
+                Pay your share · {formatPrice(Math.round(paymentProgress.perPersonAmount * 100) / 100)}
+              </Button>
+            ) : canLeaveReview ? (
+              <Button className="h-10 flex-1 font-semibold" onClick={() => setReviewDialogOpen(true)}>
+                <Star /> Leave a review
+              </Button>
+            ) : (
+              <span className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-green-50 text-sm font-semibold text-green-700 dark:bg-green-950/50 dark:text-green-300">
+                <Check className="size-3.5" strokeWidth={3} />
+                {status === "pending" ? "You've paid" : "Fully paid"}
+              </span>
+            )}
+            <Button asChild variant="outline" className="h-10 px-4">
+              <Link href={`/activities/${activity._id}`}>Details</Link>
+            </Button>
+            {canCancel && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="size-10" aria-label="More actions">
+                    <MoreHorizontal />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    variant="destructive"
+                    disabled={isPending}
+                    onSelect={() => {
+                      setCancellationReason("");
+                      setCancelDialogOpen(true);
+                    }}
+                  >
+                    <X /> Cancel reservation
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        )}
+      </div>
+
       <PaymentDialog
         open={paymentDialogOpen}
         onOpenChange={setPaymentDialogOpen}
@@ -407,88 +429,65 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
         perPersonAmount={paymentProgress.perPersonAmount}
         remainingPersons={paymentProgress.remainingPersons}
         activityName={activity.activityName}
-        onSuccess={() => {
-          // Payment successful, dialog will close automatically
-          // Data will refresh automatically via Convex reactivity
-        }}
+        onSuccess={() => {}}
       />
 
-      {/* Review Dialog */}
       <ReviewDialog
         open={reviewDialogOpen}
         onOpenChange={setReviewDialogOpen}
         activityId={activity._id}
         activityName={activity.activityName}
-        onSuccess={() => { }}
+        activityImage={image}
+        onSuccess={() => {}}
       />
 
-      {/* Cancel Reservation Dialog */}
       <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-md">
+        <DialogContent className="sm:max-w-md">
+          <span className="inline-flex size-11 items-center justify-center rounded-xl bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300">
+            <AlertCircle className="size-5" />
+          </span>
           <DialogHeader>
-            <DialogTitle>Cancel Reservation</DialogTitle>
+            <DialogTitle>Cancel this reservation?</DialogTitle>
             <DialogDescription>
-              Please provide a reason for cancelling this reservation. All
-              payments will be refunded and the first team in the queue will be
-              notified.
+              Everyone who paid gets a full refund, and the next team in the queue is offered the spot.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <div>
-                <span className="text-sm font-medium">Activity: </span>
-                <span className="text-sm">{activity.activityName}</span>
-              </div>
-              <div>
-                <span className="text-sm font-medium">Date: </span>
-                <span className="text-sm">
-                  {formattedDate} at {timeRange}
-                </span>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="cancellationReason">
-                Cancellation Reason <span className="text-destructive">*</span>
-              </Label>
-              <Textarea
-                id="cancellationReason"
-                value={cancellationReason}
-                onChange={(e) => setCancellationReason(e.target.value)}
-                placeholder="Enter the reason for cancelling this reservation..."
-                className="min-h-[100px]"
-                required
-              />
-              {!cancellationReason.trim() && (
-                <p className="text-xs text-destructive flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  Cancellation reason is required
-                </p>
-              )}
-            </div>
+          <div className="rounded-xl bg-zinc-50 p-3 text-[13px] dark:bg-zinc-800/60">
+            <b className="text-zinc-900 dark:text-zinc-50">{activity.activityName}</b>
+            <br />
+            <span className="text-zinc-600 dark:text-zinc-400">
+              {dateLabel} · {timeLabel}
+              {paymentProgress.collectedAmount > 0 &&
+                ` · ${formatPrice(paymentProgress.collectedAmount)} to refund`}
+            </span>
           </div>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button
-              variant="outline"
-              className="border-border w-full sm:w-auto"
-              onClick={() => {
-                setCancelDialogOpen(false);
-                setCancellationReason("");
-              }}
-              disabled={isPending}
-            >
-              Cancel
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`cancel-reason-${reservationId}`}>Reason (shared with your team)</Label>
+            <Textarea
+              id={`cancel-reason-${reservationId}`}
+              value={cancellationReason}
+              onChange={(e) => setCancellationReason(e.target.value)}
+              placeholder="e.g. Weather forecast changed"
+              rows={3}
+              className="resize-none"
+              required
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="h-10" onClick={() => setCancelDialogOpen(false)} disabled={isPending}>
+              Keep it
             </Button>
             <Button
               variant="destructive"
+              className="h-10 font-semibold"
               onClick={handleCancelConfirm}
               disabled={isPending || !cancellationReason.trim()}
-              className="w-full sm:w-auto"
             >
-              {isPending ? "Cancelling..." : "Cancel Reservation"}
+              {isPending ? "Cancelling…" : "Cancel & refund"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </article>
   );
 }

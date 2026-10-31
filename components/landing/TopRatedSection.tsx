@@ -35,7 +35,7 @@ export function TopRatedSection({ items }: TopRatedSectionProps) {
             />
           ) : null}
           <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
-          <span className="relative self-start rounded-full bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-950">
+          <span className="relative self-start rounded-full bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-950">
             Featured
           </span>
           <span className="relative flex flex-wrap items-end justify-between gap-4">
@@ -46,11 +46,11 @@ export function TopRatedSection({ items }: TopRatedSectionProps) {
               </span>
             </span>
             <span className="flex gap-2 text-sm text-zinc-50">
-              <span className="inline-flex items-center gap-1 rounded-full bg-zinc-950/70 px-3.5 py-2.5 backdrop-blur">
+              <span className="inline-flex items-center gap-1 rounded-full bg-zinc-950/70 px-4 py-3 backdrop-blur">
                 <Star className="size-3.5 fill-amber-400 text-amber-400" aria-hidden="true" />
                 {featured.rating}
               </span>
-              <span className="rounded-full bg-blue-600 px-3.5 py-2.5 font-semibold">{featured.price}</span>
+              <span className="rounded-full bg-blue-600 px-4 py-3 font-semibold">{featured.price}</span>
             </span>
           </span>
         </Link>
@@ -72,10 +72,10 @@ export function TopRatedSection({ items }: TopRatedSectionProps) {
                 />
               ) : null}
             </span>
-            <span className="flex flex-col gap-1.5 p-[18px]">
+            <span className="flex flex-col gap-2 p-4">
               <span className="text-[13px] text-zinc-400">{activity.category} · Nearby</span>
               <span className="text-xl font-bold tracking-[-0.02em] text-zinc-50">{activity.title}</span>
-              <span className="mt-1.5 flex justify-between text-sm text-zinc-50">
+              <span className="mt-2 flex justify-between text-sm text-zinc-50">
                 <span className="inline-flex items-center gap-1">
                   <Star className="size-3.5 fill-amber-400 text-amber-400" aria-hidden="true" />
                   {activity.rating}

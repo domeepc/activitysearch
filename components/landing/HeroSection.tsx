@@ -17,7 +17,7 @@ export function HeroSection() {
   return (
     <section className="relative overflow-hidden pt-28 md:pt-36">
       <div className="mx-auto w-full max-w-[1440px] px-4 md:px-10">
-        <p className="flex items-center gap-2.5 text-[13px] text-zinc-400">
+        <p className="flex items-center gap-3 text-[13px] text-zinc-400">
           <span className="h-2 w-2 rounded-full bg-green-500" aria-hidden="true" />
           Live map of activities near you
         </p>
@@ -35,9 +35,9 @@ export function HeroSection() {
           <form
             action="/sign-in"
             method="GET"
-            className="flex w-full max-w-xl gap-1.5 rounded-full border border-zinc-800 bg-zinc-900 p-1.5"
+            className="flex w-full max-w-xl gap-2 rounded-full border border-zinc-800 bg-zinc-900 p-2"
           >
-            <label className="flex min-w-0 flex-1 items-center gap-2.5 pl-4 text-zinc-400">
+            <label className="flex min-w-0 flex-1 items-center gap-3 pl-4 text-zinc-400">
               <Search className="size-[18px] shrink-0" aria-hidden="true" />
               <span className="sr-only">Search activities</span>
               <input
@@ -67,7 +67,7 @@ export function HeroSection() {
         <HeroTile src="/images/high-energy.jpg" label="High Energy" className="hidden md:col-span-2 md:block md:h-[260px]" />
         <Link
           href="/sign-in"
-          className="col-span-2 flex h-56 flex-col justify-end gap-2 rounded-[22px] bg-violet-950 p-5 transition-transform hover:-translate-y-1 md:col-span-3 md:h-[320px]"
+          className="col-span-2 flex h-56 flex-col justify-end gap-2 rounded-3xl bg-violet-950 p-5 transition-transform hover:-translate-y-1 md:col-span-3 md:h-[320px]"
         >
           <span className="text-xs uppercase tracking-[0.08em] text-violet-200">Quest</span>
           <span className="text-[22px] font-bold leading-tight tracking-[-0.02em] text-zinc-50">
@@ -78,7 +78,7 @@ export function HeroSection() {
       </div>
 
       <div aria-hidden="true" className="mt-10 overflow-hidden whitespace-nowrap border-y border-zinc-800">
-        <div className="inline-flex gap-12 py-[18px] text-[22px] font-semibold tracking-[-0.02em] text-zinc-500 motion-safe:animate-marquee">
+        <div className="inline-flex gap-12 py-4 text-[22px] font-semibold tracking-[-0.02em] text-zinc-500 motion-safe:animate-marquee">
           {[...MARQUEE, ...MARQUEE].map((item, i) => (
             <span key={i} className="inline-flex items-center gap-12">
               {item}
@@ -93,7 +93,7 @@ export function HeroSection() {
 
 function HeroTile({ src, label, className }: { src: string; label: string; className?: string }) {
   return (
-    <div className={`group relative overflow-hidden rounded-[22px] bg-zinc-900 ${className ?? ""}`}>
+    <div className={`group relative overflow-hidden rounded-3xl bg-zinc-900 ${className ?? ""}`}>
       <Image
         src={src}
         alt=""

@@ -22,7 +22,7 @@ import {
   useElements,
 } from "@stripe/react-stripe-js";
 import { Id } from "@/convex/_generated/dataModel";
-import { useMutation, useAction } from "convex/react";
+import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 
@@ -71,7 +71,7 @@ function PaymentForm({
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const recordPayment = useMutation(api.reservations.recordPayment);
+  const recordCardPayment = useAction(api.stripe.recordCardPayment);
 
   const totalAmount = perPersonAmount * personsToPayFor;
 
@@ -112,29 +112,15 @@ function PaymentForm({
       }
 
       if (setupIntent && setupIntent.status === "succeeded") {
-        // Payment method collected successfully
-        // Extract payment method ID from setup intent
-        const paymentMethodId = setupIntent.payment_method;
-        
-        if (!paymentMethodId || typeof paymentMethodId !== "string") {
-          setError("Failed to collect payment method");
-          setIsProcessing(false);
-          return;
-        }
-
-        // Record payment with SetupIntent ID and payment method ID
-        // PaymentIntent will be created when team's saldo is fulfilled
-        await recordPayment({
+        // The server checks the SetupIntent with Stripe and works out the amount.
+        const { amount } = await recordCardPayment({
           reservationId,
-          amount: Number(totalAmount),
+          setupIntentId: setupIntent.id,
           personsPaidFor: BigInt(personsToPayFor),
-          stripePaymentIntentId: undefined, // Will be set when team PaymentIntent is created
-          stripeSetupIntentId: setupIntent.id,
-          stripePaymentMethodId: paymentMethodId,
         });
 
         toast.success("Payment saved", {
-          description: `€${totalAmount.toFixed(2)} authorised. Funds held until the activity date.`,
+          description: `€${amount.toFixed(2)} will be charged on the activity date.`,
         });
         onSuccess();
         onClose();
@@ -170,9 +156,9 @@ function PaymentForm({
       <div className="rounded-2xl border border-border p-4">
         <PaymentElement />
       </div>
-      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <p className="flex items-center gap-2 text-xs text-muted-foreground">
         <Lock className="size-3.5" aria-hidden="true" />
-        Card details go straight to Stripe. The amount is held until the activity date.
+        Card details go straight to Stripe. Your card is charged on the activity date.
       </p>
 
       {error && (

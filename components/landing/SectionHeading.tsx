@@ -24,7 +24,7 @@ export function SectionHeading({
         </p>
         <h2
           id={id}
-          className="mt-2.5 text-[clamp(2.5rem,5vw,4.5rem)] font-extrabold leading-[0.95] tracking-[-0.045em] text-zinc-50"
+          className="mt-3 text-[clamp(2.5rem,5vw,4.5rem)] font-extrabold leading-[0.95] tracking-[-0.045em] text-zinc-50"
         >
           {title}
         </h2>

@@ -5,7 +5,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
-import { usePostHog } from "@posthog/react";
+import { capture } from "@/lib/posthog";
 import { Button } from "@/components/ui/button";
 import { ReservationDialog } from "@/components/activities/ReservationDialog";
 import DialogAddActivity from "@/components/activities/DialogAddActivity";
@@ -14,17 +14,14 @@ import { OrganiserQuestsSection } from "@/components/activities/OrganiserQuestsS
 import { ActivityDetailSkeleton } from "@/components/activities/activity-detail/ActivityDetailSkeleton";
 import { ActivityDetailNotFound } from "@/components/activities/activity-detail/ActivityDetailNotFound";
 import { ActivityDetailGallery } from "@/components/activities/activity-detail/ActivityDetailGallery";
-import { ActivityDetailMetaGrid } from "@/components/activities/activity-detail/ActivityDetailMetaGrid";
-import { ActivityDetailExtras } from "@/components/activities/activity-detail/ActivityDetailExtras";
+import { ActivityDetailFacts } from "@/components/activities/activity-detail/ActivityDetailFacts";
 import { ActivityDetailReviews } from "@/components/activities/activity-detail/ActivityDetailReviews";
 import { useMyTeamsAsCreator } from "@/lib/hooks/useReservations";
-import { Badge } from "@/components/ui/badge";
-import { Star, Calendar, Pencil, Check } from "lucide-react";
+import { ArrowLeft, Calendar, Check, MapPin, Package, Pencil, Star } from "lucide-react";
 import Link from "next/link";
 import { SIGNED_IN_HOME_HREF } from "@/lib/routes";
 import { getTagColorScheme } from "@/lib/tagColors";
-import { formatPrice } from "@/lib/utils";
-import type { CarouselApi } from "@/components/ui/carousel";
+import { cn, formatPrice } from "@/lib/utils";
 
 export default function ActivityPage({
   params,
@@ -34,7 +31,6 @@ export default function ActivityPage({
   const resolvedParams = use(params);
   const router = useRouter();
   const activityId = resolvedParams.slug as Id<"activities">;
-  const posthog = usePostHog();
 
   const activity = useQuery(api.activity.getActivityById, { activityId });
   const databaseTags = useQuery(api.activity.getAllTags);
@@ -46,34 +42,21 @@ export default function ActivityPage({
     activity ? { activityId } : "skip"
   );
 
-  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const hasTrackedView = useRef(false);
 
   const images = activity?.images ?? [];
-  const imageCount = images.length;
 
   useEffect(() => {
     if (activity && !hasTrackedView.current) {
       hasTrackedView.current = true;
-      posthog?.capture("activity_viewed", {
+      capture("activity_viewed", {
         activity_id: String(activity._id),
         activity_name: activity.activityName,
       });
     }
-  }, [activity, posthog]);
-
-  useEffect(() => {
-    if (!carouselApi || imageCount < 2) return;
-    intervalRef.current = setInterval(() => {
-      carouselApi.scrollNext();
-    }, 15000);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [carouselApi, imageCount]);
+  }, [activity]);
 
   useEffect(() => {
     if (activity !== null) return;
@@ -94,8 +77,7 @@ export default function ActivityPage({
   const title = activity.activityName || "";
   const description = activity.description || "";
   const tags = activity.tags ?? [];
-  const durationLabel = activity.duration ? String(activity.duration) : "N/A";
-  const difficulty = activity.difficulty || "N/A";
+  const difficulty = activity.difficulty || "";
   const rating = activity.rating ?? 0;
   const reviewCount = Number(activity.reviewCount ?? 0);
   const address = activity.address || "";
@@ -115,7 +97,7 @@ export default function ActivityPage({
     <Button
       size="lg"
       onClick={() => {
-        posthog?.capture("reserve_activity_clicked", {
+        capture("reserve_activity_clicked", {
           activity_id: String(activityId),
           activity_name: activity.activityName,
         });
@@ -132,123 +114,148 @@ export default function ActivityPage({
     </Button>
   );
 
+  const section = "border-t border-zinc-200 pt-8 dark:border-zinc-800";
+
   return (
-    <div className="container mx-auto max-w-6xl px-4 pb-28 pt-6 md:px-6 md:pt-8 lg:pb-8">
-      <ActivityDetailGallery
-        images={images}
-        title={title}
-        setCarouselApi={setCarouselApi}
-      />
+    <div className="mx-auto w-full max-w-6xl px-4 pb-28 pt-4 md:px-6 md:pt-6 lg:pb-12">
+      <Link
+        href={SIGNED_IN_HOME_HREF}
+        className="mb-3 inline-flex h-9 items-center gap-2 rounded-xl px-2 -ml-2 text-sm text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
+      >
+        <ArrowLeft className="size-4" aria-hidden="true" />
+        Explore
+      </Link>
 
-      <div className="mt-6 flex flex-wrap items-start gap-6">
-        <div className="min-w-0 flex-[999_1_560px] rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 md:p-7">
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-4xl">
-            {title}
-          </h1>
-          <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Star className="size-4 fill-amber-400 text-amber-400" aria-hidden="true" />
-            <span className="font-semibold text-foreground">{rating.toFixed(1)}</span>
-            ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
-            {address ? <span className="truncate">· {address}</span> : null}
-          </p>
-          <p className="mt-4 max-w-2xl text-base leading-relaxed text-zinc-600 dark:text-zinc-300">
-            {description}
-          </p>
+      <ActivityDetailGallery images={images} title={title} />
 
-          {/* Tags */}
-          {tags.length > 0 ? (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {tags.map((tag, index) => {
-                const colorScheme = getTagColorScheme(tag, databaseTags);
-                return (
-                  <Badge
-                    key={index}
-                    variant="secondary"
-                    style={{
-                      backgroundColor: colorScheme.bgHex,
-                      color: colorScheme.textHex,
-                      borderColor: colorScheme.bgHex,
-                    }}
-                  >
-                    {tag}
-                  </Badge>
-                );
-              })}
-            </div>
+      <div className="mt-6 flex flex-wrap items-start gap-x-10 gap-y-6 md:mt-8">
+        <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-8">
+          <header className="flex flex-col gap-3">
+            {tags.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag) => {
+                  const colorScheme = getTagColorScheme(tag, databaseTags);
+                  return (
+                    <span
+                      key={tag}
+                      className="rounded-full px-3 py-1 text-xs font-semibold"
+                      style={{ backgroundColor: colorScheme.bgHex, color: colorScheme.textHex }}
+                    >
+                      {tag}
+                    </span>
+                  );
+                })}
+              </div>
+            ) : null}
+            <h1 className="text-3xl font-bold tracking-tight text-balance text-zinc-900 md:text-4xl dark:text-zinc-50">
+              {title}
+            </h1>
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-600 dark:text-zinc-400">
+              <span className="inline-flex items-center gap-1">
+                <Star className="size-4 fill-amber-500 text-amber-500" aria-hidden="true" />
+                {reviewCount > 0 ? (
+                  <>
+                    <b className="text-zinc-900 dark:text-zinc-50">{rating.toFixed(1)}</b>
+                    <a href="#reviews-h" className="underline-offset-2 hover:underline">
+                      ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
+                    </a>
+                  </>
+                ) : (
+                  "New"
+                )}
+              </span>
+              {address ? (
+                <span className="inline-flex min-w-0 items-center gap-1">
+                  <MapPin className="size-4 shrink-0" aria-hidden="true" />
+                  <span className="min-w-0 truncate">{address}</span>
+                </span>
+              ) : null}
+            </p>
+          </header>
+
+          <ActivityDetailFacts
+            durationMinutes={Number(activity.duration ?? 0)}
+            difficulty={difficulty}
+            maxParticipants={Number(activity.maxParticipants ?? 0)}
+            minAge={Number(activity.minAge ?? 0)}
+          />
+
+          {description ? (
+            <section aria-labelledby="about-h" className="flex flex-col gap-3">
+              <h2 id="about-h" className="text-xl font-bold tracking-tight">About this activity</h2>
+              <p className="max-w-2xl whitespace-pre-line text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
+                {description}
+              </p>
+            </section>
           ) : null}
 
-          <div className="my-7 h-px bg-zinc-100 dark:bg-zinc-800" />
+          {equipment.length > 0 ? (
+            <section aria-labelledby="bring-h" className={cn(section, "flex flex-col gap-3")}>
+              <h2 id="bring-h" className="text-xl font-bold tracking-tight">What to bring</h2>
+              <ul className="flex flex-wrap gap-2">
+                {equipment.map((item) => (
+                  <li
+                    key={item}
+                    className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-zinc-800 dark:bg-zinc-900"
+                  >
+                    <Package className="size-3.5 text-zinc-500" aria-hidden="true" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
-          <ActivityDetailMetaGrid
-            address={address}
-            durationLabel={durationLabel}
-            difficulty={difficulty}
-            priceAmount={activity.price ?? 0}
-          />
+          <ActivityQuestsPublicSection activityId={activityId} isOrganiser={isOrganiserOfActivity} />
 
-          <ActivityDetailExtras
-            maxParticipants={activity.maxParticipants}
-            minAge={activity.minAge}
-            equipment={equipment}
-          />
-
-          <div className="my-7 h-px bg-zinc-100 dark:bg-zinc-800" />
-
-          <ActivityQuestsPublicSection
-            activityId={activityId}
-            isOrganiser={isOrganiserOfActivity}
-          />
-
-          <div className="my-7 h-px bg-zinc-100 dark:bg-zinc-800" />
-
-          <ActivityDetailReviews reviews={recentReviews} />
+          <div className={section}>
+            <ActivityDetailReviews reviews={recentReviews} rating={rating} reviewCount={reviewCount} />
+          </div>
 
           {isOrganiserOfActivity ? (
-            <>
-              <div className="my-7 h-px bg-zinc-100 dark:bg-zinc-800" />
+            <div className={section}>
               <OrganiserQuestsSection activityId={activityId} />
-            </>
+            </div>
           ) : null}
-
         </div>
 
         <aside
           aria-label="Booking"
-          className="hidden min-w-0 flex-[1_1_320px] flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_8px_28px_-12px_rgba(0,0,0,0.18)] lg:sticky lg:top-[calc(var(--app-navbar-height)+1.5rem)] lg:flex dark:border-zinc-700 dark:bg-zinc-900"
+          className="hidden min-w-0 flex-[1_1_320px] flex-col gap-4 rounded-3xl border border-zinc-200 bg-white p-5 shadow-[0_8px_28px_-12px_rgba(0,0,0,0.18)] lg:sticky lg:top-[calc(var(--app-navbar-height)+1.5rem)] lg:flex dark:border-zinc-700 dark:bg-zinc-900"
         >
           {activity.price ? (
-            <p className="text-sm text-muted-foreground">
-              From
-              <span className="block text-[28px] font-bold leading-tight tracking-tight text-foreground">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Price
+              <span className="block text-[28px] font-bold leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">
                 {formatPrice(activity.price)}
-                <span className="text-sm font-normal text-muted-foreground"> / person</span>
+                <span className="text-sm font-normal text-zinc-600 dark:text-zinc-400"> per booking</span>
               </span>
             </p>
           ) : null}
           {bookingAction}
-          <ul className="flex flex-col gap-2.5 text-[13px] text-muted-foreground">
+          <ul className="flex flex-col gap-3 text-[13px] text-zinc-600 dark:text-zinc-400">
             <li className="flex gap-2">
-              <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden="true" />
-              <span><b className="text-foreground">Split the bill</b> — each teammate pays their own share</span>
+              <Check className="mt-1 size-4 shrink-0 text-emerald-600" aria-hidden="true" />
+              <span><b className="text-zinc-900 dark:text-zinc-50">Split the bill</b> — the price is shared, each teammate pays their part</span>
             </li>
             <li className="flex gap-2">
-              <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden="true" />
-              <span><b className="text-foreground">Join the queue</b> if your date is already full</span>
+              <Check className="mt-1 size-4 shrink-0 text-emerald-600" aria-hidden="true" />
+              <span><b className="text-zinc-900 dark:text-zinc-50">Join the queue</b> if your date is already full</span>
             </li>
           </ul>
         </aside>
       </div>
 
       {/* Phone: keep the price and the main action in reach */}
-      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-zinc-200 bg-white/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden dark:border-zinc-800 dark:bg-zinc-950/95">
         {activity.price ? (
-          <p className="flex-1 text-sm text-muted-foreground">
-            From <b className="text-lg text-foreground">{formatPrice(activity.price)}</b> / person
+          <p className="min-w-0 flex-1 text-sm text-zinc-600 dark:text-zinc-400">
+            <b className="text-lg text-zinc-900 dark:text-zinc-50">{formatPrice(activity.price)}</b> per booking
           </p>
         ) : (
           <span className="flex-1" />
         )}
-        <div className="shrink-0">{bookingAction}</div>
+        <div className="w-auto max-w-[60%] shrink-0 [&_a]:w-auto [&_button]:w-auto">{bookingAction}</div>
       </div>
 
       {hasTeams && !isOrganiserOfActivity ? (

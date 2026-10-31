@@ -21,3 +21,12 @@ const centsPriceFormatter = new Intl.NumberFormat("en-IE", {
 export function formatPrice(amount: number) {
   return (Number.isInteger(amount) ? wholePriceFormatter : centsPriceFormatter).format(amount);
 }
+
+/** Minutes → "45 min", "2 h", "2 h 30 min". */
+export function formatDuration(minutes: number) {
+  if (!minutes) return null;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (!h) return `${m} min`;
+  return m ? `${h} h ${m} min` : `${h} h`;
+}

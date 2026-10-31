@@ -1,35 +1,19 @@
-import {
-  Card,
-  CardContent,
-  CardHeader,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function ActivityDetailSkeleton() {
   return (
-    <div className="container mx-auto max-w-6xl p-4 md:p-6">
-      <Card>
-        <CardHeader>
-          <Skeleton className="mb-2 h-8 w-64" />
-          <Skeleton className="h-4 w-48" />
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <Skeleton className="h-64 w-full rounded-lg" />
-          <div className="space-y-4">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-          </div>
-          <Separator />
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-20 w-full" />
-          </div>
-        </CardContent>
-      </Card>
+    <div className="mx-auto w-full max-w-6xl px-4 pt-6 md:px-6 md:pt-8">
+      <Skeleton className="h-64 w-full rounded-3xl sm:h-80 md:h-[420px]" />
+      <div className="mt-6 flex flex-wrap gap-8">
+        <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-3">
+          <Skeleton className="h-9 w-2/3" />
+          <Skeleton className="h-4 w-1/2" />
+          <Skeleton className="mt-4 h-20 w-full rounded-2xl" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-5/6" />
+        </div>
+        <Skeleton className="hidden h-60 flex-[1_1_320px] rounded-3xl lg:block" />
+      </div>
     </div>
   );
 }

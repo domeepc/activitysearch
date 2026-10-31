@@ -3,21 +3,20 @@
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { progressionFromTotalExp } from "@/lib/gamification/levels";
-import { UserAvatarSection } from "./UserAvatarSection";
 import { ProfileHeader } from "./ProfileHeader";
 import { ProfileInfo } from "./ProfileInfo";
 import { ProfileStats, type ProfileProgressionDisplay } from "./ProfileStats";
 import { MyQuestsSection } from "./MyQuestsSection";
-import { FriendList } from "./FriendList";
+import { FriendList, type ProfileFriend } from "./FriendList";
 import { BlockedUsersList } from "./BlockedUsersList";
 import { EmailVerificationSection } from "./EmailVerificationSection";
 import { Id } from "@/convex/_generated/dataModel";
 import { useUser } from "@clerk/nextjs";
 import { useEmailVerification } from "@/lib/hooks/useEmailVerification";
 import { EmailVerificationDialog } from "./dialogs/EmailVerificationDialog";
-import { Label } from "../ui/label";
-import { Badge } from "../ui/badge";
 import { Ban } from "lucide-react";
+import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 interface ProfileViewProps {
   user:
@@ -34,6 +33,7 @@ interface ProfileViewProps {
         totalExp: bigint;
         loyaltyPoints?: bigint;
         friends: Id<"users">[];
+        _creationTime?: number;
       }
     | null
     | undefined;
@@ -45,16 +45,12 @@ interface ProfileViewProps {
       }
     | null
     | undefined;
-  friends?: Array<{
-    _id: Id<"users">;
-    username: string;
-  }>;
+  friends?: ProfileFriend[];
   isLoading?: boolean;
   onAddFriend?: () => void;
   onRemoveFriend?: () => void;
   onBlock?: () => void;
   onUnblock?: () => void;
-  onDeleteAccount?: () => void;
   blockedUsers?: Array<{
     _id: Id<"users">;
     name: string;
@@ -74,7 +70,6 @@ export function ProfileView({
   onRemoveFriend,
   onBlock,
   onUnblock,
-  onDeleteAccount,
   blockedUsers,
   hasBlockedYou = false,
 }: ProfileViewProps) {
@@ -99,6 +94,12 @@ export function ProfileView({
   } = useEmailVerification(currentEmail);
 
   const verificationStatus = getEmailVerificationStatus();
+
+  const [tab, setTab] = useState<"quests" | "friends" | "blocked">("quests");
+  const questOverview = useQuery(
+    api.quests.myQuestsOverview,
+    currentUser && user && currentUser._id === user._id ? {} : "skip"
+  );
 
   const progressionQuery = useQuery(
     api.users.getProgression,
@@ -141,12 +142,30 @@ export function ProfileView({
     ? `/profile/${user._id}/settings`
     : undefined;
 
+  const friendCount = friends?.length ?? user.friends.length;
+  const questsCompleted =
+    isOwnProfile && questOverview
+      ? questOverview.systemQuests.filter((r) => r.completed).length +
+        questOverview.activityQuests.reduce((s, g) => s + g.quests.filter((r) => r.completed).length, 0)
+      : undefined;
+  const tabs = [
+    ...(isOwnProfile ? [{ key: "quests" as const, label: "Quests" }] : []),
+    { key: "friends" as const, label: `Friends · ${friendCount}` },
+    ...(isOwnProfile ? [{ key: "blocked" as const, label: "Blocked" }] : []),
+  ];
+  const activeTab = tabs.some((t) => t.key === tab) ? tab : tabs[0].key;
+
   return (
-    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
+    <div className="flex flex-col gap-5">
       <ProfileHeader
-        isOwnProfile={isOwnProfile}
-        userName={user.name}
+        userId={user._id}
+        name={user.name}
+        lastname={user.lastname}
         username={user.username}
+        avatar={user.avatar}
+        level={progressionDisplay?.level}
+        friendCount={friendCount}
+        isOwnProfile={isOwnProfile}
         isFriend={isFriend || false}
         isBlocked={isBlocked}
         hasBlockedYou={hasBlockedYou}
@@ -154,86 +173,82 @@ export function ProfileView({
         onRemoveFriend={onRemoveFriend}
         onBlock={onBlock}
         onUnblock={onUnblock}
-        onDeleteAccount={onDeleteAccount}
         settingsUrl={settingsUrl}
       />
-      <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
-        {/* Blocked Status Badge */}
-        {isBlocked && !isOwnProfile && (
-          <div className="flex justify-center">
-            <Badge variant="destructive" className="text-sm py-2 px-4">
-              <Ban className="h-4 w-4 mr-2" />
-              This user is blocked
-            </Badge>
-          </div>
-        )}
-        {/* Has Blocked You Badge */}
-        {hasBlockedYou && !isOwnProfile && (
-          <div className="flex justify-center">
-            <Badge variant="destructive" className="text-sm py-2 px-4">
-              <Ban className="h-4 w-4 mr-2" />
-              This user has blocked you
-            </Badge>
-          </div>
-        )}
 
-        {/* Avatar */}
-        <div className="flex justify-center">
-          <UserAvatarSection
-            currentAvatar={user.avatar || "https://via.placeholder.com/128"}
-            userName={`${user.name} ${user.lastname}`}
-            disabled={true}
+      {!isOwnProfile && (isBlocked || hasBlockedYou) && (
+        <p role="status" className="flex items-center gap-2 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-800 dark:bg-red-950/50 dark:text-red-300">
+          <Ban className="size-4 shrink-0" />
+          {isBlocked
+            ? `You blocked ${user.name}. Unblock to message or add them again.`
+            : `${user.name} isn't accepting messages or friend requests from you.`}
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-start gap-5">
+        <aside className="flex min-w-0 flex-[1_1_300px] flex-col gap-4 lg:max-w-[360px]">
+          <ProfileStats
+            progression={progressionDisplay}
+            questsCompleted={questsCompleted}
+            isLoading={isOwnProfile ? progressionQuery === undefined : false}
           />
-        </div>
+          <ProfileInfo
+            description={user.description}
+            contact={user.contact}
+            joinedAt={user._creationTime}
+            isOwnProfile={isOwnProfile}
+          >
+            {isOwnProfile && currentEmail ? (
+              <div className="mt-1 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+                <EmailVerificationSection
+                  email={currentEmail}
+                  verificationStatus={verificationStatus}
+                  onVerifyClick={() => setShowEmailDialog(true)}
+                />
+              </div>
+            ) : null}
+          </ProfileInfo>
+        </aside>
 
-        {/* Profile Info */}
-        <ProfileInfo
-          name={user.name}
-          lastname={user.lastname}
-          username={isOwnProfile ? user.username : undefined}
-          description={user.description}
-          contact={user.contact}
-          isOwnProfile={isOwnProfile}
-          isLoading={isLoading}
-        />
-
-        {/* Email Section - Only show for own profile */}
-
-        {isOwnProfile && currentEmail && (
-          <div className="space-y-2">
-            <Label>Email</Label>
-            <EmailVerificationSection
-              email={currentEmail}
-              verificationStatus={verificationStatus}
-              onVerifyClick={() => setShowEmailDialog(true)}
-            />
+        <section className="min-w-0 flex-[999_1_520px] overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+          <div role="tablist" aria-label="Profile sections" className="flex gap-1 border-b border-zinc-200 px-3 pt-2 dark:border-zinc-800">
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                id={`tab-${t.key}`}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === t.key}
+                aria-controls={`panel-${t.key}`}
+                onClick={() => setTab(t.key)}
+                className={cn(
+                  "-mb-px h-11 border-b-2 px-3 text-sm transition-colors",
+                  activeTab === t.key
+                    ? "border-blue-600 font-semibold text-zinc-900 dark:text-zinc-50"
+                    : "border-transparent text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+                )}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
-        )}
-
-        <ProfileStats
-          progression={progressionDisplay}
-          isLoading={isOwnProfile ? progressionQuery === undefined : false}
-        />
-
-        {isOwnProfile && <MyQuestsSection />}
-
-        {/* Friends */}
-        <FriendList
-          friends={friends}
-          friendIds={user.friends}
-          isLoading={isLoading}
-        />
-
-        {/* Blocked Users - Only show on own profile */}
-        {isOwnProfile && (
-          <BlockedUsersList
-            blockedUsers={blockedUsers}
-            isLoading={isLoading}
-          />
-        )}
+          <div role="tabpanel" id={`panel-${activeTab}`} aria-labelledby={`tab-${activeTab}`} className="p-4 sm:p-5">
+            {activeTab === "quests" ? (
+              <MyQuestsSection />
+            ) : activeTab === "blocked" ? (
+              <BlockedUsersList blockedUsers={blockedUsers} />
+            ) : (
+              <FriendList
+                friends={friends}
+                friendIds={user.friends}
+                showPresence={isOwnProfile}
+                emptyText={isOwnProfile ? "Add friends from Messages to plan activities together." : `${user.name} hasn't added any friends yet.`}
+              />
+            )}
+          </div>
+        </section>
       </div>
 
-      {/* Email Verification Dialog */}
       {isOwnProfile && (
         <EmailVerificationDialog
           open={showEmailDialog}

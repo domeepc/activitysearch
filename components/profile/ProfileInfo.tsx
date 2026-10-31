@@ -1,61 +1,41 @@
 "use client";
 
-import { Skeleton } from "@/components/ui/skeleton";
+import { CalendarDays, Phone } from "lucide-react";
+import { format } from "date-fns";
 
 interface ProfileInfoProps {
-  name: string;
-  lastname: string;
-  username?: string;
   description: string;
   contact?: string;
+  joinedAt?: number;
   isOwnProfile: boolean;
-  isLoading?: boolean;
+  children?: React.ReactNode;
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+/** "About" card: bio, contact and member-since. */
+export function ProfileInfo({ description, contact, joinedAt, isOwnProfile, children }: ProfileInfoProps) {
   return (
-    <div className="flex flex-col gap-0.5 py-3 sm:flex-row sm:gap-4">
-      <span className="w-28 shrink-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </span>
-      <span className="text-sm text-zinc-700 dark:text-zinc-300">{value}</span>
-    </div>
-  );
-}
-
-export function ProfileInfo({
-  name,
-  lastname,
-  username,
-  description,
-  contact,
-  isOwnProfile,
-  isLoading = false,
-}: ProfileInfoProps) {
-  if (isLoading) {
-    return (
-      <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-        {[80, 96, 64, 160, 120].map((w, i) => (
-          <div key={i} className="flex items-center gap-4 py-3">
-            <Skeleton className="h-3 w-24 shrink-0" />
-            <Skeleton className={`h-4 w-${w}`} />
-          </div>
-        ))}
+    <section aria-labelledby="about-h" className="flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+      <h2 id="about-h" className="text-[15px] font-bold">About</h2>
+      <p className="text-sm leading-relaxed whitespace-pre-line text-zinc-700 dark:text-zinc-300">
+        {description || (
+          <span className="text-zinc-500">{isOwnProfile ? "Add a short bio in settings so friends know what you're into." : "No bio yet."}</span>
+        )}
+      </p>
+      <div className="flex flex-col gap-2 text-[13px] text-zinc-700 dark:text-zinc-300">
+        {contact ? (
+          <span className="flex items-center gap-2">
+            <Phone className="size-[15px] text-zinc-500" aria-hidden="true" />
+            {contact}
+          </span>
+        ) : null}
+        {joinedAt ? (
+          <span className="flex items-center gap-2">
+            <CalendarDays className="size-[15px] text-zinc-500" aria-hidden="true" />
+            Joined {format(joinedAt, "MMMM yyyy")}
+          </span>
+        ) : null}
       </div>
-    );
-  }
-
-  return (
-    <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-      <InfoRow label="Name" value={`${name} ${lastname}`} />
-      {username && <InfoRow label="Username" value={`@${username}`} />}
-      <InfoRow
-        label={isOwnProfile ? "Description" : "About"}
-        value={description || "No description provided"}
-      />
-      {(isOwnProfile || contact) && (
-        <InfoRow label="Contact" value={contact || "No contact information"} />
-      )}
-    </div>
+      {children}
+    </section>
   );
 }

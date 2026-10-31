@@ -13,17 +13,9 @@ type QuestRow = {
   completedAt?: number;
 };
 
-function questListClassName(count: number) {
-  return cn(
-    "space-y-2",
-    count > 3 &&
-      "max-h-[min(14rem,55vh)] overflow-y-auto overflow-x-hidden overscroll-y-contain pr-1 [scrollbar-gutter:stable]"
-  );
-}
-
 function XpPill({ amount }: { amount: number }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-950 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
+    <span className="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-950 px-2 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
       +{amount} XP
     </span>
   );
@@ -33,16 +25,16 @@ function QuestRowCard({ quest, completed }: Omit<QuestRow, "completedAt">) {
   return (
     <li
       className={cn(
-        "flex gap-3 rounded-2xl p-3.5 transition-colors",
+        "flex gap-3 rounded-2xl p-4 transition-colors",
         completed
-          ? "bg-emerald-50 dark:bg-emerald-950 border border-emerald-100 dark:border-emerald-900"
-          : "bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700"
+          ? "border border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40"
+          : "border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
       )}
     >
       <QuestVisual
         iconImageUrl={quest.iconImageUrl}
         iconSvg={quest.iconSvg}
-        className="mt-0.5 shrink-0"
+        className="mt-1 shrink-0"
       />
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
@@ -55,9 +47,9 @@ function QuestRowCard({ quest, completed }: Omit<QuestRow, "completedAt">) {
             {quest.questName}
           </p>
           {completed ? (
-            <CheckCircle2 className="size-4 shrink-0 text-emerald-500 mt-0.5" />
+            <CheckCircle2 className="size-4 shrink-0 text-emerald-500 mt-1" />
           ) : (
-            <Circle className="size-4 shrink-0 text-zinc-300 mt-0.5" />
+            <Circle className="size-4 shrink-0 text-zinc-300 mt-1" />
           )}
         </div>
         <p className="mt-1 line-clamp-3 text-xs text-zinc-500 dark:text-zinc-400">
@@ -82,11 +74,9 @@ function SectionLabel({
 }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </p>
-      <span className="text-xs text-muted-foreground">
-        {completed}/{total}
+      <h3 className="text-sm font-semibold">{label}</h3>
+      <span className="text-xs tabular-nums text-zinc-600 dark:text-zinc-400">
+        {completed} of {total} done
       </span>
     </div>
   );
@@ -96,15 +86,7 @@ export function MyQuestsSection() {
   const overview = useQuery(api.quests.myQuestsOverview, {});
 
   if (overview === undefined) {
-    return (
-      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <Trophy className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Quests</h3>
-        </div>
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      </div>
-    );
+    return <p className="py-8 text-center text-sm text-muted-foreground">Loading quests…</p>;
   }
 
   const hasAny =
@@ -112,63 +94,51 @@ export function MyQuestsSection() {
 
   if (!hasAny) {
     return (
-      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <Trophy className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Quests</h3>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Complete quests to earn XP and level up. Join an activity to see
-          organiser quests.
-        </p>
+      <div className="flex flex-col items-center gap-2 py-8 text-center text-sm text-zinc-600 dark:text-zinc-400">
+        <span className="inline-flex size-10 items-center justify-center rounded-full bg-amber-50 text-amber-600 dark:bg-amber-950/60">
+          <Trophy className="size-5" />
+        </span>
+        Complete quests to earn XP and level up. Join an activity to see its organiser&apos;s quests.
       </div>
     );
   }
 
+  const groups = [
+    ...(overview.systemQuests.length > 0
+      ? [{ key: "journey", label: "Journey", rows: overview.systemQuests }]
+      : []),
+    ...overview.activityQuests.map((g) => ({
+      key: String(g.activityId),
+      label: g.activityName,
+      rows: g.quests,
+    })),
+  ];
+
   return (
-    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-5 space-y-5">
-      <div className="flex items-center gap-2">
-        <Trophy className="h-4 w-4 text-amber-500" />
-        <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Quests</h3>
-      </div>
-
-      {overview.systemQuests.length > 0 && (
-        <div className="space-y-2">
-          <SectionLabel
-            label="Journey"
-            total={overview.systemQuests.length}
-            completed={overview.systemQuests.filter((r) => r.completed).length}
-          />
-          <ul className={questListClassName(overview.systemQuests.length)}>
-            {overview.systemQuests.map((row) => (
-              <QuestRowCard
-                key={row.quest._id}
-                quest={row.quest}
-                completed={row.completed}
-              />
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {overview.activityQuests.map((group) => (
-        <div key={group.activityId} className="space-y-2">
-          <SectionLabel
-            label={group.activityName}
-            total={group.quests.length}
-            completed={group.quests.filter((r) => r.completed).length}
-          />
-          <ul className={questListClassName(group.quests.length)}>
-            {group.quests.map((row) => (
-              <QuestRowCard
-                key={row.quest._id}
-                quest={row.quest}
-                completed={row.completed}
-              />
-            ))}
-          </ul>
-        </div>
-      ))}
+    <div className="flex flex-col gap-6">
+      {groups.map((group) => {
+        const done = group.rows.filter((r) => r.completed).length;
+        return (
+          <div key={group.key} className="flex flex-col gap-3">
+            <SectionLabel label={group.label} total={group.rows.length} completed={done} />
+            <div
+              className="h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800"
+              role="progressbar"
+              aria-label={`${group.label} quests completed`}
+              aria-valuenow={done}
+              aria-valuemin={0}
+              aria-valuemax={group.rows.length}
+            >
+              <div className="h-full rounded-full bg-blue-600" style={{ width: `${(done / group.rows.length) * 100}%` }} />
+            </div>
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {group.rows.map((row) => (
+                <QuestRowCard key={row.quest._id} quest={row.quest} completed={row.completed} />
+              ))}
+            </ul>
+          </div>
+        );
+      })}
     </div>
   );
 }

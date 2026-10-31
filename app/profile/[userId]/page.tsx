@@ -10,6 +10,7 @@ import { RemoveFriendDialog } from "@/components/profile/dialogs/RemoveFriendDia
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 // Convex document IDs are 32 base-32 chars; treat other segments as username
 function looksLikeConvexId(s: string): boolean {
@@ -74,8 +75,9 @@ export default function ProfilePage({
     if (!user?._id) return;
     try {
       await addFriend({ friendId: user._id });
+      toast.success(`You and ${user.name} are now friends`);
     } catch (error) {
-      console.error("Failed to add friend:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to add friend");
     }
   };
 
@@ -95,10 +97,7 @@ export default function ProfilePage({
       await blockUser({ userId: user._id });
       setShowBlockDialog(false);
     } catch (error) {
-      console.error("Failed to block user:", error);
-      alert(
-        error instanceof Error ? error.message : "Failed to block user"
-      );
+      toast.error(error instanceof Error ? error.message : "Failed to block user");
     }
   };
 
@@ -107,44 +106,18 @@ export default function ProfilePage({
     try {
       await unblockUser({ userId: user._id });
     } catch (error) {
-      console.error("Failed to unblock user:", error);
-      alert(
-        error instanceof Error ? error.message : "Failed to unblock user"
-      );
+      toast.error(error instanceof Error ? error.message : "Failed to unblock user");
     }
   };
 
   // Loading state
   if (user === undefined || currentUser === undefined) {
     return (
-      <div className="container mx-auto p-4 md:p-6 max-w-4xl">
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
-          <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 md:px-6">
-            <div className="space-y-1.5">
-              <Skeleton className="h-6 w-40" />
-              <Skeleton className="h-4 w-28" />
-            </div>
-            <Skeleton className="h-8 w-24 rounded-full" />
-          </div>
-          <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
-            <div className="flex justify-center">
-              <Skeleton className="h-32 w-32 rounded-full" />
-            </div>
-            <div className="grid gap-6">
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-24 w-full" />
-              </div>
-            </div>
-          </div>
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-6 md:px-6">
+        <Skeleton className="h-[220px] w-full rounded-3xl" />
+        <div className="flex flex-wrap gap-5">
+          <Skeleton className="h-64 flex-[1_1_300px] rounded-2xl lg:max-w-[360px]" />
+          <Skeleton className="h-64 flex-[999_1_520px] rounded-2xl" />
         </div>
       </div>
     );
@@ -159,7 +132,7 @@ export default function ProfilePage({
   const hasBlockedYou = user.blocked?.includes(currentUser._id) ?? false;
 
   return (
-    <div className="container mx-auto p-4 md:p-6 max-w-4xl">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-6">
       <ProfileView
         user={user}
         currentUser={currentUser}
@@ -190,8 +163,8 @@ export default function ProfilePage({
       <ConfirmDialog
         open={showBlockDialog}
         onOpenChange={setShowBlockDialog}
-        title="Block User"
-        description={`Are you sure you want to block ${user.name} ${user.lastname}? They will be removed from your friends list and you won't be able to message each other.`}
+        title={`Block ${user.name}?`}
+        description={`${user.name} ${user.lastname} will be removed from your friends and you won't be able to message each other.`}
         confirmText="Block"
         variant="destructive"
         onConfirm={handleBlock}
