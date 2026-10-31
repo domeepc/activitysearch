@@ -5,7 +5,7 @@ import { query } from "./_generated/server";
  * Public (no sign-in), so it returns only what's already public: listing basics, quest names,
  * review text with the reviewer's first name and last initial.
  */
-// shortcut: reads every activity, review and quest; fine while the landing page re-fetches hourly, add a ratings summary table past ~10k reviews
+// shortcut: reads every activity, review and quest; fine while the landing page re-fetches every few minutes, add a ratings summary table past ~10k reviews
 export const showcase = query({
   args: {},
   handler: async (ctx) => {
@@ -86,7 +86,7 @@ export const showcase = query({
       reviews
         .filter((r) => r.text.trim().length >= 20 && (r.rating ?? 5) >= 4)
         .sort((a, b) => b._creationTime - a._creationTime)
-        .slice(0, 3)
+        .slice(0, 12)
         .map(async (r) => {
           const user = await ctx.db.get(r.userId);
           return {

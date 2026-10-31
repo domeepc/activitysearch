@@ -25,6 +25,11 @@ function Avatar({
 // Clerk's generic placeholder (base64 of {"type":"default"...}); treat it as "no photo" so the generated avatar shows
 const CLERK_PLACEHOLDER = "https://img.clerk.com/eyJ0eXBlIjoiZGVmYXVsdCI"
 
+/** Clerk's default image means "no photo" */
+export function isPlaceholderAvatar(src: string | undefined): boolean {
+  return !src || src.startsWith(CLERK_PLACEHOLDER)
+}
+
 const AVATAR_COLORS = ["#1d4ed8", "#3b82f6", "#38bdf8", "#fbbf24", "#f97316"]
 
 function AvatarImage({
@@ -36,7 +41,7 @@ function AvatarImage({
     <AvatarPrimitive.Image
       data-slot="avatar-image"
       className={cn("aspect-square size-full object-cover", className)}
-      src={typeof src === "string" && src.startsWith(CLERK_PLACEHOLDER) ? undefined : src}
+      src={typeof src === "string" && isPlaceholderAvatar(src) ? undefined : src}
       {...props}
     />
   )
