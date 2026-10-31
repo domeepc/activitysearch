@@ -1,39 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import type { Doc, Id } from "@/convex/_generated/dataModel";
+import type { Doc } from "@/convex/_generated/dataModel";
 import { QuestCompletionCelebrationDialog } from "@/components/quests/QuestCompletionCelebrationDialog";
 import { toast } from "sonner";
-
-type QuestEntry = {
-  quest: Doc<"quests">;
-  completed: boolean;
-  completedAt?: number;
-};
-
-/** Completions in this window still get a one-time celebration on first app load (e.g. account signup). */
-const RECENT_COMPLETION_BOOTSTRAP_MS = 30 * 60 * 1000;
-
-function bootstrapCelebrationStorageKey(
-  viewerId: Id<"users">,
-  questId: string,
-  completedAt: number
-) {
-  return `qc_celebrate_boot:${viewerId}:${questId}:${completedAt}`;
-}
-
-function flattenOverviewQuests(overview: {
-  systemQuests: QuestEntry[];
-  activityQuests: Array<{ quests: QuestEntry[] }>;
-}): QuestEntry[] {
-  const out = [...overview.systemQuests];
-  for (const g of overview.activityQuests) {
-    out.push(...g.quests);
-  }
-  return out;
-}
 
 const CLOSE_MS = 240;
 
@@ -43,12 +15,11 @@ export function QuestCelebrationProvider({
   children: React.ReactNode;
 }) {
   const { isAuthenticated } = useConvexAuth();
-  const overview = useQuery(
-    api.quests.myQuestsOverview,
-    isAuthenticated ? {} : "skip"
-  );
+  // The server remembers which completions were celebrated, so a popup shows once, on any tab or device
+  const pending = useQuery(api.quests.pendingQuestCelebrations, isAuthenticated ? {} : "skip");
+  const markCelebrated = useMutation(api.quests.markQuestCelebrated);
 
-  const prevCompletedRef = useRef<Set<string> | null>(null);
+  const shownRef = useRef(new Set<string>());
   const queueRef = useRef<Doc<"quests">[]>([]);
   const dialogOpenRef = useRef(false);
   const activeQuestRef = useRef<Doc<"quests"> | null>(null);
@@ -74,7 +45,7 @@ export function QuestCelebrationProvider({
 
   useEffect(() => {
     if (!isAuthenticated) {
-      prevCompletedRef.current = null;
+      shownRef.current.clear();
       queueRef.current = [];
       queueMicrotask(() => {
         setDialogOpen(false);
@@ -84,65 +55,17 @@ export function QuestCelebrationProvider({
   }, [isAuthenticated]);
 
   useEffect(() => {
-    if (!isAuthenticated || overview === undefined) return;
-
-    const entries = flattenOverviewQuests(overview);
-    const completed = new Set(
-      entries.filter((e) => e.completed).map((e) => e.quest._id.toString())
-    );
-
-    if (prevCompletedRef.current === null) {
-      const now = Date.now();
-      const viewerId = overview.viewerId;
-      if (viewerId) {
-        for (const e of entries) {
-          if (!e.completed || e.completedAt === undefined) continue;
-          if (now - e.completedAt > RECENT_COMPLETION_BOOTSTRAP_MS) continue;
-          const key = bootstrapCelebrationStorageKey(
-            viewerId,
-            e.quest._id.toString(),
-            e.completedAt
-          );
-          try {
-            if (globalThis.sessionStorage?.getItem(key) === "1") continue;
-          } catch {
-            /* private mode */
-          }
-          queueMicrotask(() => {
-            enqueue(e.quest);
-          });
-          try {
-            globalThis.sessionStorage?.setItem(key, "1");
-          } catch {
-            /* ignore */
-          }
-        }
-      }
-      prevCompletedRef.current = completed;
-      return;
-    }
-
-    const newlyCompleted: Doc<"quests">[] = [];
-    for (const id of completed) {
-      if (!prevCompletedRef.current.has(id)) {
-        const row = entries.find(
-          (e) => e.quest._id.toString() === id && e.completed
-        );
-        if (row) newlyCompleted.push(row.quest);
-      }
-    }
-
-    prevCompletedRef.current = completed;
-
-    for (const q of newlyCompleted) {
-      toast.success(`Quest complete: ${q.questName}`, {
-        description: `+${Number(q.expAmount)} XP earned`,
+    for (const quest of pending ?? []) {
+      // Until the server confirms, the query still lists it; don't queue it twice
+      if (shownRef.current.has(quest._id)) continue;
+      shownRef.current.add(quest._id);
+      toast.success(`Quest complete: ${quest.questName}`, {
+        description: `+${Number(quest.expAmount)} XP earned`,
       });
-      queueMicrotask(() => {
-        enqueue(q);
-      });
+      queueMicrotask(() => enqueue(quest));
+      markCelebrated({ questId: quest._id }).catch(() => shownRef.current.delete(quest._id));
     }
-  }, [overview, isAuthenticated, enqueue]);
+  }, [pending, enqueue, markCelebrated]);
 
   const handleOpenChange = useCallback((open: boolean) => {
     if (open) {

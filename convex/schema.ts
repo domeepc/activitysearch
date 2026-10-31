@@ -92,6 +92,8 @@ export default defineSchema({
     completedAt: v.number(),
     source: v.union(v.literal("manual"), v.literal("system")),
     markedByOrganiserId: v.optional(v.id("users")),
+    // Set once the completion popup was shown, so it's celebrated once across tabs and devices
+    celebratedAt: v.optional(v.number()),
   })
     .index("by_user_quest", ["userId", "questId"])
     .index("by_user", ["userId"])

@@ -9,9 +9,17 @@ import { LandingFooter } from "@/components/landing/LandingFooter";
 import { LandingNavbar } from "@/components/landing/LandingNavbar";
 import { categories, topRated } from "@/components/landing/data";
 import { FadeInSection } from "@/components/landing/FadeInSection";
+import { ReviewsSection } from "@/components/landing/ReviewsSection";
+import type { FunctionReturnType } from "convex/server";
+import type { api } from "@/convex/_generated/api";
 
 /** The public landing page is always dark: it's an editorial surface, not app chrome. */
-export function LandingPage() {
+export function LandingPage({
+  showcase,
+}: {
+  /** Real activities, quests and reviews; null (e.g. backend unreachable at build) falls back to samples */
+  showcase: FunctionReturnType<typeof api.landing.showcase> | null;
+}) {
   return (
     <main className="landing-root dark min-h-screen bg-zinc-950 font-sans text-zinc-50 antialiased">
       <LandingNavbar />
@@ -20,10 +28,19 @@ export function LandingPage() {
         <CategorySection items={categories} />
       </FadeInSection>
       <FadeInSection>
-        <TopRatedSection items={topRated} />
+        <TopRatedSection
+          items={
+            showcase?.topActivities.length
+              ? showcase.topActivities.map((a) => ({ ...a, href: `/activities/${a.id}` }))
+              : topRated
+          }
+        />
       </FadeInSection>
       <FadeInSection>
-        <QuestsSection />
+        <QuestsSection items={showcase?.quests} />
+      </FadeInSection>
+      <FadeInSection>
+        <ReviewsSection items={showcase?.reviews ?? []} />
       </FadeInSection>
       <div className="mx-auto grid w-full max-w-[1440px] gap-3 px-4 pt-28 md:px-10 lg:grid-cols-12">
         <FadeInSection className="lg:col-span-7">
