@@ -1,52 +1,96 @@
 import React from "react";
 import Image from "next/image";
-import { Label } from "@/components/ui/label";
+import { AlertCircle, ImagePlus, Plus, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Upload,
-  X,
-  AlertCircle,
-  Image as ImageIcon,
-  Clock,
-  Plus,
-} from "lucide-react";
-import {
-  AddressAutocomplete,
-  AddressCoordinates,
-} from "@/components/ui/address-autocomplete";
-import { cn } from "@/lib/utils";
+import { AddressAutocomplete, AddressCoordinates } from "@/components/ui/address-autocomplete";
+import { cn, formatDuration } from "@/lib/utils";
 import { MAX_IMAGE_UPLOAD_LABEL } from "@/lib/uploadLimits";
-import {
-  MultiSelect,
-  MultiSelectContent,
-  MultiSelectItem,
-  MultiSelectTrigger,
-  MultiSelectValue,
-  MultiSelectGroup,
-} from "@/components/ui/multi-select";
 import { ActivityFormData, FormErrors } from "./ActivityFormTypes";
 
-interface ActivityFormSectionsProps {
-  formData: ActivityFormData;
-  errors: FormErrors;
-  selectedDifficulty: string[];
-  onFieldChange: <K extends keyof ActivityFormData>(
-    field: K,
-    value: ActivityFormData[K]
-  ) => void;
-  onFieldBlur: (
-    field: keyof FormErrors,
-    value: string | AddressCoordinates | null
-  ) => void;
-  onAddressChange: (address: string) => void;
-  onAddressSelect: (address: string, coords: AddressCoordinates) => void;
-  onDifficultyChange: (values: string[]) => void;
-  onImageSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onRemoveImage: (idx: number) => void;
+type FieldChange = <K extends keyof ActivityFormData>(field: K, value: ActivityFormData[K]) => void;
+type FieldBlur = (field: keyof FormErrors, value: string | AddressCoordinates | null) => void;
+
+/** Label + control + hint/error, the same everywhere in the form. */
+function Field({
+  id,
+  label,
+  optional,
+  hint,
+  error,
+  className,
+  children,
+}: {
+  id: string;
+  label: string;
+  optional?: boolean;
+  hint?: React.ReactNode;
   error?: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={cn("flex flex-col gap-2", className)}>
+      <label htmlFor={id} className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+        {label}
+        {optional && <span className="font-normal text-zinc-500"> (optional)</span>}
+      </label>
+      {children}
+      {error ? (
+        <p role="alert" className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
+          <AlertCircle className="size-3 shrink-0" />
+          {error}
+        </p>
+      ) : hint ? (
+        <p className="text-xs text-zinc-600 dark:text-zinc-400">{hint}</p>
+      ) : null}
+    </div>
+  );
+}
+
+/** Number input with a fixed unit on the left or right (€, min, people…). */
+function UnitInput({
+  id,
+  unit,
+  side = "right",
+  error,
+  ...props
+}: React.ComponentProps<"input"> & { unit: string; side?: "left" | "right"; error?: boolean }) {
+  return (
+    <div className="relative">
+      {side === "left" && (
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-500">{unit}</span>
+      )}
+      <Input
+        id={id}
+        type="number"
+        inputMode="numeric"
+        aria-invalid={error}
+        className={cn("h-11 tabular-nums", side === "left" ? "pl-8" : "pr-16", error && "border-destructive")}
+        {...props}
+      />
+      {side === "right" && (
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-zinc-500">{unit}</span>
+      )}
+    </div>
+  );
+}
+
+function SectionTitle({ title, description }: { title: string; description?: string }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">{title}</h3>
+      {description && <p className="text-sm text-zinc-600 dark:text-zinc-400">{description}</p>}
+    </div>
+  );
+}
+
+function splitList(value: string) {
+  return value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 export function BasicInformationSection({
@@ -54,62 +98,44 @@ export function BasicInformationSection({
   errors,
   onFieldChange,
   onFieldBlur,
-}: Pick<
-  ActivityFormSectionsProps,
-  "formData" | "errors" | "onFieldChange" | "onFieldBlur"
->) {
+}: {
+  formData: ActivityFormData;
+  errors: FormErrors;
+  onFieldChange: FieldChange;
+  onFieldBlur: FieldBlur;
+}) {
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-foreground">
-        Basic Information
-      </h3>
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2 md:col-span-2">
-          <Label htmlFor="activityName">
-            Activity Name <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="activityName"
-            type="text"
-            value={formData.activityName}
-            onChange={(e) => onFieldChange("activityName", e.target.value)}
-            onBlur={() => onFieldBlur("activityName", formData.activityName)}
-            className={cn(errors.activityName && "border-destructive")}
-            aria-required="true"
-            aria-invalid={!!errors.activityName}
-          />
-          {errors.activityName && (
-            <p className="text-sm text-destructive flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              {errors.activityName}
-            </p>
-          )}
-        </div>
-        <div className="space-y-2 md:col-span-2">
-          <Label htmlFor="description">
-            Description <span className="text-destructive">*</span>
-          </Label>
-          <Textarea
-            id="description"
-            className={cn(
-              "resize-none min-h-[100px]",
-              errors.description && "border-destructive"
-            )}
-            value={formData.description}
-            onChange={(e) => onFieldChange("description", e.target.value)}
-            onBlur={() => onFieldBlur("description", formData.description)}
-            aria-required="true"
-            aria-invalid={!!errors.description}
-          />
-          {errors.description && (
-            <p className="text-sm text-destructive flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              {errors.description}
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
+    <section className="flex flex-col gap-4">
+      <SectionTitle title="The basics" description="What people see first on the map and in search." />
+      <Field id="activityName" label="Name" error={errors.activityName}>
+        <Input
+          id="activityName"
+          value={formData.activityName}
+          onChange={(e) => onFieldChange("activityName", e.target.value)}
+          onBlur={() => onFieldBlur("activityName", formData.activityName)}
+          placeholder="e.g. Sunset Sea Kayak Tour"
+          className={cn("h-11", errors.activityName && "border-destructive")}
+          aria-invalid={!!errors.activityName}
+        />
+      </Field>
+      <Field
+        id="description"
+        label="Description"
+        error={errors.description}
+        hint={`${formData.description.length} characters · say what's included and who it's for`}
+      >
+        <Textarea
+          id="description"
+          rows={5}
+          value={formData.description}
+          onChange={(e) => onFieldChange("description", e.target.value)}
+          onBlur={() => onFieldBlur("description", formData.description)}
+          placeholder="Paddle along the coast at golden hour…"
+          className={cn("min-h-32 resize-none", errors.description && "border-destructive")}
+          aria-invalid={!!errors.description}
+        />
+      </Field>
+    </section>
   );
 }
 
@@ -118,38 +144,39 @@ export function LocationSection({
   errors,
   onAddressChange,
   onAddressSelect,
-}: Pick<
-  ActivityFormSectionsProps,
-  "formData" | "errors" | "onAddressChange" | "onAddressSelect"
->) {
+}: {
+  formData: ActivityFormData;
+  errors: FormErrors;
+  onAddressChange: (address: string) => void;
+  onAddressSelect: (address: string, coords: AddressCoordinates) => void;
+}) {
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-foreground">Location</h3>
-      <div className="grid gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="address">
-            Address <span className="text-destructive">*</span>
-          </Label>
-          <AddressAutocomplete
-            id="address"
-            value={formData.address}
-            onChange={onAddressChange}
-            onSelect={onAddressSelect}
-            placeholder="Start typing an address..."
-            error={errors.address || errors.coordinates}
-            required
-          />
-          {errors.coordinates && !errors.address && (
-            <p className="text-sm text-destructive flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              {errors.coordinates}
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
+    <section className="flex flex-col gap-4">
+      <SectionTitle title="Where it happens" />
+      <Field
+        id="address"
+        label="Meeting point"
+        hint={errors.address || errors.coordinates ? undefined : formData.coordinates ? "Pinned on the map" : "Pick a suggestion so we can pin it on the map"}
+      >
+        <AddressAutocomplete
+          id="address"
+          value={formData.address}
+          onChange={onAddressChange}
+          onSelect={onAddressSelect}
+          placeholder="Start typing an address…"
+          error={errors.address || errors.coordinates}
+          required
+        />
+      </Field>
+    </section>
   );
 }
+
+const LEVELS = [
+  { value: "easy", label: "Easy", dot: "bg-green-600" },
+  { value: "intermediate", label: "Intermediate", dot: "bg-amber-500" },
+  { value: "hard", label: "Hard", dot: "bg-red-600" },
+];
 
 export function ActivityDetailsSection({
   formData,
@@ -158,354 +185,246 @@ export function ActivityDetailsSection({
   onFieldChange,
   onFieldBlur,
   onDifficultyChange,
-}: Pick<
-  ActivityFormSectionsProps,
-  | "formData"
-  | "errors"
-  | "selectedDifficulty"
-  | "onFieldChange"
-  | "onFieldBlur"
-  | "onDifficultyChange"
->) {
+}: {
+  formData: ActivityFormData;
+  errors: FormErrors;
+  selectedDifficulty: string[];
+  onFieldChange: FieldChange;
+  onFieldBlur: FieldBlur;
+  onDifficultyChange: (values: string[]) => void;
+}) {
+  const minutes = parseInt(formData.duration, 10);
+  const people = parseInt(formData.maxParticipants, 10);
+  const price = parseFloat(formData.price);
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-foreground">
-        Activity Details
-      </h3>
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="price">
-            Price (EUR) <span className="text-destructive">*</span>
-          </Label>
-          <Input
+    <section className="flex flex-col gap-4">
+      <SectionTitle title="Price & group" />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field
+          id="price"
+          label="Price per booking"
+          error={errors.price}
+          hint={
+            price > 0 && people > 0
+              ? `Split by the team — about €${(price / people).toFixed(2)} each for ${people}`
+              : "The team splits it between them"
+          }
+        >
+          <UnitInput
             id="price"
-            type="number"
+            unit="€"
+            side="left"
             step="0.01"
             min="0"
+            inputMode="decimal"
             value={formData.price}
             onChange={(e) => onFieldChange("price", e.target.value)}
             onBlur={() => onFieldBlur("price", formData.price)}
-            className={cn(errors.price && "border-destructive")}
-            aria-required="true"
-            aria-invalid={!!errors.price}
+            error={!!errors.price}
           />
-          {errors.price && (
-            <p className="text-sm text-destructive flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              {errors.price}
-            </p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="duration">
-            Duration (minutes) <span className="text-destructive">*</span>
-          </Label>
-          <Input
+        </Field>
+        <Field id="duration" label="Duration" error={errors.duration} hint={minutes > 0 ? formatDuration(minutes) ?? undefined : "In minutes"}>
+          <UnitInput
             id="duration"
-            type="number"
+            unit="min"
             min="0"
-            step="1"
+            step="5"
             value={formData.duration}
             onChange={(e) => onFieldChange("duration", e.target.value)}
             onBlur={() => onFieldBlur("duration", formData.duration)}
-            className={cn(errors.duration && "border-destructive")}
-            aria-required="true"
-            aria-invalid={!!errors.duration}
+            error={!!errors.duration}
           />
-          {errors.duration && (
-            <p className="text-sm text-destructive flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              {errors.duration}
-            </p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="difficulty">
-            Difficulty <span className="text-destructive">*</span>
-          </Label>
-          <MultiSelect
-            values={selectedDifficulty}
-            onValuesChange={onDifficultyChange}
-          >
-            <MultiSelectTrigger
-              id="difficulty"
-              className={cn(
-                "w-full",
-                errors.difficulty && "border-destructive"
-              )}
-              aria-required="true"
-              aria-invalid={!!errors.difficulty}
-            >
-              <MultiSelectValue placeholder="Select difficulty..." />
-            </MultiSelectTrigger>
-            <MultiSelectContent search={false}>
-              <MultiSelectGroup>
-                <MultiSelectItem value="easy">Easy</MultiSelectItem>
-                <MultiSelectItem value="intermediate">
-                  Intermediate
-                </MultiSelectItem>
-                <MultiSelectItem value="hard">Hard</MultiSelectItem>
-              </MultiSelectGroup>
-            </MultiSelectContent>
-          </MultiSelect>
-          {errors.difficulty && (
-            <p className="text-sm text-destructive flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              {errors.difficulty}
-            </p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="maxParticipants">
-            Max Participants <span className="text-destructive">*</span>
-          </Label>
-          <Input
+        </Field>
+        <Field id="maxParticipants" label="Max group size" error={errors.maxParticipants}>
+          <UnitInput
             id="maxParticipants"
-            type="number"
+            unit="people"
             min="1"
             step="1"
             value={formData.maxParticipants}
             onChange={(e) => onFieldChange("maxParticipants", e.target.value)}
-            onBlur={() =>
-              onFieldBlur("maxParticipants", formData.maxParticipants)
-            }
-            className={cn(errors.maxParticipants && "border-destructive")}
-            aria-required="true"
-            aria-invalid={!!errors.maxParticipants}
+            onBlur={() => onFieldBlur("maxParticipants", formData.maxParticipants)}
+            error={!!errors.maxParticipants}
           />
-          {errors.maxParticipants && (
-            <p className="text-sm text-destructive flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              {errors.maxParticipants}
-            </p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="minAge">
-            Min Age <span className="text-destructive">*</span>
-          </Label>
-          <Input
+        </Field>
+        <Field id="minAge" label="Minimum age" error={errors.minAge}>
+          <UnitInput
             id="minAge"
-            type="number"
+            unit="years"
             min="12"
             step="1"
             value={formData.minAge}
             onChange={(e) => onFieldChange("minAge", e.target.value)}
             onBlur={() => onFieldBlur("minAge", formData.minAge)}
-            className={cn(errors.minAge && "border-destructive")}
-            aria-required="true"
-            aria-invalid={!!errors.minAge}
+            error={!!errors.minAge}
           />
-          {errors.minAge && (
-            <p className="text-sm text-destructive flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              {errors.minAge}
-            </p>
-          )}
-        </div>
+        </Field>
       </div>
-    </div>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-2 text-sm font-medium text-zinc-900 dark:text-zinc-50">Level</legend>
+        <div id="difficulty" role="radiogroup" aria-label="Level" className="grid grid-cols-3 gap-2">
+          {LEVELS.map((l) => {
+            const on = selectedDifficulty[0] === l.value || formData.difficulty === l.value;
+            return (
+              <button
+                key={l.value}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => onDifficultyChange([l.value])}
+                className={cn(
+                  "inline-flex h-11 items-center justify-center gap-2 rounded-xl border text-sm font-medium transition-colors",
+                  on
+                    ? "border-blue-600 bg-blue-50 text-zinc-900 ring-1 ring-blue-600 dark:bg-blue-950/40 dark:text-zinc-50"
+                    : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
+                )}
+              >
+                <span className={cn("size-2 rounded-full", l.dot)} aria-hidden="true" />
+                {l.label}
+              </button>
+            );
+          })}
+        </div>
+        {errors.difficulty && (
+          <p role="alert" className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
+            <AlertCircle className="size-3" />
+            {errors.difficulty}
+          </p>
+        )}
+      </fieldset>
+    </section>
   );
 }
 
 export function TimeSlotsSection({
   formData,
   onFieldChange,
-}: Pick<ActivityFormSectionsProps, "formData" | "onFieldChange">) {
+}: {
+  formData: ActivityFormData;
+  onFieldChange: FieldChange;
+}) {
   const [timeInput, setTimeInput] = React.useState("");
-  const [timeError, setTimeError] = React.useState<string>("");
+  const [timeError, setTimeError] = React.useState("");
 
-  const validateTime = (time: string): boolean => {
-    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    return timeRegex.test(time);
+  const toMinutes = (time: string) => {
+    const [h, m] = time.split(":").map(Number);
+    return h * 60 + m;
   };
+  const toTime = (mins: number) =>
+    `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
 
-  const parseTime = (time: string): number => {
-    const [hours, minutes] = time.split(":").map(Number);
-    return hours * 60 + minutes; // Convert to minutes since midnight
-  };
+  const duration = parseInt(formData.duration, 10);
+  const hasDuration = duration > 0;
+  const gap = duration + 10; // activity length + 10 min turnover
 
-  const formatTime = (minutes: number): string => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours.toString().padStart(2, "0")}:${mins
-      .toString()
-      .padStart(2, "0")}`;
-  };
-
-  const handleAddTime = () => {
-    const trimmedTime = timeInput.trim();
+  const addTime = () => {
+    const time = timeInput.trim();
     setTimeError("");
-
-    // Check if duration is set first
-    if (!formData.duration || formData.duration.trim() === "") {
-      setTimeError("Please enter activity duration first");
+    if (!/^([01]?\d|2[0-3]):[0-5]\d$/.test(time)) {
+      setTimeError("Use a time like 09:00");
       return;
     }
-
-    if (!trimmedTime) {
-      setTimeError("Please enter a time");
+    if (formData.availableTimeSlots.includes(time)) {
+      setTimeError("That time is already added");
       return;
     }
-
-    if (!validateTime(trimmedTime)) {
-      setTimeError("Invalid time format. Use HH:MM (e.g., 09:00)");
+    const t = toMinutes(time);
+    const clash = formData.availableTimeSlots.find((s) => Math.abs(toMinutes(s) - t) < gap);
+    if (clash) {
+      const after = toMinutes(clash) + gap;
+      setTimeError(
+        `Too close to ${clash} — slots need ${gap} min between starts (${duration} min + 10 min turnover).` +
+          (after < 24 * 60 ? ` Next free start: ${toTime(after)}.` : "")
+      );
       return;
     }
-
-    if (formData.availableTimeSlots.includes(trimmedTime)) {
-      setTimeError("This time slot already exists");
-      return;
-    }
-
-    // Get duration in minutes
-    const durationMinutes = parseInt(formData.duration, 10);
-    if (isNaN(durationMinutes) || durationMinutes <= 0) {
-      setTimeError("Please enter a valid duration first");
-      return;
-    }
-    const bufferMinutes = 10;
-    const minInterval = durationMinutes + bufferMinutes;
-
-    // Check interval with existing slots
-    const newTimeMinutes = parseTime(trimmedTime);
-    const sortedSlots = [...formData.availableTimeSlots].sort();
-
-    // Check if new time conflicts with existing slots
-    for (const existingTime of sortedSlots) {
-      const existingTimeMinutes = parseTime(existingTime);
-      const timeDiff = Math.abs(newTimeMinutes - existingTimeMinutes);
-
-      // If times are too close (less than minInterval apart)
-      if (timeDiff < minInterval && timeDiff > 0) {
-        const nextAvailableTime = existingTimeMinutes + minInterval;
-        if (nextAvailableTime >= 24 * 60) {
-          setTimeError(
-            `Time must be at least ${minInterval} minutes after ${existingTime} (would exceed 24:00)`
-          );
-        } else {
-          setTimeError(
-            `Time must be at least ${minInterval} minutes (${durationMinutes}min activity + ${bufferMinutes}min buffer) after ${existingTime}. Next available: ${formatTime(
-              nextAvailableTime
-            )}`
-          );
-        }
-        return;
-      }
-    }
-
-    // Check if new time is before an existing slot (need to check reverse)
-    for (const existingTime of sortedSlots) {
-      const existingTimeMinutes = parseTime(existingTime);
-      if (newTimeMinutes < existingTimeMinutes) {
-        const timeDiff = existingTimeMinutes - newTimeMinutes;
-        if (timeDiff < minInterval) {
-          setTimeError(
-            `Time must be at least ${minInterval} minutes before ${existingTime}. Use a time before ${formatTime(
-              newTimeMinutes - minInterval < 0
-                ? 0
-                : newTimeMinutes - minInterval
-            )} or after ${formatTime(existingTimeMinutes + minInterval)}`
-          );
-          return;
-        }
-      }
-    }
-
-    const newSlots = [...formData.availableTimeSlots, trimmedTime].sort();
-    onFieldChange("availableTimeSlots", newSlots);
+    onFieldChange("availableTimeSlots", [...formData.availableTimeSlots, time].sort());
     setTimeInput("");
-    setTimeError("");
   };
-
-  const handleRemoveTime = (time: string) => {
-    const newSlots = formData.availableTimeSlots.filter((t) => t !== time);
-    onFieldChange("availableTimeSlots", newSlots);
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleAddTime();
-    }
-  };
-
-  const isDurationSet =
-    formData.duration &&
-    formData.duration.trim() !== "" &&
-    !isNaN(parseInt(formData.duration, 10)) &&
-    parseInt(formData.duration, 10) > 0;
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-foreground">
-        Available Time Slots
-      </h3>
-      <div className="space-y-2">
-        <Label htmlFor="timeSlot">Time Slots (HH:MM format)</Label>
-        {!isDurationSet && (
-          <p className="text-xs text-muted-foreground p-3 bg-muted rounded-md">
-            Please enter activity duration first before adding time slots.
-          </p>
-        )}
+    <section className="flex flex-col gap-4">
+      <SectionTitle
+        title="Start times"
+        description="Each start time is one booking per day. Slots need the activity's length plus 10 minutes between them."
+      />
+      {!hasDuration ? (
+        <p className="rounded-xl bg-zinc-50 p-3 text-sm text-zinc-600 dark:bg-zinc-800/60 dark:text-zinc-400">
+          Set the duration above first.
+        </p>
+      ) : (
         <div className="flex gap-2">
           <Input
             id="timeSlot"
             type="time"
+            aria-label="Start time"
             value={timeInput}
-            onChange={(e) => setTimeInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="09:00"
-            className="flex-1"
-            disabled={!isDurationSet}
+            onChange={(e) => {
+              setTimeInput(e.target.value);
+              setTimeError("");
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addTime();
+              }
+            }}
+            className="h-11 max-w-40 tabular-nums"
           />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleAddTime}
-            disabled={
-              !isDurationSet ||
-              !timeInput.trim() ||
-              !validateTime(timeInput.trim())
-            }
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add
+          <Button type="button" variant="outline" className="h-11" onClick={addTime} disabled={!timeInput}>
+            <Plus /> Add time
           </Button>
         </div>
-        {timeError && (
-          <p className="text-xs text-destructive flex items-center gap-1">
-            <AlertCircle className="h-3 w-3" />
-            {timeError}
-          </p>
-        )}
-        <p className="text-xs text-muted-foreground">
-          Define the available time slots for reservations. Time slots must be
-          at least (activity duration + 10 minutes) apart. Max reservations per
-          day equals the number of time slots.
+      )}
+      {timeError && (
+        <p role="alert" className="flex items-start gap-1 text-xs text-red-600 dark:text-red-400">
+          <AlertCircle className="mt-0.5 size-3 shrink-0" />
+          {timeError}
         </p>
-        {formData.availableTimeSlots.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
-            {formData.availableTimeSlots.map((time) => (
-              <div
-                key={time}
-                className="flex items-center gap-2 px-3 py-2 bg-muted rounded-md"
+      )}
+      {formData.availableTimeSlots.length > 0 ? (
+        <ul className="flex flex-wrap gap-2" aria-label="Start times">
+          {formData.availableTimeSlots.map((time) => (
+            <li
+              key={time}
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-zinc-200 bg-white pl-3 pr-1 text-sm font-medium tabular-nums dark:border-zinc-800 dark:bg-zinc-900"
+            >
+              {time}
+              {hasDuration && (
+                <span className="text-xs font-normal text-zinc-500">–{toTime((toMinutes(time) + duration) % (24 * 60))}</span>
+              )}
+              <button
+                type="button"
+                onClick={() =>
+                  onFieldChange(
+                    "availableTimeSlots",
+                    formData.availableTimeSlots.filter((t) => t !== time)
+                  )
+                }
+                className="inline-flex size-7 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-red-600 dark:hover:bg-zinc-800"
+                aria-label={`Remove ${time}`}
               >
-                <Clock className="h-3 w-3 text-muted-foreground" />
-                <span className="text-sm">{time}</span>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveTime(time)}
-                  className="text-muted-foreground hover:text-destructive transition-colors"
-                  aria-label={`Remove ${time}`}
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+                <X className="size-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : hasDuration ? (
+        <p className="text-xs text-zinc-600 dark:text-zinc-400">No start times yet — add at least one so teams can book.</p>
+      ) : null}
+    </section>
+  );
+}
+
+function ChipPreview({ items }: { items: string[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {items.map((t) => (
+        <span key={t} className="rounded-full bg-zinc-100 px-2 py-1 text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+          {t}
+        </span>
+      ))}
     </div>
   );
 }
@@ -515,56 +434,38 @@ export function TagsEquipmentSection({
   errors,
   onFieldChange,
   onFieldBlur,
-}: Pick<
-  ActivityFormSectionsProps,
-  "formData" | "errors" | "onFieldChange" | "onFieldBlur"
->) {
+}: {
+  formData: ActivityFormData;
+  errors: FormErrors;
+  onFieldChange: FieldChange;
+  onFieldBlur: FieldBlur;
+}) {
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-foreground">
-        Tags & Equipment
-      </h3>
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="tags">
-            Tags (comma separated) <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="tags"
-            type="text"
-            value={formData.tags}
-            onChange={(e) => onFieldChange("tags", e.target.value)}
-            onBlur={() => onFieldBlur("tags", formData.tags)}
-            placeholder="e.g., hiking, outdoor, adventure"
-            className={cn(errors.tags && "border-destructive")}
-            aria-required="true"
-            aria-invalid={!!errors.tags}
-          />
-          {errors.tags && (
-            <p className="text-sm text-destructive flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              {errors.tags}
-            </p>
-          )}
-          <p className="text-xs text-muted-foreground">
-            Separate multiple tags with commas
-          </p>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="equipment">Equipment (comma separated)</Label>
-          <Input
-            id="equipment"
-            type="text"
-            value={formData.equipment}
-            onChange={(e) => onFieldChange("equipment", e.target.value)}
-            placeholder="e.g., helmet, rope, backpack"
-          />
-          <p className="text-xs text-muted-foreground">
-            Separate multiple items with commas
-          </p>
-        </div>
-      </div>
-    </div>
+    <section className="flex flex-col gap-4">
+      <SectionTitle title="Tags & gear" />
+      <Field id="tags" label="Tags" error={errors.tags} hint="Separate with commas — they power search and filters">
+        <Input
+          id="tags"
+          value={formData.tags}
+          onChange={(e) => onFieldChange("tags", e.target.value)}
+          onBlur={() => onFieldBlur("tags", formData.tags)}
+          placeholder="Water sports, Sunset, Beginner friendly"
+          className={cn("h-11", errors.tags && "border-destructive")}
+          aria-invalid={!!errors.tags}
+        />
+      </Field>
+      <ChipPreview items={splitList(formData.tags)} />
+      <Field id="equipment" label="What to bring" optional hint="Separate with commas">
+        <Input
+          id="equipment"
+          value={formData.equipment}
+          onChange={(e) => onFieldChange("equipment", e.target.value)}
+          placeholder="Swimwear, Towel, Sunscreen"
+          className="h-11"
+        />
+      </Field>
+      <ChipPreview items={splitList(formData.equipment)} />
+    </section>
   );
 }
 
@@ -573,102 +474,56 @@ export function ImagesSection({
   onImageSelect,
   onRemoveImage,
   error,
-}: Pick<
-  ActivityFormSectionsProps,
-  "formData" | "onImageSelect" | "onRemoveImage" | "error"
->) {
+}: {
+  formData: ActivityFormData;
+  onImageSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onRemoveImage: (idx: number) => void;
+  error?: string;
+}) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const openFilePicker = () => fileInputRef.current?.click();
+  const pick = () => fileInputRef.current?.click();
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-foreground">Images</h3>
-      <div className="space-y-2">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={onImageSelect}
-          className="sr-only"
-          tabIndex={-1}
-        />
-        <div className="flex flex-col gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={openFilePicker}
-            className="w-full sm:w-auto"
-          >
-            <Upload className="size-4 mr-2" /> Upload Images
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            Maximum file size: {MAX_IMAGE_UPLOAD_LABEL} per image
-          </p>
-          {error && (
-            <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 border border-destructive/20">
-              <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-              <p className="text-sm text-destructive">{error}</p>
-            </div>
-          )}
-          {formData.images.length === 0 ? (
+    <section className="flex flex-col gap-4">
+      <SectionTitle title="Photos" description={`The first photo is the cover. Up to ${MAX_IMAGE_UPLOAD_LABEL} each.`} />
+      <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={onImageSelect} className="sr-only" tabIndex={-1} />
+      {error && (
+        <p role="alert" className="flex items-center gap-2 rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-300">
+          <AlertCircle className="size-4 shrink-0" />
+          {error}
+        </p>
+      )}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {formData.images.map((src, idx) => (
+          <div key={`${src}-${idx}`} className="group relative aspect-[4/3] overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
+            <Image src={src} alt={`Photo ${idx + 1}`} fill sizes="(min-width: 640px) 220px, 50vw" className="object-cover" />
+            {idx === 0 && (
+              <span className="absolute left-2 top-2 rounded-full bg-white/95 px-2 py-1 text-xs font-semibold text-zinc-900 shadow-sm">
+                Cover
+              </span>
+            )}
             <button
               type="button"
-              onClick={openFilePicker}
-              className={cn(
-                "flex min-h-[220px] w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 px-4 py-8 text-center text-muted-foreground transition-colors hover:border-muted-foreground/40 hover:bg-muted/50"
-              )}
+              onClick={() => onRemoveImage(idx)}
+              className="absolute right-2 top-2 inline-flex size-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur transition-opacity hover:bg-black/75 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
+              aria-label={`Remove photo ${idx + 1}`}
             >
-              <ImageIcon className="size-10 opacity-50" aria-hidden />
-              <span className="text-sm font-medium text-foreground">
-                Image previews appear here
-              </span>
-              <span className="text-xs">
-                Tap above or click this area to upload
-              </span>
+              <X className="size-4" />
             </button>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {formData.images.map((src, idx) => (
-                <Card
-                  key={`${src}-${idx}`}
-                  className="group relative w-full overflow-hidden border pt-0 pb-0"
-                >
-                  <CardContent className="p-0">
-                    <div className="relative aspect-[4/3] w-full min-h-[200px]">
-                      <Image
-                        src={src}
-                        alt={`Activity image ${idx + 1}`}
-                        fill
-                        sizes="(max-width: 640px) 100vw, 50vw"
-                        className="object-cover"
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                        }}
-                      />
-                      <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/20" />
-                      <button
-                        type="button"
-                        onClick={() => onRemoveImage(idx)}
-                        className="absolute top-2 right-2 rounded-full bg-destructive p-2 text-destructive-foreground opacity-0 shadow-lg transition-opacity hover:bg-destructive/90 group-hover:opacity-100"
-                        aria-label={`Remove image ${idx + 1}`}
-                      >
-                        <X className="size-4" />
-                      </button>
-                      <div className="absolute right-0 bottom-0 left-0 bg-linear-to-t from-black/60 to-transparent p-3">
-                        <div className="flex items-center gap-2 text-xs text-white">
-                          <ImageIcon className="size-3.5" />
-                          <span>Image {idx + 1}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={pick}
+          className={cn(
+            "flex aspect-[4/3] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-300 text-sm text-zinc-600 transition-colors hover:border-blue-500 hover:bg-blue-50/50 hover:text-blue-700 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-blue-950/30",
+            formData.images.length === 0 && "col-span-2 aspect-auto py-12 sm:col-span-3"
           )}
-        </div>
+        >
+          <ImagePlus className="size-6" aria-hidden="true" />
+          <span className="font-medium">{formData.images.length === 0 ? "Add photos" : "Add more"}</span>
+        </button>
       </div>
-    </div>
+    </section>
   );
 }
