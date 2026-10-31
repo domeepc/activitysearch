@@ -27,20 +27,19 @@ export function RemoveFriendDialog({
 }: RemoveFriendDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent >
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Remove Friend</DialogTitle>
+          <DialogTitle>Remove {friendName} from friends?</DialogTitle>
           <DialogDescription>
-            Are you sure you want to remove {friendName} {friendLastname} from
-            your friends list?
+            You can still find {friendName} {friendLastname} later and add them again.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" className="rounded-full border-zinc-200 dark:border-zinc-700" onClick={() => onOpenChange(false)}>
-            Cancel
+          <Button variant="outline" className="h-10" onClick={() => onOpenChange(false)}>
+            Keep
           </Button>
-          <Button variant="destructive" onClick={onConfirm} className="rounded-full">
-            Remove Friend
+          <Button variant="destructive" onClick={onConfirm} className="h-10 font-semibold">
+            Remove
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -2751,9 +2751,12 @@ export const getReservationCardData = query({
       (reservation.paymentStatus === "fulfilled") &&
       !hasReviewed;
 
+    const hasPaid = activePayments.some((p) => p.userId === currentUser._id);
+
     return {
       isTeamCreator,
       canLeaveReview,
+      hasPaid,
       reservation: {
         _id: reservation._id,
         date: reservation.date,
@@ -2762,6 +2765,7 @@ export const getReservationCardData = query({
         paymentStatus: reservation.paymentStatus,
         paymentDeadline: reservation.paymentDeadline,
         cancelledAt: reservation.cancelledAt,
+        cancellationReason: reservation.cancellationReason,
       },
       activity: {
         _id: activity._id,

@@ -1,6 +1,5 @@
 "use client";
 
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export interface ProfileProgressionDisplay {
@@ -14,68 +13,71 @@ export interface ProfileProgressionDisplay {
 
 interface ProfileStatsProps {
   progression: ProfileProgressionDisplay | null | undefined;
+  questsCompleted?: number;
   isLoading?: boolean;
 }
 
-export function ProfileStats({
-  progression,
-  isLoading = false,
-}: ProfileStatsProps) {
+const nf = new Intl.NumberFormat("en-IE");
+
+/** "Journey" card: level ring, XP to next level and headline counters. */
+export function ProfileStats({ progression, questsCompleted, isLoading = false }: ProfileStatsProps) {
   if (isLoading || progression === undefined) {
     return (
-      <div className="rounded-2xl bg-zinc-50 dark:bg-zinc-800 p-4 space-y-3">
-        <div className="flex items-baseline justify-between">
-          <Skeleton className="h-8 w-16" />
-          <Skeleton className="h-4 w-28" />
+      <section className="flex flex-col gap-3.5 rounded-[18px] border border-zinc-200 bg-white p-4.5 dark:border-zinc-800 dark:bg-zinc-900">
+        <Skeleton className="h-4 w-20" />
+        <div className="flex items-center gap-3.5">
+          <Skeleton className="size-16 rounded-full" />
+          <Skeleton className="h-8 flex-1" />
         </div>
-        <Skeleton className="h-2 w-full rounded-full" />
-        <Skeleton className="h-3 w-32" />
-      </div>
+        <Skeleton className="h-14 w-full rounded-xl" />
+      </section>
     );
   }
 
   if (!progression) return null;
 
-  const pct = progression.progressFraction * 100;
+  const pct = Math.round(progression.progressFraction * 100);
+  const toNext = Math.max(0, progression.expForCurrentLevel - progression.expIntoLevel);
+  const stats = [
+    { label: "Total XP", value: nf.format(progression.totalExp) },
+    progression.loyaltyPoints !== undefined && { label: "Points", value: nf.format(progression.loyaltyPoints) },
+    questsCompleted !== undefined && { label: "Quests", value: nf.format(questsCompleted) },
+  ].filter(Boolean) as Array<{ label: string; value: string }>;
 
   return (
-    <div className="space-y-3">
-      <div className="rounded-2xl bg-zinc-50 dark:bg-zinc-800 p-4 space-y-3">
-        <div className="flex items-baseline justify-between gap-3">
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
-              {progression.level}
-            </span>
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Level
-            </span>
-          </div>
-          <span className="text-sm text-zinc-500 dark:text-zinc-400 tabular-nums">
-            {progression.expIntoLevel} / {progression.expForCurrentLevel} XP
+    <section aria-labelledby="journey-h" className="flex flex-col gap-3.5 rounded-[18px] border border-zinc-200 bg-white p-4.5 dark:border-zinc-800 dark:bg-zinc-900">
+      <h2 id="journey-h" className="text-[15px] font-bold">Journey</h2>
+      <div className="flex items-center gap-3.5">
+        <span
+          role="img"
+          aria-label={`Level ${progression.level}, ${pct}% to level ${progression.level + 1}`}
+          className="inline-flex size-16 shrink-0 items-center justify-center rounded-full dark:[--ring-track:#3f3f46]"
+          style={{ background: `conic-gradient(#2563eb 0 ${pct}%, var(--ring-track, #e4e4e7) ${pct}% 100%)` }}
+        >
+          <span className="inline-flex size-[50px] items-center justify-center rounded-full bg-white text-lg font-bold dark:bg-zinc-900">
+            {progression.level}
           </span>
-        </div>
-        <Progress value={pct} className="h-2" />
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>{Math.round(pct)}% to level {progression.level + 1}</span>
-          <span>{progression.totalExp} XP total</span>
-        </div>
+        </span>
+        <span className="flex-1">
+          <b className="block text-sm tabular-nums">
+            {nf.format(progression.expIntoLevel)} / {nf.format(progression.expForCurrentLevel)} XP
+          </b>
+          <span className="text-[13px] text-zinc-600 dark:text-zinc-400">
+            {nf.format(toNext)} XP to level {progression.level + 1}
+          </span>
+        </span>
       </div>
-
-      {progression.loyaltyPoints !== undefined && (
-        <div className="rounded-2xl bg-amber-50 dark:bg-amber-950 border border-amber-100 dark:border-amber-900 px-4 py-3 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-amber-600">
-              Loyalty Points
-            </p>
-            <p className="text-[11px] text-amber-700/70 mt-0.5">
-              Redeem toward activity discounts at checkout.
-            </p>
+      <dl className="grid gap-2 text-center" style={{ gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))` }}>
+        {stats.map((s) => (
+          <div key={s.label} className="rounded-xl bg-zinc-50 px-1 py-2.5 dark:bg-zinc-800/60">
+            <dt className="text-[11px] text-zinc-600 dark:text-zinc-400">{s.label}</dt>
+            <dd className="mt-0.5 text-[17px] font-bold tabular-nums">{s.value}</dd>
           </div>
-          <span className="text-2xl font-bold tabular-nums text-amber-700">
-            {progression.loyaltyPoints}
-          </span>
-        </div>
+        ))}
+      </dl>
+      {progression.loyaltyPoints !== undefined && (
+        <p className="text-xs text-zinc-600 dark:text-zinc-400">Spend points on your next reservation — 10 points = €1 off.</p>
       )}
-    </div>
+    </section>
   );
 }

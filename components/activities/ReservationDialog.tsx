@@ -23,10 +23,12 @@ import {
   useJoinQueue,
   useGetQueuePosition,
 } from "@/lib/hooks/useReservations";
-import { AlertCircle, Check, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { AlertCircle, CalendarDays, Check, Loader2, Users } from "lucide-react";
+import { cn, formatPrice } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { addDays, format, isSameDay } from "date-fns";
+import Link from "next/link";
 
 interface ReservationDialogProps {
   activityId: Id<"activities">;
@@ -48,7 +50,7 @@ export function ReservationDialog({
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   // Handle dialog open change and reset form when closing
   const handleOpenChange = (newOpen: boolean) => {
@@ -57,7 +59,6 @@ export function ReservationDialog({
       setSelectedTime("");
       setSelectedTeamId("");
       setError(null);
-      setCurrentStep(1);
     }
     onOpenChange(newOpen);
   };
@@ -163,6 +164,12 @@ export function ReservationDialog({
     });
   }, [selectedDate, availableTimeSlots, reservations, today]);
 
+  // The next two weeks, shown as a strip; older/later dates come from the calendar.
+  const upcomingDays = useMemo(
+    () => Array.from({ length: 14 }, (_, i) => addDays(today, i)),
+    [today]
+  );
+
   // Calculate total number of members in selected team
   const userCount = useMemo(() => {
     if (!selectedTeamId) return 0;
@@ -172,8 +179,6 @@ export function ReservationDialog({
 
     return selectedTeam.teammates.length;
   }, [selectedTeamId, teams]);
-
-  const progressPct = currentStep === 1 ? 33 : currentStep === 2 ? 66 : 100;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -258,6 +263,7 @@ export function ReservationDialog({
         date: dateStr,
         time: selectedTime,
       });
+      toast.success("Reserved! Your team can pay their shares in the team chat.");
       onOpenChange(false);
     } else {
       setError(result.error || "Failed to create reservation");
@@ -267,23 +273,22 @@ export function ReservationDialog({
   if (!hasTeams && !teamsLoading) {
     return (
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
+          <span className="inline-flex size-11 items-center justify-center rounded-[14px] bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+            <Users className="size-5" />
+          </span>
           <DialogHeader>
-            <DialogTitle>Reserve Activity</DialogTitle>
+            <DialogTitle>Create a team first</DialogTitle>
             <DialogDescription>
-              You need to be a team creator to make reservations.
+              Reservations are made for a team you created, so everyone can split the price. Start one in Messages.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex items-center gap-2 p-4 bg-muted rounded-lg">
-            <AlertCircle className="h-5 w-5 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              You don&apos;t have any teams where you are the creator. Create a
-              team first to make reservations.
-            </p>
-          </div>
           <DialogFooter>
-            <Button variant="outline" className="rounded-full border-zinc-200 dark:border-zinc-700" onClick={() => onOpenChange(false)}>
-              Close
+            <Button variant="outline" className="h-10" onClick={() => onOpenChange(false)}>
+              Not now
+            </Button>
+            <Button asChild className="h-10 bg-blue-600 font-semibold text-white hover:bg-blue-700">
+              <Link href="/chat">Go to Messages</Link>
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -293,99 +298,93 @@ export function ReservationDialog({
 
   const selectedTeam = teams.find((team) => team._id === selectedTeamId);
   const isBusy = isPending || isJoiningQueue;
+  const maxParticipants = activity?.maxParticipants ? Number(activity.maxParticipants) : 0;
+  const overLimit = maxParticipants > 0 && userCount > maxParticipants;
+  const price = activity?.price ?? 0;
+  const share = userCount > 0 ? Math.round((price / userCount) * 100) / 100 : 0;
+  const timeDone = isDateFulfilled || !!selectedTime;
+  const doneSteps = (selectedDate ? 1 : 0) + (selectedDate && timeDone ? 1 : 0) + (selectedTeamId ? 1 : 0);
+  const canSubmit =
+    !isBusy &&
+    !!selectedDate &&
+    timeDone &&
+    !!selectedTeamId &&
+    !overLimit &&
+    !(isDateFulfilled && (queuePosition?.inQueue ?? false));
+  const image = activity?.images?.[0];
 
-  const goToStep = (step: 1 | 2 | 3) => {
+  const pickDate = (date: Date | undefined) => {
     setError(null);
-    setCurrentStep(step);
+    setSelectedDate(date);
+    setSelectedTime("");
+    setCalendarOpen(false);
   };
 
-  const renderStepHeader = (step: 1 | 2 | 3, label: string, summary?: string) => {
-    const done = currentStep > step;
-    const active = currentStep === step;
-    return (
-      <button
-        type="button"
-        className="w-full flex items-center gap-3 py-3 text-left disabled:cursor-default"
-        onClick={() => done && goToStep(step)}
-        disabled={!done}
-        aria-current={active ? "step" : undefined}
-      >
-        <span
-          className={cn(
-            "flex size-6 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold transition-colors duration-200",
-            done && "border-foreground bg-foreground text-background",
-            active && "border-foreground text-foreground",
-            !done && !active && "border-border text-muted-foreground"
-          )}
-        >
-          {done ? <Check className="size-3.5 animate-in zoom-in-50 duration-200" /> : step}
-        </span>
-        <span
-          className={cn(
-            "flex-1 text-sm font-medium",
-            !done && !active && "text-muted-foreground"
-          )}
-        >
-          {label}
-        </span>
-        {done && summary && (
-          <span className="text-xs text-muted-foreground underline-offset-2 hover:underline">
-            {summary} · Edit
-          </span>
-        )}
-      </button>
-    );
-  };
+  const stepBadge = (n: number, done: boolean, active: boolean) => (
+    <span
+      className={cn(
+        "inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold transition-colors",
+        done
+          ? "bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900"
+          : active
+            ? "border border-zinc-900 text-zinc-900 dark:border-zinc-50 dark:text-zinc-50"
+            : "border border-zinc-300 text-zinc-500 dark:border-zinc-700"
+      )}
+    >
+      {done ? <Check className="size-3.5 animate-in zoom-in-50 duration-200" strokeWidth={3} /> : n}
+    </span>
+  );
 
-  const stepBody = "pb-4 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200";
+  const STATUS_DOT = {
+    open: "bg-green-600",
+    limited: "bg-orange-600",
+    full: "bg-violet-600",
+  } as const;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{activity?.activityName ?? "Reserve Activity"}</DialogTitle>
-          <DialogDescription>Step {currentStep} of 3</DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-h-[92dvh] grid-cols-1 gap-0 overflow-x-hidden overflow-y-auto p-0 sm:max-w-[780px]">
+        <form key={formKey} onSubmit={handleSubmit} className="flex w-full min-w-0 flex-wrap">
+          <div className="flex min-w-0 flex-[999_1_400px] flex-col gap-5 p-5 sm:p-6">
+            <DialogHeader className="pr-8 text-left">
+              <DialogTitle className="text-xl">Reserve your spot</DialogTitle>
+              <DialogDescription>
+                {doneSteps < 3 ? `Step ${Math.min(doneSteps + 1, 3)} of 3` : "Ready to reserve"}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-3 gap-1.5" aria-hidden="true">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className={cn(
+                    "h-1 rounded-full transition-colors duration-300",
+                    i < doneSteps ? "bg-blue-600" : "bg-zinc-200 dark:bg-zinc-800"
+                  )}
+                />
+              ))}
+            </div>
 
-        {/* Progress bar */}
-        <div className="-mx-6 h-0.5 bg-muted overflow-hidden">
-          <div
-            className="h-full bg-foreground transition-[width] duration-300 ease-out"
-            style={{ width: `${progressPct}%` }}
-          />
-        </div>
-
-        <form key={formKey} onSubmit={handleSubmit}>
-          <div className="divide-y divide-border">
-
-            {/* ── Step 1: Choose a date ── */}
-            <div>
-              {renderStepHeader(
-                1,
-                "Choose a date",
-                selectedDate ? format(selectedDate, "MMM d") : undefined
-              )}
-
-              {currentStep === 1 && (
-                <div className={stepBody}>
-                  {/* Inline calendar: picking a date advances straight to time selection */}
-                  <div className="flex justify-center rounded-lg border border-border">
+            {/* 1 · Date */}
+            <section aria-labelledby="rd-date" className="flex flex-col gap-2.5">
+              <div className="flex items-center gap-2.5">
+                {stepBadge(1, !!selectedDate, !selectedDate)}
+                <h3 id="rd-date" className="flex-1 text-sm font-semibold">Date</h3>
+                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <button type="button" className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[13px] font-medium text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/50">
+                      <CalendarDays className="size-3.5" /> More dates
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-auto rounded-2xl p-1">
                     <Calendar
                       mode="single"
                       selected={selectedDate}
-                      onSelect={(date) => {
-                        setSelectedDate(date);
-                        setSelectedTime("");
-                        if (date) goToStep(2);
-                      }}
+                      onSelect={pickDate}
                       disabled={(date) => date < today}
                       modifiers={{
-                        reservation_full: (date) =>
-                          getDateModifiers(date).reservation_full ?? false,
-                        reservation_limited: (date) =>
-                          getDateModifiers(date).reservation_limited ?? false,
-                        reservation_available: (date) =>
-                          getDateModifiers(date).reservation_available ?? false,
+                        reservation_full: (date) => getDateModifiers(date).reservation_full ?? false,
+                        reservation_limited: (date) => getDateModifiers(date).reservation_limited ?? false,
+                        reservation_available: (date) => getDateModifiers(date).reservation_available ?? false,
                       }}
                       modifiersClassNames={{
                         reservation_full: "reservation-full",
@@ -393,234 +392,220 @@ export function ReservationDialog({
                         reservation_available: "reservation-available",
                       }}
                     />
-                  </div>
-
-                  {availableTimeSlots.length > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      Max {availableTimeSlots.length} reservation
-                      {availableTimeSlots.length !== 1 ? "s" : ""} per day
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* ── Step 2: Pick a time ── */}
-            <div>
-              {renderStepHeader(
-                2,
-                "Pick a time",
-                isDateFulfilled ? "Queue" : selectedTime || undefined
-              )}
-
-              {currentStep === 2 && (
-                <div className={stepBody}>
-                  {isDateFulfilled ? (
-                    <div className="p-4 border rounded-md bg-purple-50 border-purple-200 dark:bg-purple-950 dark:border-purple-800">
-                      <div className="flex items-start gap-2">
-                        <AlertCircle className="h-5 w-5 text-purple-600 dark:text-purple-400 mt-0.5" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-purple-900 dark:text-purple-100 mb-1">
-                            This date is fully booked
-                          </p>
-                          <p className="text-xs text-purple-700 dark:text-purple-300 mb-3">
-                            All time slots for this date are reserved. You can join the queue to be
-                            notified when a slot becomes available.
-                          </p>
-                          {queuePosition?.inQueue && (
-                            <div className="mt-2 p-2 bg-purple-100 dark:bg-purple-900 rounded border border-purple-300 dark:border-purple-700">
-                              <p className="text-xs font-medium text-purple-900 dark:text-purple-100">
-                                You are in the queue
-                              </p>
-                              <p className="text-xs text-purple-700 dark:text-purple-300">
-                                Position: {queuePosition.position} of {queuePosition.totalInQueue}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ) : availableTimeSlotsForDate.length === 0 ? (
-                    <div className="p-3 border rounded-md bg-destructive/10 text-sm text-destructive">
-                      No available time slots for this date
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                      {availableTimeSlotsForDate.map((time) => (
-                        <button
-                          key={time}
-                          type="button"
-                          onClick={() => {
-                            setSelectedTime(time);
-                            goToStep(3);
-                          }}
-                          className={cn(
-                            "py-2 text-sm rounded-lg border transition-all duration-150 active:scale-95",
-                            selectedTime === time
-                              ? "bg-foreground text-background border-foreground"
-                              : "border-border hover:border-foreground/40 hover:bg-muted"
-                          )}
-                        >
-                          {time}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* ── Step 3: Select your team ── */}
-            <div>
-              {renderStepHeader(3, "Select your team")}
-
-              {currentStep === 3 && (
-                <div className={stepBody}>
-                  {teamsLoading ? (
-                    <div className="flex gap-2">
-                      {[0, 1].map((i) => (
-                        <div key={i} className="h-8 w-28 rounded-full bg-muted animate-pulse" />
-                      ))}
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex flex-wrap gap-2">
-                        {teams.map((team) => {
-                          const count = team.teammates.length;
-                          const overLimit =
-                            activity?.maxParticipants &&
-                            count > Number(activity.maxParticipants);
-                          return (
-                            <button
-                              key={team._id}
-                              type="button"
-                              onClick={() => setSelectedTeamId(team._id)}
-                              className={cn(
-                                "px-3 py-1.5 text-sm rounded-full border transition-all duration-150 active:scale-95",
-                                selectedTeamId === team._id
-                                  ? "bg-foreground text-background border-foreground"
-                                  : overLimit
-                                  ? "border-destructive text-destructive hover:bg-destructive/10"
-                                  : "border-border hover:bg-muted"
-                              )}
-                            >
-                              {team.teamName} · {count}{" "}
-                              {count === 1 ? "member" : "members"}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      <p className="text-xs text-muted-foreground">
-                        Only teams where you are the creator are shown
-                      </p>
-
-                      {selectedTeamId &&
-                        activity?.maxParticipants &&
-                        userCount > Number(activity.maxParticipants) && (
-                          <div className="flex items-center gap-2 p-2 border border-destructive/20 rounded-md bg-destructive/10">
-                            <AlertCircle className="h-4 w-4 text-destructive" />
-                            <p className="text-xs text-destructive">
-                              This team has {userCount} members, but this activity only allows{" "}
-                              {activity.maxParticipants} participants.
-                            </p>
-                          </div>
-                        )}
-
-                      {/* Booking summary, mirrors the order recap shown before confirming on booking sites */}
-                      {selectedDate && selectedTeam && (
-                        <div className="rounded-lg bg-muted/60 px-3 py-2.5 text-xs space-y-1 animate-in fade-in duration-200">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Date</span>
-                            <span className="font-medium">{format(selectedDate, "EEE, MMM d")}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Time</span>
-                            <span className="font-medium">
-                              {isDateFulfilled ? "Waiting list" : selectedTime}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Team</span>
-                            <span className="font-medium">
-                              {selectedTeam.teamName} ({userCount})
-                            </span>
-                          </div>
-                        </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div
+                role="radiogroup"
+                aria-labelledby="rd-date"
+                className="-mx-1 flex snap-x gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]"
+              >
+                {upcomingDays.map((day) => {
+                  const m = getDateModifiers(day);
+                  const status = m.reservation_full ? "full" : m.reservation_limited ? "limited" : "open";
+                  const selected = !!selectedDate && isSameDay(day, selectedDate);
+                  return (
+                    <button
+                      key={day.toISOString()}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      aria-label={`${format(day, "EEEE d MMMM")}${status === "full" ? ", full — join queue" : status === "limited" ? ", filling up" : ""}`}
+                      onClick={() => pickDate(day)}
+                      className={cn(
+                        "flex w-[58px] shrink-0 snap-start flex-col items-center gap-0.5 rounded-xl border py-2 transition-colors",
+                        selected
+                          ? "border-blue-600 bg-blue-600 text-white"
+                          : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
                       )}
-                    </>
-                  )}
+                    >
+                      <span className="text-[11px] opacity-80">{format(day, "EEE")}</span>
+                      <span className="text-base font-bold leading-none">{format(day, "d")}</span>
+                      <span className={cn("mt-1 size-1.5 rounded-full", selected ? "bg-white" : STATUS_DOT[status])} aria-hidden="true" />
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedDate && !upcomingDays.some((d) => isSameDay(d, selectedDate)) && (
+                <p className="text-[13px] text-zinc-600 dark:text-zinc-400">
+                  Picked <b className="text-zinc-900 dark:text-zinc-50">{format(selectedDate, "EEE, d MMM yyyy")}</b>
+                </p>
+              )}
+              <div className="flex flex-wrap gap-x-3.5 gap-y-1 text-[11px] text-zinc-600 dark:text-zinc-400">
+                <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-green-600" />Open</span>
+                <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-orange-600" />Filling up</span>
+                <span className="inline-flex items-center gap-1"><span className="size-2 rounded-full bg-violet-600" />Full · join queue</span>
+              </div>
+            </section>
+
+            {/* 2 · Time */}
+            <section aria-labelledby="rd-time" className={cn("flex flex-col gap-2.5 border-t border-zinc-100 pt-4 dark:border-zinc-800", !selectedDate && "opacity-50")}>
+              <div className="flex items-center gap-2.5">
+                {stepBadge(2, !!selectedDate && timeDone, !!selectedDate && !timeDone)}
+                <h3 id="rd-time" className="text-sm font-semibold">Time</h3>
+              </div>
+              {!selectedDate ? (
+                <p className="text-[13px] text-zinc-600 dark:text-zinc-400">Pick a date to see open times.</p>
+              ) : isDateFulfilled ? (
+                <div className="rounded-[14px] bg-violet-50 p-3.5 text-[13px] dark:bg-violet-950/40">
+                  <b className="block text-violet-900 dark:text-violet-200">This day is fully booked</b>
+                  <span className="text-violet-800 dark:text-violet-300">
+                    {queuePosition?.inQueue
+                      ? `Your team is #${queuePosition.position} of ${queuePosition.totalInQueue} in the queue.`
+                      : "Join the queue and we'll offer your team the first spot that opens up."}
+                  </span>
+                </div>
+              ) : availableTimeSlotsForDate.length === 0 ? (
+                <p className="rounded-[14px] bg-zinc-50 p-3.5 text-[13px] text-zinc-600 dark:bg-zinc-800/60 dark:text-zinc-400">
+                  No times left on this day — try another date.
+                </p>
+              ) : (
+                <div role="radiogroup" aria-labelledby="rd-time" className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {availableTimeSlotsForDate.map((time) => (
+                    <button
+                      key={time}
+                      type="button"
+                      role="radio"
+                      aria-checked={selectedTime === time}
+                      onClick={() => {
+                        setError(null);
+                        setSelectedTime(time);
+                      }}
+                      className={cn(
+                        "h-10 rounded-xl border text-sm font-medium tabular-nums transition-colors active:scale-[0.97]",
+                        selectedTime === time
+                          ? "border-blue-600 bg-blue-600 text-white"
+                          : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
+                      )}
+                    >
+                      {time}
+                    </button>
+                  ))}
                 </div>
               )}
-            </div>
+            </section>
+
+            {/* 3 · Team */}
+            <section aria-labelledby="rd-team" className="flex flex-col gap-2.5 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+              <div className="flex items-center gap-2.5">
+                {stepBadge(3, !!selectedTeamId, !selectedTeamId && !!selectedDate && timeDone)}
+                <h3 id="rd-team" className="flex-1 text-sm font-semibold">Team</h3>
+                <span className="text-[11px] text-zinc-500">Teams you created</span>
+              </div>
+              {teamsLoading ? (
+                <div className="flex flex-col gap-2">
+                  {[0, 1].map((i) => (
+                    <div key={i} className="h-14 animate-pulse rounded-xl bg-zinc-100 dark:bg-zinc-800" />
+                  ))}
+                </div>
+              ) : (
+                <div role="radiogroup" aria-labelledby="rd-team" className="flex flex-col gap-2">
+                  {teams.map((team) => {
+                    const count = team.teammates.length;
+                    const tooBig = maxParticipants > 0 && count > maxParticipants;
+                    const selected = selectedTeamId === team._id;
+                    return (
+                      <button
+                        key={team._id}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => {
+                          setError(null);
+                          setSelectedTeamId(team._id);
+                        }}
+                        className={cn(
+                          "flex items-center gap-3 rounded-xl border p-2.5 text-left transition-colors",
+                          selected
+                            ? "border-blue-600 bg-blue-50 ring-1 ring-blue-600 dark:bg-blue-950/40"
+                            : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
+                        )}
+                      >
+                        <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-indigo-100 font-bold text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
+                          {team.teamName[0]?.toUpperCase()}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <b className="block truncate text-sm font-semibold">{team.teamName}</b>
+                          <span className={cn("block text-xs", tooBig ? "text-red-600 dark:text-red-400" : "text-zinc-600 dark:text-zinc-400")}>
+                            {count} {count === 1 ? "person" : "people"}
+                            {tooBig ? ` · max ${maxParticipants} for this activity` : price ? ` · ${formatPrice(Math.round((price / count) * 100) / 100)} each` : ""}
+                          </span>
+                        </span>
+                        {selected && <Check className="size-4 text-blue-600 dark:text-blue-400" strokeWidth={3} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
           </div>
 
-          {error && (
-            <div
-              role="alert"
-              className="flex items-center gap-2 p-3 mb-2 bg-destructive/10 border border-destructive/20 rounded-md animate-in fade-in slide-in-from-top-1 duration-200"
-            >
-              <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-              <p className="text-sm text-destructive">{error}</p>
+          <aside className="flex flex-[1_1_260px] flex-col gap-3.5 border-t border-zinc-100 bg-zinc-50 p-5 sm:p-6 md:border-t-0 md:border-l dark:border-zinc-800 dark:bg-zinc-950/40">
+            <div className="flex items-center gap-3">
+              <span className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-blue-100 dark:bg-zinc-800">
+                {image && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={image} alt="" className="size-full object-cover" />
+                )}
+              </span>
+              <span className="min-w-0">
+                <b className="line-clamp-2 text-sm font-semibold leading-snug">{activity?.activityName ?? "Activity"}</b>
+                {activity?.address && (
+                  <span className="block truncate text-xs text-zinc-600 dark:text-zinc-400">{activity.address}</span>
+                )}
+              </span>
             </div>
-          )}
+            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-[13px]">
+              <dt className="text-zinc-600 dark:text-zinc-400">Date</dt>
+              <dd className="text-right font-medium">{selectedDate ? format(selectedDate, "EEE, d MMM") : "—"}</dd>
+              <dt className="text-zinc-600 dark:text-zinc-400">Time</dt>
+              <dd className="text-right font-medium">{isDateFulfilled ? "Queue" : selectedTime || "—"}</dd>
+              <dt className="text-zinc-600 dark:text-zinc-400">Team</dt>
+              <dd className="truncate text-right font-medium">{selectedTeam ? `${selectedTeam.teamName} · ${userCount}` : "—"}</dd>
+            </dl>
+            <div className="h-px bg-zinc-200 dark:bg-zinc-800" />
+            <div className="flex justify-between text-base font-bold">
+              <span>Total</span>
+              <span className="tabular-nums">{formatPrice(price)}</span>
+            </div>
+            <p className="text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+              {userCount > 0
+                ? `Split between ${userCount} — each teammate pays ${formatPrice(share)} after you reserve.`
+                : "The price is split between your team after you reserve."}
+            </p>
 
-          {/* ── Footer ── */}
-          <DialogFooter className="flex gap-2 pt-4 border-t border-border mt-2">
-            {currentStep === 1 ? (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => onOpenChange(false)}
-                disabled={isBusy}
-              >
-                Cancel
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => goToStep(Math.max(1, currentStep - 1) as 1 | 2 | 3)}
-                disabled={isBusy}
-              >
-                ← Back
-              </Button>
+            {error && (
+              <p role="alert" className="flex items-start gap-2 rounded-xl bg-red-50 p-2.5 text-[13px] text-red-700 dark:bg-red-950/50 dark:text-red-300">
+                <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                {error}
+              </p>
             )}
 
-            {currentStep < 3 ? (
-              <Button
-                type="button"
-                onClick={() => goToStep(Math.min(3, currentStep + 1) as 1 | 2 | 3)}
-                disabled={
-                  (currentStep === 1 && !selectedDate) ||
-                  (currentStep === 2 && !isDateFulfilled && !selectedTime)
-                }
-              >
-                Next →
-              </Button>
-            ) : (
+            <div className="mt-auto flex flex-col gap-2 pt-2">
               <Button
                 type="submit"
-                disabled={
-                  isBusy ||
-                  !hasTeams ||
-                  !selectedTeamId ||
-                  (isDateFulfilled && (queuePosition?.inQueue ?? false)) ||
-                  (!!activity?.maxParticipants &&
-                    userCount > Number(activity.maxParticipants))
-                }
+                disabled={!canSubmit}
+                className={cn(
+                  "h-12 text-[15px] font-semibold text-white",
+                  isDateFulfilled ? "bg-violet-600 hover:bg-violet-700" : "bg-blue-600 hover:bg-blue-700"
+                )}
               >
                 {isBusy && <Loader2 className="size-4 animate-spin" />}
                 {isJoiningQueue
-                  ? "Joining Queue..."
+                  ? "Joining queue…"
                   : isPending
-                  ? "Creating..."
-                  : isDateFulfilled
-                  ? "Join Queue"
-                  : "Create Reservation"}
+                    ? "Reserving…"
+                    : isDateFulfilled
+                      ? queuePosition?.inQueue
+                        ? "Already in the queue"
+                        : "Join the queue"
+                      : "Reserve"}
               </Button>
-            )}
-          </DialogFooter>
+              <Button type="button" variant="ghost" className="h-10" onClick={() => handleOpenChange(false)} disabled={isBusy}>
+                Cancel
+              </Button>
+            </div>
+          </aside>
         </form>
       </DialogContent>
     </Dialog>

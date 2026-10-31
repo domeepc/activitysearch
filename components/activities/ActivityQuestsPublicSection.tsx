@@ -31,8 +31,8 @@ export function ActivityQuestsPublicSection({
 
   return (
     <>
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Quests</h3>
+      <div className="space-y-4 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+        <h2 className="text-xl font-bold tracking-tight">Quests</h2>
         <p className="text-sm text-muted-foreground">
           Bonus challenges from the organiser. Complete them on the day — your
           organiser marks progress when you&apos;re on a reservation.
@@ -47,7 +47,7 @@ export function ActivityQuestsPublicSection({
           {quests.map((q) => (
             <li
               key={q._id}
-              className="flex gap-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 p-4"
+              className="flex gap-3 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
             >
               <QuestVisual
                 iconImageUrl={q.iconImageUrl}
