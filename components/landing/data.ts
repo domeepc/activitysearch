@@ -1,7 +1,7 @@
 export interface CategoryItem {
   title: string;
   subtitle: string;
-  tone: string;
+  tone?: string;
   /** Local asset under `public/images` (e.g. `/images/high-energy.jpg`). */
   imageUrl?: string;
 }
@@ -11,8 +11,10 @@ export interface ActivityItem {
   category: string;
   price: string;
   rating: string;
-  tone: string;
+  tone?: string;
   imageUrl?: string;
+  /** Activity page; sign-in redirects back here */
+  href?: string;
 }
 
 export interface CtaContent {
@@ -29,7 +31,7 @@ export interface QuestItem {
   title: string;
   subtitle: string;
   badge?: string;
-  tone: string;
+  tone?: string;
 }
 
 export const categories: CategoryItem[] = [

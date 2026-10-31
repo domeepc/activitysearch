@@ -12,6 +12,7 @@ import type * as activity from "../activity.js";
 import type * as crons from "../crons.js";
 import type * as gamification from "../gamification.js";
 import type * as http from "../http.js";
+import type * as landing from "../landing.js";
 import type * as legacyEncryption from "../legacyEncryption.js";
 import type * as loyalty from "../loyalty.js";
 import type * as messages from "../messages.js";
@@ -37,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   gamification: typeof gamification;
   http: typeof http;
+  landing: typeof landing;
   legacyEncryption: typeof legacyEncryption;
   loyalty: typeof loyalty;
   messages: typeof messages;

@@ -389,3 +389,38 @@ export const markQuestCompleteForUser = mutation({
     });
   },
 });
+
+// Completions before this were celebrated by the old per-tab logic; don't pop them up again
+const CELEBRATION_TRACKING_SINCE = Date.parse("2026-10-31T00:00:00Z");
+
+/** Quests the user completed but hasn't seen the celebration popup for yet */
+export const pendingQuestCelebrations = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) return [];
+    const completions = await ctx.db
+      .query("questCompletions")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+    const pending = completions.filter(
+      (c) => c.celebratedAt === undefined && c.completedAt >= CELEBRATION_TRACKING_SINCE
+    );
+    const quests = await Promise.all(pending.map((c) => ctx.db.get(c.questId)));
+    return quests.filter((q): q is Doc<"quests"> => q !== null);
+  },
+});
+
+export const markQuestCelebrated = mutation({
+  args: { questId: v.id("quests") },
+  handler: async (ctx, { questId }) => {
+    const user = await getCurrentUserOrThrow(ctx);
+    const completion = await ctx.db
+      .query("questCompletions")
+      .withIndex("by_user_quest", (q) => q.eq("userId", user._id).eq("questId", questId))
+      .first();
+    if (completion && completion.celebratedAt === undefined) {
+      await ctx.db.patch(completion._id, { celebratedAt: Date.now() });
+    }
+  },
+});

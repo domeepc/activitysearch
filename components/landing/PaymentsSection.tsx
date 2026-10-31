@@ -18,7 +18,7 @@ const points = [
 export function PaymentsSection() {
   return (
     <section aria-labelledby="payments-h" className="flex h-full flex-col gap-6 rounded-4xl bg-blue-600 p-6 text-white md:p-9">
-      <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-blue-100">05 — Payments</p>
+      <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-blue-100">06 — Payments</p>
       <h2 id="payments-h" className="text-[clamp(2.1rem,4vw,3.5rem)] font-extrabold leading-none tracking-[-0.04em]">
         Simple, reliable payments.
       </h2>
