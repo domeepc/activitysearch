@@ -6,7 +6,7 @@ ActivitySearch is proprietary software (see [LICENSE](LICENSE)). The source code
 
 - Contributions are accepted **only from people the copyright holder has invited** and given access to the repository.
 - **Unsolicited pull requests, forks and patches are not accepted** and will be closed without review, even if the repository is publicly visible.
-- Want to work on ActivitySearch, or found something worth improving? Email **domemdev@gmail.com** first.
+- Want to work on ActivitySearch, or found something worth improving? Email **domemdev+activitysearch@gmail.com** first.
 
 ## Ownership of contributions
 
@@ -20,7 +20,7 @@ Invited contributors may be asked to sign a separate contributor agreement befor
 
 ## Reporting bugs and security issues
 
-- **Security issues**: report privately to domemdev@gmail.com. Never open a public issue for a vulnerability, and don't test against production data or other people's accounts.
+- **Security issues**: report privately to domemdev+activitysearch@gmail.com. Never open a public issue for a vulnerability, and don't test against production data or other people's accounts.
 - **Bugs**: invited contributors open a GitHub issue with steps to reproduce, what you expected, and what happened. Others can email the same details.
 
 ## Workflow for invited contributors
@@ -61,4 +61,4 @@ npx tsc --noEmit
 
 ## Questions
 
-Email domemdev@gmail.com.
+Email domemdev+activitysearch@gmail.com.
