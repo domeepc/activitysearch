@@ -262,7 +262,7 @@ export function ActivityDetailsSection({
       </div>
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 text-sm font-medium text-zinc-900 dark:text-zinc-50">Level</legend>
-        <div id="difficulty" role="radiogroup" aria-label="Level" className="grid grid-cols-3 gap-2">
+        <div id="difficulty" role="radiogroup" aria-label="Level" className="flex flex-wrap gap-2">
           {LEVELS.map((l) => {
             const on = selectedDifficulty[0] === l.value || formData.difficulty === l.value;
             return (
@@ -273,7 +273,7 @@ export function ActivityDetailsSection({
                 aria-checked={on}
                 onClick={() => onDifficultyChange([l.value])}
                 className={cn(
-                  "inline-flex h-11 items-center justify-center gap-2 rounded-xl border text-sm font-medium transition-colors",
+                  "inline-flex h-11 flex-[1_1_8rem] items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-4 text-sm font-medium transition-colors",
                   on
                     ? "border-blue-600 bg-blue-50 text-zinc-900 ring-1 ring-blue-600 dark:bg-blue-950/40 dark:text-zinc-50"
                     : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
