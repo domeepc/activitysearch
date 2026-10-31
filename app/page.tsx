@@ -3,7 +3,7 @@ import { api } from "@/convex/_generated/api";
 import { LandingPage } from "../components/landing/LandingPage";
 
 // Signed-in visitors are redirected to /home in proxy.ts, so this page stays static,
-// re-rendered at most every 5 minutes, so new activities, quests and reviews show up quickly.
+// re-rendered at most every 1 hour, so new activities, quests and reviews show up quickly.
 export const revalidate = 3600;
 
 async function loadShowcase() {
