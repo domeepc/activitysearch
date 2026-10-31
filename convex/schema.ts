@@ -46,7 +46,7 @@ export default defineSchema({
     createdBy: v.id("users"),
     slug: v.string(),
     icon: v.optional(v.string()),
-    teamPublicKey: v.optional(v.string()),
+    teamPublicKey: v.optional(v.string()), // unused legacy field
   })
     .index("bySlug", ["slug"])
     .index("byCreatedBy", ["createdBy"]),
@@ -167,13 +167,38 @@ export default defineSchema({
   })
     .index("byConversation", ["senderId", "receiverId"])
     .index("byReceiver", ["receiverId"]),
+  // A new browser asking one of the user's existing browsers for the private key. The approver
+  // encrypts the key to tempPublicKey (held only by the new browser), so the server sees ciphertext only.
+  deviceLinks: defineTable({
+    userId: v.id("users"),
+    tempPublicKey: v.string(),
+    payload: v.optional(v.string()),
+  }).index("byUser", ["userId"]),
+  // Unused (passcode backups were removed); kept only so existing rows don't block schema push. Clear and drop.
+  keyBackups: defineTable({
+    userId: v.id("users"),
+    backup: v.string(),
+  }).index("byUser", ["userId"]),
+  // One row per time a user's public key was replaced; chats show "security code changed" from it
+  keyChanges: defineTable({
+    userId: v.id("users"),
+  }).index("byUser", ["userId"]),
+  // The team's AES key, encrypted separately for each member's current public key
+  teamKeys: defineTable({
+    teamId: v.id("teams"),
+    userId: v.id("users"),
+    wrappedKey: v.string(),
+    memberPublicKey: v.string(),
+  }).index("byTeamAndUser", ["teamId", "userId"]),
   groupMessages: defineTable({
     text: v.string(),
     senderId: v.id("users"),
     teamId: v.id("teams"),
     readBy: v.optional(v.array(v.id("users"))),
     encrypted: v.optional(v.boolean()),
-    encryptionVersion: v.optional(v.union(v.literal("symmetric"), v.literal("asymmetric"))),
+    encryptionVersion: v.optional(
+      v.union(v.literal("symmetric"), v.literal("asymmetric"), v.literal("teamKey"))
+    ),
     messageType: v.optional(
       v.union(v.literal("text"), v.literal("reservation_card"))
     ),

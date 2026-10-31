@@ -354,6 +354,22 @@ export const deleteFromClerk = internalMutation({
         .collect();
       await Promise.all(userLoyalty.map((t) => ctx.db.delete(t._id)));
 
+      const keyBackup = await ctx.db
+        .query("keyBackups")
+        .withIndex("byUser", (q) => q.eq("userId", user._id))
+        .unique();
+      if (keyBackup) await ctx.db.delete(keyBackup._id);
+      const deviceLinks = await ctx.db
+        .query("deviceLinks")
+        .withIndex("byUser", (q) => q.eq("userId", user._id))
+        .collect();
+      await Promise.all(deviceLinks.map((d) => ctx.db.delete(d._id)));
+      const keyChanges = await ctx.db
+        .query("keyChanges")
+        .withIndex("byUser", (q) => q.eq("userId", user._id))
+        .collect();
+      await Promise.all(keyChanges.map((k) => ctx.db.delete(k._id)));
+
       await ctx.db.delete(user._id);
     } else {
       console.warn(
@@ -1097,27 +1113,125 @@ export const getUserPublicKey = query({
   },
 });
 
-/**
- * Set or update a user's public key
- */
-export const setUserPublicKey = mutation({
-  args: {
-    publicKey: v.string(),
+function samePublicKey(a: string, b: string) {
+  try {
+    const x = JSON.parse(a);
+    const y = JSON.parse(b);
+    return x.x === y.x && x.y === y.y;
+  } catch {
+    return false;
+  }
+}
+
+/** When the caller's or the other person's key changed, for "security code changed" notices in a 1:1 chat */
+export const getKeyChanges = query({
+  args: { otherUserId: v.id("users") },
+  handler: async (ctx, { otherUserId }) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) return [];
+    const forUser = (userId: Id<"users">) =>
+      ctx.db
+        .query("keyChanges")
+        .withIndex("byUser", (q) => q.eq("userId", userId))
+        .collect();
+    const rows = [...(await forUser(user._id)), ...(await forUser(otherUserId))];
+    return rows.map((r) => ({ userId: r.userId, changedAt: r._creationTime }));
   },
-  handler: async (ctx, { publicKey }) => {
+});
+
+/**
+ * Publish the user's public key. Refuses to replace an existing one unless `replace`
+ * (the "start fresh" reset), so a new browser can't silently clobber the key the others use.
+ */
+export const setMyPublicKey = mutation({
+  args: { publicKey: v.string(), replace: v.boolean() },
+  handler: async (ctx, { publicKey, replace }) => {
     const user = await getCurrentUserOrThrow(ctx);
-    
-    // Validate that publicKey is a valid JWK string
+    if (user.publicKey && !replace) {
+      throw new Error("Chat encryption is already set up on another browser. Approve this browser from there.");
+    }
     try {
       JSON.parse(publicKey);
     } catch {
       throw new Error("Invalid public key format. Expected JWK JSON string.");
     }
-    
-    await ctx.db.patch(user._id, {
-      publicKey,
-    });
-    
+    if (user.publicKey && !samePublicKey(user.publicKey, publicKey)) {
+      await ctx.db.insert("keyChanges", { userId: user._id });
+    }
+    await ctx.db.patch(user._id, { publicKey });
     return { success: true };
+  },
+});
+
+const DEVICE_LINK_TTL_MS = 10 * 60 * 1000;
+
+async function getOwnDeviceLink(ctx: QueryCtx, linkId: Id<"deviceLinks">) {
+  const user = await getCurrentUserOrThrow(ctx);
+  const link = await ctx.db.get(linkId);
+  return link && link.userId === user._id ? link : null;
+}
+
+/** New browser: ask the user's other browsers for the key. Replaces any earlier request. */
+export const requestDeviceLink = mutation({
+  args: { tempPublicKey: v.string() },
+  handler: async (ctx, { tempPublicKey }) => {
+    const user = await getCurrentUserOrThrow(ctx);
+    JSON.parse(tempPublicKey);
+    const old = await ctx.db
+      .query("deviceLinks")
+      .withIndex("byUser", (q) => q.eq("userId", user._id))
+      .collect();
+    for (const row of old) await ctx.db.delete(row._id);
+    return await ctx.db.insert("deviceLinks", { userId: user._id, tempPublicKey });
+  },
+});
+
+/** Existing browsers: link requests waiting for approval */
+export const getPendingDeviceLinks = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) return [];
+    const rows = await ctx.db
+      .query("deviceLinks")
+      .withIndex("byUser", (q) => q.eq("userId", user._id))
+      .collect();
+    // shortcut: expiry uses query time, so a request only disappears on its own when the query reruns; fine for a 10 min window
+    const cutoff = Date.now() - DEVICE_LINK_TTL_MS;
+    return rows
+      .filter((r) => !r.payload && r._creationTime > cutoff)
+      .map((r) => ({ _id: r._id, tempPublicKey: r.tempPublicKey }));
+  },
+});
+
+/** New browser: watch its own request for the approver's encrypted key */
+export const getDeviceLink = query({
+  args: { linkId: v.id("deviceLinks") },
+  handler: async (ctx, { linkId }) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) return null;
+    const link = await ctx.db.get(linkId);
+    if (!link || link.userId !== user._id) return null;
+    return { payload: link.payload ?? null };
+  },
+});
+
+export const approveDeviceLink = mutation({
+  args: { linkId: v.id("deviceLinks"), payload: v.string() },
+  handler: async (ctx, { linkId, payload }) => {
+    const link = await getOwnDeviceLink(ctx, linkId);
+    if (!link || link.payload || link._creationTime < Date.now() - DEVICE_LINK_TTL_MS) {
+      throw new Error("This link request is no longer valid");
+    }
+    await ctx.db.patch(linkId, { payload });
+  },
+});
+
+/** Deny (approver) or clean up after receiving the key (new browser) */
+export const deleteDeviceLink = mutation({
+  args: { linkId: v.id("deviceLinks") },
+  handler: async (ctx, { linkId }) => {
+    const link = await getOwnDeviceLink(ctx, linkId);
+    if (link) await ctx.db.delete(link._id);
   },
 });

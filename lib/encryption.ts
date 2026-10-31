@@ -45,47 +45,88 @@ export class EncryptionService {
     );
   }
 
-  /**
-   * Get or create user's private key pair
-   * Private key is stored in localStorage
-   */
-  static async getOrCreateUserKeyPair(userId: string): Promise<CryptoKeyPair> {
-    const keyName = `ecdh_private_key_${userId}`;
+  /** localStorage slot for a user's private key on this browser */
+  static userKeyName(userId: string): string {
+    return `ecdh_private_key_${userId}`;
+  }
 
-    // Try to load from localStorage
-    const cachedKeyPair = await this.loadKeyPair(keyName);
-    if (cachedKeyPair) {
-      return cachedKeyPair;
-    }
-
-    // Generate new key pair
-    const keyPair = await this.generateKeyPair();
-
-    // Store private key in localStorage (public key will be stored in database)
-    await this.storeKeyPair(keyName, keyPair);
-
-    return keyPair;
+  /** Same key if the public coordinates match (JWK field order differs between browsers) */
+  static samePublicKey(a: string, b: string): boolean {
+    const x = JSON.parse(a);
+    const y = JSON.parse(b);
+    return x.x === y.x && x.y === y.y;
   }
 
   /**
-   * Get or create team's private key pair
+   * 60-digit security code for a 1:1 chat (Signal/WhatsApp style): 30 digits per person from
+   * 5200 rounds of SHA-512 over their public key + user ID, ordered by user ID so both sides match.
+   * Pass your OWN key from this browser, not the server's copy, or a key swap by the server goes unnoticed.
    */
-  static async getOrCreateTeamKeyPair(teamId: string): Promise<CryptoKeyPair> {
-    const keyName = `ecdh_team_private_key_${teamId}`;
+  static async securityCode(
+    a: { userId: string; publicKeyJWK: string },
+    b: { userId: string; publicKeyJWK: string }
+  ): Promise<string> {
+    const half = async ({ userId, publicKeyJWK }: { userId: string; publicKeyJWK: string }) => {
+      const { x, y } = JSON.parse(publicKeyJWK);
+      const key = new TextEncoder().encode(`${x}.${y}`);
+      const join = (p: Uint8Array, q: Uint8Array) => {
+        const out = new Uint8Array(p.length + q.length);
+        out.set(p);
+        out.set(q, p.length);
+        return out;
+      };
+      let hash = join(join(new Uint8Array([0]), key), new TextEncoder().encode(userId));
+      for (let i = 0; i < 5200; i++) {
+        hash = new Uint8Array(await crypto.subtle.digest("SHA-512", join(hash, key)));
+      }
+      let digits = "";
+      for (let i = 0; i < 30; i += 5) {
+        // 5 bytes = 40 bits, safely inside a JS number
+        const chunk = hash.slice(i, i + 5).reduce((n, byte) => n * 256 + byte, 0);
+        digits += String(chunk % 100000).padStart(5, "0");
+      }
+      return digits;
+    };
+    const [first, second] = [a, b].sort((p, q) => (p.userId < q.userId ? -1 : 1));
+    return (await half(first)) + (await half(second));
+  }
 
-    // Try to load from localStorage
-    const cachedKeyPair = await this.loadKeyPair(keyName);
-    if (cachedKeyPair) {
-      return cachedKeyPair;
-    }
+  /** 6-digit code shown on both browsers during device linking, so the user can tell their request from an injected one */
+  static async linkCode(tempPublicKeyJWK: string): Promise<string> {
+    const { x, y } = JSON.parse(tempPublicKeyJWK);
+    const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${x}.${y}`)));
+    const n = hash.slice(0, 4).reduce((acc, byte) => acc * 256 + byte, 0) % 1_000_000;
+    return String(n).padStart(6, "0");
+  }
 
-    // Generate new key pair
-    const keyPair = await this.generateKeyPair();
+  /** Fresh random AES key for a team's messages (shared to members via wrapTeamKey) */
+  static async generateTeamKey(): Promise<CryptoKey> {
+    return await crypto.subtle.generateKey(
+      { name: AES_ALGORITHM, length: AES_KEY_LENGTH },
+      true,
+      ["encrypt", "decrypt"]
+    );
+  }
 
-    // Store private key in localStorage
-    await this.storeKeyPair(keyName, keyPair);
+  /** Encrypt the team key for one member: ECDH(wrapper private, member public), wrapper public key embedded */
+  static async wrapTeamKey(
+    teamKey: CryptoKey,
+    memberPublicKey: CryptoKey,
+    wrapperKeyPair: CryptoKeyPair
+  ): Promise<string> {
+    const raw = await crypto.subtle.exportKey("raw", teamKey);
+    return await this.encryptMessageAsymmetric(this.arrayBufferToBase64(raw), memberPublicKey, wrapperKeyPair);
+  }
 
-    return keyPair;
+  static async unwrapTeamKey(wrapped: string, userPrivateKey: CryptoKey): Promise<CryptoKey> {
+    const rawBase64 = await this.decryptMessageAsymmetric(wrapped, userPrivateKey);
+    return await crypto.subtle.importKey(
+      "raw",
+      this.base64ToArrayBuffer(rawBase64),
+      { name: AES_ALGORITHM, length: AES_KEY_LENGTH },
+      true, // re-exported when wrapping for new members
+      ["encrypt", "decrypt"]
+    );
   }
 
   /**
@@ -156,10 +197,10 @@ export class EncryptionService {
    */
   static async encryptMessageAsymmetric(
     text: string,
-    receiverPublicKey: CryptoKey
+    receiverPublicKey: CryptoKey,
+    // Sender's static pair (not an ephemeral one) so the sender can decrypt their own message too
+    ephemeralKeyPair: CryptoKeyPair
   ): Promise<string> {
-    // Generate ephemeral key pair for this message
-    const ephemeralKeyPair = await this.generateKeyPair();
 
     // Derive shared secret using ECDH
     const sharedSecret = await crypto.subtle.deriveBits(
@@ -215,7 +256,9 @@ export class EncryptionService {
    */
   static async decryptMessageAsymmetric(
     encryptedText: string,
-    userPrivateKey: CryptoKey
+    userPrivateKey: CryptoKey,
+    ownPublicKey?: CryptoKey,
+    otherPublicKey?: CryptoKey
   ): Promise<string> {
     try {
       // Parse the encrypted message
@@ -235,7 +278,14 @@ export class EncryptionService {
       const ephemeralPublicKeyJWKString = new TextDecoder().decode(
         this.base64ToArrayBuffer(ephemeralPublicKeyBase64)
       );
-      const ephemeralPublicKey = await this.importPublicKeyFromJWK(ephemeralPublicKeyJWKString);
+      let ephemeralPublicKey = await this.importPublicKeyFromJWK(ephemeralPublicKeyJWKString);
+
+      // Message embeds our own public key => we wrote it; the shared secret is with the other party's key
+      if (ownPublicKey && otherPublicKey) {
+        const embedded = JSON.parse(ephemeralPublicKeyJWKString);
+        const own = await crypto.subtle.exportKey("jwk", ownPublicKey);
+        if (embedded.x === own.x && embedded.y === own.y) ephemeralPublicKey = otherPublicKey;
+      }
 
       // Derive shared secret using ECDH
       const sharedSecret = await crypto.subtle.deriveBits(
@@ -374,7 +424,7 @@ export class EncryptionService {
             name: ECDH_ALGORITHM,
             namedCurve: ECDH_CURVE,
           },
-          false,
+          true, // must stay extractable: it is re-exported and uploaded on every load
           []
         );
 
