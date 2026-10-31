@@ -116,7 +116,7 @@ export default function Navbar() {
         </ul>
 
         <DropdownMenu>
-          <DropdownMenuTrigger className="group inline-flex h-10 items-center gap-2 rounded-xl p-1 outline-none transition-colors hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-zinc-100 md:border md:border-zinc-200 md:py-1 md:pl-1 md:pr-3 dark:hover:bg-zinc-800 dark:data-[state=open]:bg-zinc-800 md:dark:border-zinc-800">
+          <DropdownMenuTrigger className="group inline-flex items-center gap-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-10 md:rounded-xl md:border md:border-zinc-200 md:py-1 md:pl-1 md:pr-3 md:transition-colors md:hover:bg-zinc-100 md:data-[state=open]:bg-zinc-100 md:dark:border-zinc-800 md:dark:hover:bg-zinc-800 md:dark:data-[state=open]:bg-zinc-800">
             <Avatar className="size-9 md:size-7">
               <AvatarImage src={user?.avatar} alt="" />
               <AvatarFallback className="text-xs font-bold">{user?.name?.[0]}</AvatarFallback>
