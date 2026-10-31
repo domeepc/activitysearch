@@ -148,6 +148,7 @@ export const getConversations = query({
         timestamp: number;
         senderId: typeof currentUser._id;
         readBy?: (typeof currentUser._id)[];
+        encryptionVersion: "symmetric" | "asymmetric" | null;
         unreadCount: number;
       }
     > = new Map();
@@ -173,6 +174,8 @@ export const getConversations = query({
           timestamp: lastMessage._creationTime,
           senderId: lastMessage.senderId,
           readBy: lastMessage.readBy,
+          // Only the client can decrypt; it needs to know how the preview was encrypted
+          encryptionVersion: lastMessage.encrypted ? (lastMessage.encryptionVersion ?? "symmetric") : null,
           unreadCount,
         });
       }
@@ -231,6 +234,8 @@ export const getConversations = query({
           avatar: partner.avatar,
           role: partner.role,
           lastMessage: lastMessage?.text || "",
+          lastMessageEncryptionVersion: lastMessage?.encryptionVersion ?? null,
+          partnerPublicKey: partner.publicKey ?? null,
           lastMessageTime: lastMessage?.timestamp || 0,
           lastActive: partner.lastActive,
           lastMessageReadStatus,
@@ -662,6 +667,7 @@ export const getReservationConversations = query({
         timestamp: number;
         senderId: typeof currentUser._id;
         readBy?: (typeof currentUser._id)[];
+        encryptionVersion: "symmetric" | "asymmetric" | null;
       }
     > = new Map();
 
@@ -682,6 +688,8 @@ export const getReservationConversations = query({
           timestamp: lastMessage._creationTime,
           senderId: lastMessage.senderId,
           readBy: lastMessage.readBy,
+          // Only the client can decrypt; it needs to know how the preview was encrypted
+          encryptionVersion: lastMessage.encrypted ? (lastMessage.encryptionVersion ?? "symmetric") : null,
         });
       }
     }
@@ -801,6 +809,8 @@ export const getReservationConversations = query({
           avatar: partner.avatar,
           role: partner.role,
           lastMessage: lastMessage?.text || "",
+          lastMessageEncryptionVersion: lastMessage?.encryptionVersion ?? null,
+          partnerPublicKey: partner.publicKey ?? null,
           lastMessageTime: lastMessage?.timestamp || 0,
           lastActive: partner.lastActive,
           lastMessageReadStatus,

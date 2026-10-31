@@ -15,6 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { LastMessagePreview } from "./LastMessagePreview";
 import { StatusDot } from "./ActiveStatus";
 import { TeamMembersDialog } from "./TeamMembersDialog";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -176,6 +177,8 @@ export function ConversationList({
       lastMessageTime: number;
       lastMessageReadStatus: "sent" | "delivered" | "read" | null;
       lastMessage: string;
+      lastMessageEncryptionVersion: "symmetric" | "asymmetric" | null;
+      partnerPublicKey: string | null;
       lastMessageSenderName: string | null;
       unreadCount: number;
     };
@@ -194,6 +197,8 @@ export function ConversationList({
         lastMessageTime: conv.lastMessageTime,
         lastMessageReadStatus: conv.lastMessageReadStatus,
         lastMessage: conv.lastMessage ?? "",
+        lastMessageEncryptionVersion: conv.lastMessageEncryptionVersion,
+        partnerPublicKey: conv.partnerPublicKey,
         lastMessageSenderName: conv.lastMessageSenderName ?? null,
         unreadCount: conv.unreadCount ?? 0,
       })) || [];
@@ -212,6 +217,8 @@ export function ConversationList({
         lastMessageTime: 0,
         lastMessageReadStatus: null as "sent" | "delivered" | "read" | null,
         lastMessage: "",
+        lastMessageEncryptionVersion: null,
+        partnerPublicKey: null,
         lastMessageSenderName: null,
         unreadCount: 0,
       })) || [];
@@ -421,7 +428,15 @@ export function ConversationList({
                           {friend.lastMessageSenderName
                             ? `${friend.lastMessageSenderName}: `
                             : ""}
-                          {friend.lastMessage || "No messages yet"}
+                          {friend.lastMessage ? (
+                            <LastMessagePreview
+                              text={friend.lastMessage}
+                              encryptionVersion={friend.lastMessageEncryptionVersion}
+                              partnerPublicKey={friend.partnerPublicKey}
+                            />
+                          ) : (
+                            "No messages yet"
+                          )}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
@@ -573,7 +588,15 @@ export function ConversationList({
                           {team.lastMessageSenderName
                             ? `${team.lastMessageSenderName}: `
                             : ""}
-                          {team.lastMessage?.text || "No messages yet"}
+                          {team.lastMessage?.text ? (
+                            <LastMessagePreview
+                              text={team.lastMessage.text}
+                              encryptionVersion={team.lastMessage.encryptionVersion}
+                              wrappedTeamKey={team.myWrappedTeamKey}
+                            />
+                          ) : (
+                            "No messages yet"
+                          )}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
@@ -777,7 +800,15 @@ export function ConversationList({
                         {conv.lastMessageSenderName
                           ? `${conv.lastMessageSenderName}: `
                           : ""}
-                        {conv.lastMessage || "📋 Reservation"}
+                        {conv.lastMessage ? (
+                          <LastMessagePreview
+                            text={conv.lastMessage}
+                            encryptionVersion={conv.lastMessageEncryptionVersion}
+                            partnerPublicKey={conv.partnerPublicKey}
+                          />
+                        ) : (
+                          "📋 Reservation"
+                        )}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">

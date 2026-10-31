@@ -59,6 +59,7 @@ export default function IndividualChatPage({
       | "read"
       | undefined,
     encrypted: msg.encrypted || false,
+    encryptionVersion: msg.encryptionVersion,
   }));
 
   return (
