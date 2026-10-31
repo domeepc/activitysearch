@@ -13,7 +13,29 @@ const MARQUEE = [
   "Team Sports",
 ];
 
-export function HeroSection() {
+const STATIC_TILES = [
+  { title: "Outdoor Pursuit", imageUrl: "/images/outdoor-pursuit.jpg", href: "/sign-in" },
+  { title: "Team Sports", imageUrl: "/images/team_sports.jpg", href: "/sign-in" },
+  { title: "High Energy", imageUrl: "/images/high-energy.jpg", href: "/sign-in" },
+];
+const TILE_CLASSES = [
+  "h-56 md:col-span-4 md:h-[300px]",
+  "h-44 md:col-span-3 md:h-[220px]",
+  "hidden md:col-span-2 md:block md:h-[260px]",
+];
+
+interface HeroSectionProps {
+  /** Real activities with photos; missing slots fall back to the stock photos */
+  tiles?: { title: string; imageUrl: string; href: string }[];
+  /** Real activity names for the ticker */
+  marquee?: string[];
+  quest?: { title: string; badge?: string };
+}
+
+export function HeroSection({ tiles = [], marquee = [], quest }: HeroSectionProps) {
+  const heroTiles = [...tiles, ...STATIC_TILES].slice(0, 3);
+  const ticker = marquee.length >= 4 ? marquee : MARQUEE;
+
   return (
     <section className="relative overflow-hidden pt-28 md:pt-36">
       <div className="mx-auto w-full max-w-[1440px] px-4 md:px-10">
@@ -62,24 +84,24 @@ export function HeroSection() {
         role="group"
         className="mx-auto mt-12 grid w-full max-w-[1440px] grid-cols-2 items-end gap-3 px-4 md:grid-cols-12 md:px-10"
       >
-        <HeroTile src="/images/outdoor-pursuit.jpg" label="Outdoor Pursuit" className="h-56 md:col-span-4 md:h-[300px]" />
-        <HeroTile src="/images/team_sports.jpg" label="Team Sports" className="h-44 md:col-span-3 md:h-[220px]" />
-        <HeroTile src="/images/high-energy.jpg" label="High Energy" className="hidden md:col-span-2 md:block md:h-[260px]" />
+        {heroTiles.map((tile, i) => (
+          <HeroTile key={tile.href + tile.title} {...tile} className={TILE_CLASSES[i]} />
+        ))}
         <Link
           href="/sign-in"
           className="col-span-2 flex h-56 flex-col justify-end gap-2 rounded-3xl bg-violet-950 p-5 transition-transform hover:-translate-y-1 md:col-span-3 md:h-[320px]"
         >
           <span className="text-xs uppercase tracking-[0.08em] text-violet-200">Quest</span>
           <span className="text-[22px] font-bold leading-tight tracking-[-0.02em] text-zinc-50">
-            Try two different categories in one weekend
+            {quest?.title ?? "Try two different categories in one weekend"}
           </span>
-          <span className="text-sm text-amber-200">Weekend explorer badge</span>
+          <span className="text-sm text-amber-200">{quest ? quest.badge : "Weekend explorer badge"}</span>
         </Link>
       </div>
 
       <div aria-hidden="true" className="mt-10 overflow-hidden whitespace-nowrap border-y border-zinc-800">
         <div className="inline-flex gap-12 py-4 text-[22px] font-semibold tracking-[-0.02em] text-zinc-500 motion-safe:animate-marquee">
-          {[...MARQUEE, ...MARQUEE].map((item, i) => (
+          {[...ticker, ...ticker].map((item, i) => (
             <span key={i} className="inline-flex items-center gap-12">
               {item}
               <span className="text-blue-600">✦</span>
@@ -91,11 +113,11 @@ export function HeroSection() {
   );
 }
 
-function HeroTile({ src, label, className }: { src: string; label: string; className?: string }) {
+function HeroTile({ title, imageUrl, href, className }: { title: string; imageUrl: string; href: string; className?: string }) {
   return (
-    <div className={`group relative overflow-hidden rounded-3xl bg-zinc-900 ${className ?? ""}`}>
+    <Link href={href} className={`group relative overflow-hidden rounded-3xl bg-zinc-900 ${className ?? ""}`}>
       <Image
-        src={src}
+        src={imageUrl}
         alt=""
         fill
         sizes="(min-width: 768px) 33vw, 50vw"
@@ -103,8 +125,8 @@ function HeroTile({ src, label, className }: { src: string; label: string; class
         priority
       />
       <span className="absolute bottom-4 left-4 rounded-full bg-zinc-950/70 px-3 py-2 text-[13px] text-zinc-50 backdrop-blur">
-        {label}
+        {title}
       </span>
-    </div>
+    </Link>
   );
 }

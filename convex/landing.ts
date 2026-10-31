@@ -29,13 +29,16 @@ export const showcase = query({
     };
 
     // Rated activities first (best average, then most reviews); newest unrated ones fill the rest
-    const topActivities = [...activities]
-      .sort(
-        (a, b) =>
-          average(b._id) - average(a._id) ||
-          (ratings.get(b._id)?.count ?? 0) - (ratings.get(a._id)?.count ?? 0) ||
-          b._creationTime - a._creationTime
-      )
+    const ranked = [...activities].sort(
+      (a, b) =>
+        average(b._id) - average(a._id) ||
+        (ratings.get(b._id)?.count ?? 0) - (ratings.get(a._id)?.count ?? 0) ||
+        b._creationTime - a._creationTime
+    );
+    // Only real URLs: some listings store photos as data: URLs, which would inline whole images into the page
+    const photo = (a: (typeof activities)[number]) => a.images?.find((url) => url.startsWith("https://"));
+
+    const topActivities = ranked
       .slice(0, 4)
       .map((a) => ({
         id: a._id,
@@ -43,7 +46,33 @@ export const showcase = query({
         category: a.tags[0] ?? a.difficulty,
         price: `€${a.price % 1 === 0 ? a.price : a.price.toFixed(2)}`,
         rating: ratings.has(a._id) ? average(a._id).toFixed(1) : "New",
-        imageUrl: a.images?.[0],
+        imageUrl: photo(a),
+      }));
+
+    // Hero: best-ranked activities that have a photo
+    const heroActivities = ranked
+      .filter((a) => photo(a))
+      .slice(0, 3)
+      .map((a) => ({ id: a._id, title: a.activityName, imageUrl: photo(a)! }));
+    const activityNames = ranked.slice(0, 12).map((a) => a.activityName);
+
+    // "Pick a vibe": the tags organisers actually use, most activities first
+    const byTag = new Map<string, { count: number; imageUrl?: string }>();
+    for (const a of ranked) {
+      for (const tag of a.tags) {
+        const entry = byTag.get(tag) ?? { count: 0 };
+        entry.count += 1;
+        entry.imageUrl ??= photo(a);
+        byTag.set(tag, entry);
+      }
+    }
+    const categories = [...byTag]
+      .sort((x, y) => y[1].count - x[1].count || x[0].localeCompare(y[0]))
+      .slice(0, 4)
+      .map(([tag, { count, imageUrl }]) => ({
+        title: tag,
+        subtitle: `${count} ${count === 1 ? "activity" : "activities"}`,
+        imageUrl,
       }));
 
     const activeQuests = quests
@@ -71,6 +100,6 @@ export const showcase = query({
         })
     );
 
-    return { topActivities, quests: activeQuests, reviews: recentReviews };
+    return { topActivities, heroActivities, activityNames, categories, quests: activeQuests, reviews: recentReviews };
   },
 });

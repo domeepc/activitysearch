@@ -17,20 +17,37 @@ import type { api } from "@/convex/_generated/api";
 export function LandingPage({
   showcase,
 }: {
-  /** Real activities, quests and reviews; null (e.g. backend unreachable at build) falls back to samples */
-  showcase: FunctionReturnType<typeof api.landing.showcase> | null;
+  /**
+   * Real activities, quests and reviews; null (backend unreachable) falls back to samples.
+   * Fields may be missing when a cached response predates them, so every field is optional here.
+   */
+  showcase: Partial<FunctionReturnType<typeof api.landing.showcase>> | null;
 }) {
   return (
     <main className="landing-root dark min-h-screen bg-zinc-950 font-sans text-zinc-50 antialiased">
       <LandingNavbar />
-      <HeroSection />
+      <HeroSection
+        tiles={showcase?.heroActivities?.map((a) => ({ ...a, href: `/activities/${a.id}` }))}
+        marquee={showcase?.activityNames}
+        quest={showcase?.quests?.[0]}
+      />
       <FadeInSection>
-        <CategorySection items={categories} />
+        <CategorySection
+          items={
+            showcase?.categories?.length
+              ? showcase.categories.map((c, i) => ({
+                  ...c,
+                  // Tags without a photo borrow a stock one so every tile has an image
+                  imageUrl: c.imageUrl ?? categories[i % categories.length].imageUrl,
+                }))
+              : categories
+          }
+        />
       </FadeInSection>
       <FadeInSection>
         <TopRatedSection
           items={
-            showcase?.topActivities.length
+            showcase?.topActivities?.length
               ? showcase.topActivities.map((a) => ({ ...a, href: `/activities/${a.id}` }))
               : topRated
           }

@@ -35,3 +35,27 @@ test("landing showcase: best-rated first, public-safe review authors, no sign-in
   expect(showcase.reviews[0]).toMatchObject({ author: "Ana H.", activityName: "Kayak", rating: 5 });
   expect(JSON.stringify(showcase)).not.toMatch(/ana@example\.com|Horvat|\+385/);
 });
+
+test("landing categories come from activity tags; data: photos never reach the page", async () => {
+  const t = convexTest(schema, modules);
+  await t.run(async (ctx) => {
+    const activity = (name: string, tags: string[], images?: string[]) =>
+      ctx.db.insert("activities", {
+        activityName: name, description: "", address: "", longitude: 0, latitude: 0, price: 10,
+        duration: BigInt(60), difficulty: "easy", maxParticipants: BigInt(10), minAge: BigInt(0),
+        tags, equipment: [], availableTimeSlots: [], images,
+      });
+    await activity("Kayak", ["Water", "Outdoor"], ["https://x.convex.cloud/api/storage/kayak"]);
+    await activity("SUP", ["Water"], ["data:image/jpeg;base64,AAAA"]);
+    await activity("Hike", ["Outdoor", "Hiking"]);
+  });
+
+  const showcase = await t.query(api.landing.showcase, {});
+  expect(showcase.categories.map((c) => [c.title, c.subtitle])).toEqual([
+    ["Outdoor", "2 activities"],
+    ["Water", "2 activities"],
+    ["Hiking", "1 activity"],
+  ]);
+  expect(showcase.heroActivities.map((a) => a.title)).toEqual(["Kayak"]);
+  expect(JSON.stringify(showcase)).not.toContain("data:image");
+});

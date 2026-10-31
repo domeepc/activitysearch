@@ -1,7 +1,7 @@
 export interface CategoryItem {
   title: string;
   subtitle: string;
-  tone: string;
+  tone?: string;
   /** Local asset under `public/images` (e.g. `/images/high-energy.jpg`). */
   imageUrl?: string;
 }
