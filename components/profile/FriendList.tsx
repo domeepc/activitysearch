@@ -49,7 +49,7 @@ export function FriendList({ friends, friendIds, emptyText = "No friends yet", s
               <span className="relative shrink-0">
                 <Avatar className="size-10">
                   <AvatarImage src={friend.avatar} alt="" />
-                  <AvatarFallback className="text-xs font-bold">{fullName.replace("@", "")[0]?.toUpperCase()}</AvatarFallback>
+                  <AvatarFallback name={fullName} />
                 </Avatar>
                 {showPresence && <StatusDot userId={friend._id} />}
               </span>

@@ -190,7 +190,7 @@ export function ReservationTable({ reservations, isLoading = false }: Reservatio
     <span className="flex min-w-0 items-center gap-2">
       <Avatar className="size-7">
         <AvatarImage src={r.user?.avatar} alt="" />
-        <AvatarFallback className="text-[10px] font-bold">{r.user?.name?.[0] ?? "?"}</AvatarFallback>
+        <AvatarFallback name={r.user ? `${r.user.name} ${r.user.lastname}` : "Unknown"} />
       </Avatar>
       <span className="min-w-0">
         <b className="block truncate text-sm font-medium">

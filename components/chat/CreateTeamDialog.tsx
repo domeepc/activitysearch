@@ -147,10 +147,7 @@ export function CreateTeamDialog({
                       <label className="flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800/60">
                         <Avatar className="size-9">
                           <AvatarImage src={friend.avatar} alt="" />
-                          <AvatarFallback className="text-xs font-bold">
-                            {friend.name[0]}
-                            {friend.lastname[0]}
-                          </AvatarFallback>
+                          <AvatarFallback name={`${friend.name} ${friend.lastname}`} />
                         </Avatar>
                         <span className="min-w-0 flex-1">
                           <b className="block truncate text-sm font-semibold">

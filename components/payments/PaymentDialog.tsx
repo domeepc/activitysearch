@@ -40,6 +40,14 @@ if (stripePublishableKey) {
   });
 }
 
+/** Server-computed checkout breakdown (same split as the real charge) */
+interface VatEstimate {
+  serviceFee: number;
+  tax: number;
+  total: number;
+  ratePercent: string | null;
+}
+
 interface PaymentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -56,6 +64,7 @@ function PaymentForm({
   perPersonAmount,
   activityName,
   personsToPayFor,
+  vat,
   onSuccess,
   onClose,
 }: {
@@ -64,6 +73,7 @@ function PaymentForm({
   remainingPersons: number;
   activityName: string;
   personsToPayFor: number;
+  vat: VatEstimate | null;
   onSuccess: () => void;
   onClose: () => void;
 }) {
@@ -73,7 +83,7 @@ function PaymentForm({
   const [error, setError] = useState<string | null>(null);
   const recordCardPayment = useAction(api.stripe.recordCardPayment);
 
-  const totalAmount = perPersonAmount * personsToPayFor;
+  const totalAmount = vat?.total ?? 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,7 +148,7 @@ function PaymentForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <dl className="divide-y divide-border rounded-2xl border border-border text-sm">
+      <dl className="divide-y divide-border overflow-hidden rounded-2xl border border-border text-sm">
         <div className="flex items-center justify-between gap-4 px-4 py-3">
           <dt className="text-muted-foreground">Activity</dt>
           <dd className="truncate text-right font-medium">{activityName}</dd>
@@ -147,9 +157,23 @@ function PaymentForm({
           <dt className="text-muted-foreground">Per person</dt>
           <dd className="font-medium tabular-nums">€{perPersonAmount.toFixed(2)}</dd>
         </div>
+        {vat && (
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <dt className="text-muted-foreground">Service fee (5%)</dt>
+            <dd className="font-medium tabular-nums">€{vat.serviceFee.toFixed(2)}</dd>
+          </div>
+        )}
+        {vat && vat.tax > 0 && (
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <dt className="text-muted-foreground">VAT{vat.ratePercent ? ` (${Number(vat.ratePercent)}%)` : ""}</dt>
+            <dd className="font-medium tabular-nums">€{vat.tax.toFixed(2)}</dd>
+          </div>
+        )}
         <div className="flex items-center justify-between gap-4 bg-muted/50 px-4 py-3">
           <dt className="font-semibold">You pay</dt>
-          <dd className="text-lg font-bold tabular-nums">€{totalAmount.toFixed(2)}</dd>
+          <dd className="text-lg font-bold tabular-nums">
+            {vat ? `€${totalAmount.toFixed(2)}` : <Loader2 className="size-4 animate-spin" aria-label="Calculating VAT" />}
+          </dd>
         </div>
       </dl>
 
@@ -178,7 +202,7 @@ function PaymentForm({
         >
           Cancel
         </Button>
-        <Button type="submit" disabled={isProcessing || !stripe} className="rounded-xl bg-blue-600 hover:bg-blue-500">
+        <Button type="submit" disabled={isProcessing || !stripe || !vat} className="rounded-xl bg-blue-600 text-white hover:bg-blue-500">
           {isProcessing ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -210,6 +234,26 @@ export function PaymentDialog({
   const [error, setError] = useState<string | null>(null);
   const [personsToPayFor, setPersonsToPayFor] = useState(1);
   const createSetupIntentAction = useAction(api.stripe.createSetupIntent);
+  const estimateVatAction = useAction(api.stripe.estimateVat);
+  const [vat, setVat] = useState<{ forAmount: number; estimate: VatEstimate } | null>(null);
+  const subtotal = perPersonAmount * personsToPayFor;
+  // Only trust an estimate made for the current amount
+  const currentVat = vat?.forAmount === subtotal ? vat.estimate : null;
+
+  useEffect(() => {
+    if (!open || !(subtotal > 0)) return;
+    let cancelled = false;
+    estimateVatAction({ amount: subtotal })
+      .then((estimate) => {
+        if (!cancelled) setVat({ forAmount: subtotal, estimate });
+      })
+      .catch(() => {
+        if (!cancelled) setError("Couldn't calculate the total. Please close and try again.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, subtotal, estimateVatAction]);
   const { resolvedTheme } = useTheme();
 
   // Reset persons to pay for when dialog opens
@@ -322,9 +366,8 @@ export function PaymentDialog({
           <DialogDescription>
             Save a card for your share (or pay for multiple teammates in one go).
             Each payer gets their own authorisation so refunds return to the right
-            card. The total shown is what your team pays; Stripe processing fees
-            are deducted before payout to the organiser—there is no separate fee
-            line at checkout. Funds stay on hold until the activity date.
+            card. A 5% service fee and VAT are added on top of the activity price.
+            Your card is charged on the activity date.
           </DialogDescription>
         </DialogHeader>
 
@@ -355,8 +398,10 @@ export function PaymentDialog({
               </span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Total: €{(perPersonAmount * personsToPayFor).toFixed(2)} (
-              {personsToPayFor} × €{perPersonAmount.toFixed(2)})
+              Total: {currentVat ? `€${currentVat.total.toFixed(2)}` : "…"} ({personsToPayFor} × €
+              {perPersonAmount.toFixed(2)}
+              {currentVat ? ` + €${currentVat.serviceFee.toFixed(2)} service fee` : ""}
+              {currentVat && currentVat.tax > 0 ? ` + €${currentVat.tax.toFixed(2)} VAT` : ""})
             </p>
           </div>
 
@@ -384,6 +429,7 @@ export function PaymentDialog({
                 remainingPersons={remainingPersons}
                 activityName={activityName}
                 personsToPayFor={personsToPayFor}
+                vat={currentVat}
                 onSuccess={onSuccess}
                 onClose={() => onOpenChange(false)}
               />

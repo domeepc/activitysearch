@@ -121,10 +121,7 @@ export function AddFriendDialog({
                     <Link href={`/profile/${user._id}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring">
                       <Avatar className="size-10">
                         <AvatarImage src={user.avatar} alt="" />
-                        <AvatarFallback className="text-xs font-bold">
-                          {user.name[0]}
-                          {user.lastname[0]}
-                        </AvatarFallback>
+                        <AvatarFallback name={`${user.name} ${user.lastname}`} />
                       </Avatar>
                       <span className="min-w-0">
                         <b className="block truncate text-sm font-semibold">

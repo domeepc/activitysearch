@@ -119,7 +119,7 @@ export default function Navbar() {
           <DropdownMenuTrigger className="group inline-flex items-center gap-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-10 md:rounded-xl md:border md:border-zinc-200 md:py-1 md:pl-1 md:pr-3 md:transition-colors md:hover:bg-zinc-100 md:data-[state=open]:bg-zinc-100 md:dark:border-zinc-800 md:dark:hover:bg-zinc-800 md:dark:data-[state=open]:bg-zinc-800">
             <Avatar className="size-9 md:size-7">
               <AvatarImage src={user?.avatar} alt="" />
-              <AvatarFallback className="text-xs font-bold">{user?.name?.[0]}</AvatarFallback>
+              <AvatarFallback name={user ? `${user.name} ${user.lastname}` : ""} />
             </Avatar>
             <span className="hidden max-w-32 truncate text-sm font-medium md:inline">{user?.name}</span>
             <ChevronDown className="hidden size-4 text-zinc-500 transition-transform group-data-[state=open]:rotate-180 md:block" aria-hidden="true" />
@@ -130,7 +130,7 @@ export default function Navbar() {
             <DropdownMenuLabel className="flex items-center gap-3 px-2 py-2 font-normal">
               <Avatar className="size-9">
                 <AvatarImage src={user?.avatar} alt="" />
-                <AvatarFallback className="text-xs font-bold">{user?.name?.[0]}</AvatarFallback>
+                <AvatarFallback name={user ? `${user.name} ${user.lastname}` : ""} />
               </Avatar>
               <span className="min-w-0">
                 <b className="block truncate text-sm">{user ? `${user.name} ${user.lastname}` : ""}</b>

@@ -45,6 +45,7 @@ export function TeamIconSection({
     <AvatarUpload
       currentAvatar={currentIcon}
       userName={teamName}
+      fallbackVariant="marble"
       onAvatarChange={handleIconChange}
       disabled={disabled}
       size="sm"

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LEGAL_SUPPORT_EMAIL } from "@/components/legal/legal-shared";
 import Image from "next/image";
 
 const linkClass = "text-zinc-400 underline-offset-4 transition-colors hover:text-zinc-50 hover:underline";
@@ -14,7 +15,7 @@ export function LandingFooter() {
         <nav className="flex flex-wrap gap-x-5 gap-y-1 md:ml-auto" aria-label="Legal">
           <Link href="/terms" className={linkClass}>Terms of Service</Link>
           <Link href="/privacy" className={linkClass}>Privacy Policy</Link>
-          <a href="mailto:domagoj.milardovic@activitysearch.eu" className={linkClass}>Support</a>
+          <a href={`mailto:${LEGAL_SUPPORT_EMAIL}`} className={linkClass}>Support</a>
         </nav>
       </div>
     </footer>

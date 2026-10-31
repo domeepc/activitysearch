@@ -6,8 +6,8 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProfileView } from "@/components/profile/ProfileView";
-import { RemoveFriendDialog } from "@/components/profile/dialogs/RemoveFriendDialog";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Ban, UserMinus } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -81,26 +81,6 @@ export default function ProfilePage({
     }
   };
 
-  const handleRemoveFriend = async () => {
-    if (!user?._id) return;
-    try {
-      await removeFriend({ friendId: user._id });
-      setShowRemoveDialog(false);
-    } catch (error) {
-      console.error("Failed to remove friend:", error);
-    }
-  };
-
-  const handleBlock = async () => {
-    if (!user?._id) return;
-    try {
-      await blockUser({ userId: user._id });
-      setShowBlockDialog(false);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to block user");
-    }
-  };
-
   const handleUnblock = async () => {
     if (!user?._id) return;
     try {
@@ -152,22 +132,36 @@ export default function ProfilePage({
         }))}
       />
 
-      <RemoveFriendDialog
+      <ConfirmDialog
         open={showRemoveDialog}
         onOpenChange={setShowRemoveDialog}
-        onConfirm={handleRemoveFriend}
-        friendName={user.name}
-        friendLastname={user.lastname}
+        title={`Remove ${user.name} from friends?`}
+        description="You can add each other again later."
+        consequences={[
+          "Your chat history with them is deleted for both of you",
+          "You'll no longer appear in each other's friend lists",
+        ]}
+        icon={UserMinus}
+        confirmText="Remove friend"
+        cancelText="Keep friend"
+        variant="destructive"
+        onConfirm={() => removeFriend({ friendId: user._id })}
       />
 
       <ConfirmDialog
         open={showBlockDialog}
         onOpenChange={setShowBlockDialog}
         title={`Block ${user.name}?`}
-        description={`${user.name} ${user.lastname} will be removed from your friends and you won't be able to message each other.`}
-        confirmText="Block"
+        description="You can unblock them anytime from your profile settings."
+        consequences={[
+          "They're removed from your friends",
+          "Your chat history with them is deleted for both of you",
+          "Neither of you can message the other",
+        ]}
+        icon={Ban}
         variant="destructive"
-        onConfirm={handleBlock}
+        confirmText="Block"
+        onConfirm={() => blockUser({ userId: user._id })}
       />
     </div>
   );

@@ -136,6 +136,13 @@
   * {
     @apply border-border outline-ring/50 box-border;
   }
+
+  /* Native select popups: Firefox/GTK keep a light list but inherit our light text in dark mode */
+  option,
+  optgroup {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+  }
   body {
     @apply bg-gray-200 text-foreground h-screen p-0 m-0 font-sans;
   }

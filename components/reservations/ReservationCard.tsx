@@ -356,9 +356,7 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
               {participants.slice(0, 4).map((p) => (
                 <Avatar key={p._id} className="size-[26px] border-2 border-white dark:border-zinc-900">
                   <AvatarImage src={p.avatar} alt={p.name} />
-                  <AvatarFallback className="text-[10px]">
-                    {p.name?.[0]?.toUpperCase() || "?"}
-                  </AvatarFallback>
+                  <AvatarFallback name={`${p.name} ${p.lastname}`} />
                 </Avatar>
               ))}
               {participants.length > 4 && (
