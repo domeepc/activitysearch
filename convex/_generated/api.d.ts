@@ -8,7 +8,6 @@
  * @module
  */
 
-import type * as ably from "../ably.js";
 import type * as activity from "../activity.js";
 import type * as gamification from "../gamification.js";
 import type * as http from "../http.js";
@@ -33,7 +32,6 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  ably: typeof ably;
   activity: typeof activity;
   gamification: typeof gamification;
   http: typeof http;
