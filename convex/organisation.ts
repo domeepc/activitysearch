@@ -6,14 +6,7 @@ import {
   query,
 } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
-import { getCurrentUser, getCurrentUserOrThrow } from "./users";
-
-function generateSlug(username: string): string {
-  return username
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
+import { generateSlug, getCurrentUser, getCurrentUserOrThrow } from "./users";
 
 async function assertCurrentUserIsOrganiserOf(
   ctx: { db: { get: (id: Id<"organisations">) => Promise<Doc<"organisations"> | null> } },
@@ -63,17 +56,6 @@ export const updateOrganisation = mutation({
     await ctx.db.patch(organisationId, updates);
 
     return { success: true };
-  },
-});
-
-export const getUserByExternalId = internalQuery({
-  args: { externalId: v.string() },
-  handler: async (ctx, args) => {
-    const user = await ctx.db
-      .query("users")
-      .withIndex("byExternalId", (q) => q.eq("externalId", args.externalId))
-      .unique();
-    return user;
   },
 });
 
@@ -167,14 +149,6 @@ export const getOrganisationByOwnerId = query({
   },
 });
 
-/** @deprecated Prefer getOrganisationForActivityInternal from server code. */
-export const getAll = query({
-  args: {},
-  handler: async () => {
-    return [];
-  },
-});
-
 function publicOrganisationProjection(org: Doc<"organisations">) {
   return {
     _id: org._id,
@@ -235,22 +209,6 @@ export const getMyOrganisationsAsOrganiser = query({
     return allOrganisations.filter((org) =>
       org.organisersIDs.includes(currentUser._id)
     );
-  },
-});
-
-export const updateStripeAccount = mutation({
-  args: {
-    organisationId: v.id("organisations"),
-    stripeAccountId: v.string(),
-  },
-  handler: async (ctx, { organisationId, stripeAccountId }) => {
-    const currentUser = await getCurrentUserOrThrow(ctx);
-    await assertCurrentUserIsOrganiserOf(ctx, organisationId, currentUser._id);
-    await ctx.db.patch(organisationId, {
-      stripeAccountId,
-      stripeAccountOnboardingComplete: false,
-    });
-    return { success: true };
   },
 });
 
