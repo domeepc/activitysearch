@@ -40,8 +40,8 @@ export function TopRatedSection({ items }: TopRatedSectionProps) {
           </span>
           <span className="relative flex flex-wrap items-end justify-between gap-4">
             <span>
-              <span className="block text-[13px] text-zinc-300">{featured.category} · Nearby</span>
-              <span className="block text-[40px] font-bold leading-[1.05] tracking-[-0.035em] text-zinc-50">
+              <span className="block text-[0.8125rem] text-zinc-300">{featured.category} · Nearby</span>
+              <span className="block text-[2.5rem] font-bold leading-[1.05] tracking-[-0.035em] text-zinc-50">
                 {featured.title}
               </span>
             </span>
@@ -73,7 +73,7 @@ export function TopRatedSection({ items }: TopRatedSectionProps) {
               ) : null}
             </span>
             <span className="flex flex-col gap-2 p-4">
-              <span className="text-[13px] text-zinc-400">{activity.category} · Nearby</span>
+              <span className="text-[0.8125rem] text-zinc-400">{activity.category} · Nearby</span>
               <span className="text-xl font-bold tracking-[-0.02em] text-zinc-50">{activity.title}</span>
               <span className="mt-2 flex justify-between text-sm text-zinc-50">
                 <span className="inline-flex items-center gap-1">

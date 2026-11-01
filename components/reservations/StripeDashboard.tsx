@@ -382,7 +382,7 @@ export function StripeDashboard() {
                 setHistoryRange(r.key);
               }}
               className={cn(
-                "h-[30px] rounded-lg px-3 transition-colors",
+                "h-[30px] rounded-md px-3 transition-colors",
                 historyRange === r.key
                   ? "bg-white font-semibold text-zinc-900 shadow-sm dark:bg-zinc-950 dark:text-zinc-50"
                   : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
@@ -437,7 +437,7 @@ export function StripeDashboard() {
       </dl>
 
       <div className="flex flex-wrap items-stretch gap-4">
-        <section aria-labelledby="bal-h" className="flex min-w-0 flex-[999_1_560px] flex-col gap-4 rounded-2xl border border-zinc-200 bg-white px-5 py-5 dark:border-zinc-800 dark:bg-zinc-900">
+        <section aria-labelledby="bal-h" className="flex min-w-0 flex-[999_1_560px] flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
           <div className="flex flex-wrap items-baseline gap-3">
             <h2 id="bal-h" className="flex-1 text-base font-bold">Balance over time</h2>
             <span className="inline-flex gap-4 text-xs text-zinc-600 dark:text-zinc-400">
@@ -460,7 +460,7 @@ export function StripeDashboard() {
           )}
         </section>
 
-        <section aria-labelledby="mix-h" className="flex flex-[1_1_320px] flex-col gap-4 rounded-2xl border border-zinc-200 bg-white px-5 py-5 dark:border-zinc-800 dark:bg-zinc-900">
+        <section aria-labelledby="mix-h" className="flex flex-[1_1_320px] flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
           <h2 id="mix-h" className="text-base font-bold">Payment status</h2>
           {byStatus.total === 0 ? (
             <p className="text-sm text-zinc-600 dark:text-zinc-400">No payments yet.</p>

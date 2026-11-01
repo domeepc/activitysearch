@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Star } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Accent, SectionHeading } from "./SectionHeading";
@@ -9,6 +10,8 @@ export interface ReviewItem {
   author: string;
   avatar: string;
   activityName: string;
+  /** Missing when the activity was deleted, or in cached responses that predate it */
+  activityId?: string;
 }
 
 /** Recent reviews from people who attended. Hidden until there are real ones (no made-up quotes). */
@@ -43,9 +46,10 @@ export function ReviewsSection({ items }: { items: ReviewItem[] }) {
             {[...half, ...half].map((review, i) => (
               <li
                 key={`${review.id}-${i}`}
-                aria-hidden={i >= items.length}
+                // Duplicates only fill the loop: skipped by keyboard and screen readers
+                inert={i >= items.length}
                 // Spacing inside each item (not gap) so the loop seam lines up exactly
-                className={`w-[85vw] shrink-0 pr-3 sm:w-[372px] ${i >= items.length ? "motion-reduce:hidden" : ""}`}
+                className={`w-[80vw] shrink-0 pr-3 sm:w-[340px] ${i >= items.length ? "motion-reduce:hidden" : ""}`}
               >
                 <ReviewCard review={review} />
               </li>
@@ -66,9 +70,9 @@ export function ReviewsSection({ items }: { items: ReviewItem[] }) {
 }
 
 function ReviewCard({ review }: { review: ReviewItem }) {
-  return (
-    <article className="flex h-full flex-col justify-between gap-6 rounded-3xl border border-zinc-800 bg-zinc-900 p-6">
-      <div className="flex min-w-0 flex-col gap-4">
+  const card = (
+    <article className="flex h-60 flex-col justify-between gap-4 rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
+      <div className="flex min-h-0 min-w-0 flex-col gap-3">
         {review.rating !== null && (
           <span className="flex gap-0.5" aria-label={`${review.rating} out of 5 stars`}>
             {Array.from({ length: 5 }, (_, i) => (
@@ -80,10 +84,9 @@ function ReviewCard({ review }: { review: ReviewItem }) {
             ))}
           </span>
         )}
-        {/* Break unspaced words inside the card; long reviews stop at 6 lines so cards stay even */}
+        {/* Fixed card height; long reviews end in an ellipsis after 4 lines */}
         <blockquote
-          title={review.text}
-          className="line-clamp-6 text-[17px] leading-relaxed text-zinc-200 [overflow-wrap:anywhere]"
+          className="line-clamp-4 text-[0.9375rem] leading-relaxed text-zinc-200 [overflow-wrap:anywhere]"
         >
           “{review.text}”
         </blockquote>
@@ -94,12 +97,20 @@ function ReviewCard({ review }: { review: ReviewItem }) {
           <AvatarFallback name={review.author} />
         </Avatar>
         <span className="min-w-0">
-          <span className="block truncate text-sm font-semibold text-zinc-50">{review.author}</span>
+          <span className="block text-sm [overflow-wrap:anywhere] font-semibold text-zinc-50">{review.author}</span>
           {review.activityName && (
-            <span className="block truncate text-[13px] text-zinc-400">{review.activityName}</span>
+            <span className="block text-[0.8125rem] [overflow-wrap:anywhere] text-zinc-400">{review.activityName}</span>
           )}
         </span>
       </div>
     </article>
+  );
+  // The text is clamped to 4 lines; the activity page shows the full review
+  return review.activityId ? (
+    <Link href={`/activities/${review.activityId}`} className="block rounded-3xl [&>article]:transition-colors [&>article]:hover:border-zinc-700">
+      {card}
+    </Link>
+  ) : (
+    card
   );
 }

@@ -107,7 +107,7 @@ export default function CustomSignIn() {
             <div className="absolute inset-0 flex items-center">
               <Separator />
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
+            <div className="relative flex justify-center text-xs uppercase tracking-wider">
               <span className="bg-background px-2 text-muted-foreground">
                 Or continue with
               </span>
@@ -143,6 +143,7 @@ export default function CustomSignIn() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   disabled={loading}
                 >
@@ -157,7 +158,7 @@ export default function CustomSignIn() {
             {error && <div className={authFormStyles.error}>{error}</div>}
             <div id="clerk-captcha"></div>
             <Button type="submit" className="w-full cursor-pointer" disabled={loading || !isLoaded}>
-              {loading ? "Signing in..." : "Sign in"}
+              {loading ? "Signing in…" : "Sign in"}
             </Button>
           </form>
       </CardContent>

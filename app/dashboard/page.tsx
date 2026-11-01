@@ -19,7 +19,7 @@ export default function DashboardPage() {
 
   if (user === undefined) {
     return (
-      <div className="container mx-auto p-6 max-w-4xl">
+      <div className="container mx-auto max-w-4xl px-4 py-6 md:px-6 md:py-8">
         <Card>
           <CardContent className="flex items-center justify-center py-8">
             <Spinner className="h-8 w-8" />
@@ -31,7 +31,7 @@ export default function DashboardPage() {
 
   if (user === null) {
     return (
-      <div className="container mx-auto p-6 max-w-4xl">
+      <div className="container mx-auto max-w-4xl px-4 py-6 md:px-6 md:py-8">
         <Card>
           <CardContent className="flex items-center justify-center py-8">
             <p className="text-muted-foreground">
@@ -44,7 +44,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <div className="container mx-auto max-w-4xl px-4 py-6 md:px-6 md:py-8">
       <Card>
         <CardContent className="flex items-center justify-center py-8">
           <p className="text-muted-foreground">

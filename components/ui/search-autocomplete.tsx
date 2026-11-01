@@ -132,14 +132,14 @@ export default function SearchAutocomplete({
           type="button"
           onClick={clear}
           aria-label="Clear search"
-          className="absolute right-2 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-50"
+          className="absolute right-2 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-50"
         >
           <X className="size-4" />
         </button>
       )}
 
       {showList && (
-        <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_16px_40px_-16px_rgba(0,0,0,0.3)] animate-in fade-in-0 slide-in-from-top-1 duration-150 dark:border-zinc-700 dark:bg-zinc-900">
+        <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_16px_40px_-16px_rgba(0,0,0,0.3)] animate-in fade-in-0 slide-in-from-top-1 duration-150 ease-out dark:border-zinc-700 dark:bg-zinc-900">
           {results.length === 0 ? (
             <p className="px-4 py-5 text-center text-sm text-zinc-600 dark:text-zinc-400">
               No activities match “{term}”
@@ -158,7 +158,7 @@ export default function SearchAutocomplete({
                     onClick={() => select(activity)}
                     onMouseEnter={() => setActive(i)}
                     className={cn(
-                      "flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2",
+                      "flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2",
                       i === active && "bg-zinc-100 dark:bg-zinc-800"
                     )}
                   >

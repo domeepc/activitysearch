@@ -25,7 +25,7 @@ export function Stepper({ steps, currentStep, className }: StepperProps) {
               {/* Step Circle */}
               <div
                 className={cn(
-                  "flex items-center justify-center rounded-full border-2 transition-all duration-300 ease-in-out shrink-0",
+                  "flex items-center justify-center rounded-full border-2 transition-[background-color,border-color,color,transform,box-shadow] duration-200 ease-out shrink-0",
                   "w-7 h-7 md:w-8 md:h-8",
                   isCompleted &&
                   "bg-primary border-primary text-primary-foreground scale-100",
@@ -36,7 +36,7 @@ export function Stepper({ steps, currentStep, className }: StepperProps) {
                 )}
               >
                 {isCompleted ? (
-                  <Check className="h-3.5 w-3.5 md:h-4 md:w-4 animate-in fade-in-0 zoom-in-50 duration-300" />
+                  <Check className="h-3.5 w-3.5 md:h-4 md:w-4 animate-in fade-in-0 zoom-in-50 duration-200 ease-out" />
                 ) : (
                   <span className="text-[10px] md:text-xs font-semibold">{stepNumber}</span>
                 )}
@@ -45,7 +45,7 @@ export function Stepper({ steps, currentStep, className }: StepperProps) {
               {index < steps.length - 1 && (
                 <div
                   className={cn(
-                    "h-0.5 transition-all duration-500 ease-in-out shrink",
+                    "h-0.5 transition-colors duration-200 shrink",
                     "w-4 md:w-12 mx-1 md:mx-2",
                     stepNumber < currentStep ? "bg-primary" : "bg-muted"
                   )}

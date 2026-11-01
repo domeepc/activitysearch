@@ -207,7 +207,7 @@ export function ReservationTable({ reservations, isLoading = false }: Reservatio
     <section aria-labelledby="res-h" className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex flex-wrap items-center gap-3 border-b border-zinc-100 px-4 py-4 sm:px-5 dark:border-zinc-800">
         <h2 id="res-h" className="sr-only">Reservations</h2>
-        <div role="tablist" aria-label="Filter reservations" className="inline-flex max-w-full overflow-x-auto rounded-xl bg-zinc-100 p-1 text-sm [scrollbar-width:none] dark:bg-zinc-800">
+        <div role="tablist" aria-label="Filter reservations" className="grid w-full grid-cols-4 gap-1 rounded-xl bg-zinc-100 p-1 text-[13px] sm:inline-flex sm:w-auto sm:text-sm dark:bg-zinc-800">
           {FILTERS.map(({ key, label }) => (
             <button
               key={key}
@@ -216,14 +216,14 @@ export function ReservationTable({ reservations, isLoading = false }: Reservatio
               aria-selected={filter === key}
               onClick={() => setFilter(key)}
               className={cn(
-                "inline-flex h-8 shrink-0 items-center gap-2 rounded-lg px-3 transition-colors",
+                "inline-flex h-8 min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 transition-colors sm:shrink-0 sm:gap-2 sm:px-3",
                 filter === key
                   ? "bg-white font-semibold text-zinc-900 shadow-sm dark:bg-zinc-950 dark:text-zinc-50"
                   : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
               )}
             >
-              {label}
-              <span className="text-xs tabular-nums text-zinc-500">{counts[key]}</span>
+              <span className="truncate">{label}</span>
+              <span className="shrink-0 text-xs tabular-nums text-zinc-500">{counts[key]}</span>
             </button>
           ))}
         </div>

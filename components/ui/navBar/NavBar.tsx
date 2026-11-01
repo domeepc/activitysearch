@@ -37,7 +37,7 @@ import { cn } from "@/lib/utils";
 function CountPill({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
-    <span className="absolute -right-1 -top-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-blue-600 px-1 text-[10px] font-bold leading-none text-white tabular-nums md:static md:h-5 md:min-w-5 md:border-0 dark:border-zinc-950">
+    <span className="absolute -right-1 -top-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-blue-600 px-1 text-[10px] font-bold leading-none text-white tabular-nums animate-in fade-in-0 zoom-in-[0.8] duration-200 ease-out md:static md:h-5 md:min-w-5 md:border-0 dark:border-zinc-950">
       {count > 99 ? "99+" : count}
     </span>
   );
@@ -116,7 +116,7 @@ export default function Navbar() {
         </ul>
 
         <DropdownMenu>
-          <DropdownMenuTrigger className="group inline-flex items-center gap-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-10 md:rounded-xl md:border md:border-zinc-200 md:py-1 md:pl-1 md:pr-3 md:transition-colors md:hover:bg-zinc-100 md:data-[state=open]:bg-zinc-100 md:dark:border-zinc-800 md:dark:hover:bg-zinc-800 md:dark:data-[state=open]:bg-zinc-800">
+          <DropdownMenuTrigger className="group inline-flex items-center gap-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring md:h-10 md:rounded-2xl md:border md:border-zinc-200 md:py-1 md:pl-1 md:pr-3 md:transition-colors md:hover:bg-zinc-100 md:data-[state=open]:bg-zinc-100 md:dark:border-zinc-800 md:dark:hover:bg-zinc-800 md:dark:data-[state=open]:bg-zinc-800">
             <Avatar className="size-9 md:size-7">
               <AvatarImage src={user?.avatar} alt="" />
               <AvatarFallback name={user ? `${user.name} ${user.lastname}` : ""} />
@@ -126,7 +126,7 @@ export default function Navbar() {
             <span className="sr-only">Account menu</span>
           </DropdownMenuTrigger>
 
-          <DropdownMenuContent align="end" sideOffset={8} className="w-60 rounded-2xl p-2">
+          <DropdownMenuContent align="end" sideOffset={8} className="w-60">
             <DropdownMenuLabel className="flex items-center gap-3 px-2 py-2 font-normal">
               <Avatar className="size-9">
                 <AvatarImage src={user?.avatar} alt="" />

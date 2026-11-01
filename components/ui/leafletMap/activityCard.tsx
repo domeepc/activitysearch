@@ -74,7 +74,7 @@ export default function ActivityCard({ activity, onClose, isExpanded = false }: 
             alt=""
             fill
             sizes="320px"
-            className="object-cover animate-in fade-in-0 duration-300"
+            className="object-cover animate-in fade-in-0 duration-150 ease-out"
             onError={() => setPhotoFailed(true)}
           />
         )}
@@ -109,7 +109,7 @@ export default function ActivityCard({ activity, onClose, isExpanded = false }: 
                   setPhotoFailed(false);
                 }}
                 className={cn(
-                  "h-1.5 rounded-full bg-white shadow transition-all",
+                  "h-1.5 rounded-full bg-white shadow transition-[width,opacity]",
                   i === photo ? "w-4" : "w-1.5 opacity-60 hover:opacity-90"
                 )}
               />

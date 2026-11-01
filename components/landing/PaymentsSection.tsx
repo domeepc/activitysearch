@@ -18,12 +18,12 @@ const points = [
 export function PaymentsSection() {
   return (
     <section aria-labelledby="payments-h" className="flex h-full flex-col gap-6 rounded-4xl bg-blue-600 p-6 text-white md:p-9">
-      <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-blue-100">06 — Payments</p>
+      <p className="text-[0.8125rem] font-semibold uppercase tracking-[0.08em] text-blue-100">06 — Payments</p>
       <h2 id="payments-h" className="text-[clamp(2.1rem,4vw,3.5rem)] font-extrabold leading-none tracking-[-0.04em]">
         Simple, reliable payments.
       </h2>
       <div aria-hidden="true" className="flex flex-col gap-2 rounded-2xl bg-zinc-950/25 p-4">
-        <span className="flex justify-between text-[13px]">
+        <span className="flex justify-between text-[0.8125rem]">
           <span>Your team · 3 of 6 paid</span>
           <b>50%</b>
         </span>
@@ -36,8 +36,8 @@ export function PaymentsSection() {
           <li key={title} className="flex gap-3">
             <Check className="mt-1 size-[18px] shrink-0" strokeWidth={2.5} aria-hidden="true" />
             <span>
-              <span className="block text-[15px] font-semibold">{title}</span>
-              <span className="mt-1 block text-[13px] leading-relaxed text-blue-100">{description}</span>
+              <span className="block text-[0.9375rem] font-semibold">{title}</span>
+              <span className="mt-1 block text-[0.8125rem] leading-relaxed text-blue-100">{description}</span>
             </span>
           </li>
         ))}

@@ -128,7 +128,7 @@ export function ActivityDetailGallery({ images, title }: ActivityDetailGalleryPr
         </div>
 
         {count > 1 && (
-          <div className="opacity-100 transition-opacity md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100">
+          <div className="opacity-100 transition-opacity md:pointer-fine:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100">
             <Arrows onPrev={() => heroGo(heroIndex - 1)} onNext={() => heroGo(heroIndex + 1)} />
           </div>
         )}
@@ -143,7 +143,7 @@ export function ActivityDetailGallery({ images, title }: ActivityDetailGalleryPr
                   aria-label={`Go to photo ${i + 1}`}
                   aria-current={i === heroIndex}
                   onClick={() => heroGo(i)}
-                  className={cn("h-2 rounded-full bg-white transition-all", i === heroIndex ? "w-5" : "w-2 opacity-60 hover:opacity-90")}
+                  className={cn("h-2 rounded-full bg-white transition-[width,opacity]", i === heroIndex ? "w-5" : "w-2 opacity-60 hover:opacity-90")}
                 />
               ))}
             </div>
@@ -171,7 +171,7 @@ export function ActivityDetailGallery({ images, title }: ActivityDetailGalleryPr
               aria-label={`Show photo ${i + 1}`}
               aria-current={i === heroIndex}
               className={cn(
-                "relative h-16 w-24 shrink-0 overflow-hidden rounded-xl transition-all after:pointer-events-none after:absolute after:inset-0 after:rounded-xl after:z-10 after:ring-2 after:ring-inset",
+                "relative h-16 w-24 shrink-0 overflow-hidden rounded-xl transition-opacity after:pointer-events-none after:absolute after:inset-0 after:rounded-xl after:z-10 after:ring-2 after:ring-inset",
                 i === heroIndex ? "after:ring-blue-600" : "opacity-70 after:ring-transparent hover:opacity-100"
               )}
             >
@@ -186,7 +186,7 @@ export function ActivityDetailGallery({ images, title }: ActivityDetailGalleryPr
           <DialogTitle className="px-1 text-base text-white">
             {title} · {count > 1 ? `${boxIndex + 1} / ${count}` : "1 photo"}
           </DialogTitle>
-          <div className="relative overflow-hidden rounded-xl">
+          <div className="relative overflow-hidden rounded-lg">
             <div
               ref={boxRef}
               onScroll={boxScroll}

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 export default function ProfileLoading() {
   return (
-    <div className="container mx-auto p-4 max-w-2xl">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-6">
       <Card>
         <CardHeader className="flex flex-row items-center gap-4">
           {/* Avatar skeleton */}

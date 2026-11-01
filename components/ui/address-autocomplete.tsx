@@ -236,7 +236,7 @@ export function AddressAutocomplete({
         <div
           ref={dropdownRef}
           {...{ [ADDRESS_DROPDOWN_ATTR]: "true" }}
-          className="fixed rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-md pointer-events-auto"
+          className="fixed origin-top overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-md pointer-events-auto animate-in fade-in-0 slide-in-from-top-1 duration-150 ease-out"
           style={{
             top: dropdownPos!.top + 4,
             left: dropdownPos!.left,

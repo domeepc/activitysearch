@@ -12,7 +12,7 @@ export function CtaSection({ content }: CtaSectionProps) {
       aria-labelledby="cta-h"
       className="mx-auto flex w-full max-w-[1440px] flex-col items-center gap-6 px-4 pb-28 pt-36 text-center md:px-10"
     >
-      <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-blue-400">
+      <p className="text-[0.8125rem] font-semibold uppercase tracking-[0.08em] text-blue-400">
         {content?.eyebrow ?? "Start your journey"}
       </p>
       <h2

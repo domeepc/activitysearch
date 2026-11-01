@@ -26,7 +26,7 @@ export function LegalDocumentLayout({ title, href, lastUpdated, intro, summary, 
         <li key={section.id}>
           <a
             href={`#${section.id}`}
-            className="flex gap-3 rounded-lg px-2 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-50"
+            className="flex gap-3 rounded-md px-2 py-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-50"
           >
             <span className="w-5 shrink-0 tabular-nums text-zinc-400 dark:text-zinc-500">{i + 1}.</span>
             {section.title}
@@ -78,7 +78,7 @@ export function LegalDocumentLayout({ title, href, lastUpdated, intro, summary, 
           <h2 id="summary-heading" className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
             The short version
           </h2>
-          <ul className="mt-4 space-y-3 text-[15px] leading-relaxed text-zinc-700 dark:text-zinc-300">
+          <ul className="mt-4 space-y-3 text-[15px] leading-relaxed wrap-anywhere text-zinc-700 dark:text-zinc-300">
             {summary.map((item) => (
               <li key={item} className="flex gap-3">
                 <Check className="mt-1 size-4 shrink-0 text-blue-600 dark:text-blue-400" strokeWidth={2.5} aria-hidden="true" />
@@ -91,7 +91,7 @@ export function LegalDocumentLayout({ title, href, lastUpdated, intro, summary, 
           </p>
         </section>
 
-        <div className="mt-16 grid gap-10 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-16">
+        <div className="mt-16 grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-16">
           <aside className="lg:sticky lg:top-[calc(var(--app-navbar-height)+2rem)] lg:self-start">
             {/* Collapsed on phones so the text starts right away; always open on desktop */}
             <details className="group rounded-2xl border border-zinc-200 p-3 lg:hidden dark:border-zinc-800">
@@ -119,7 +119,7 @@ export function LegalDocumentLayout({ title, href, lastUpdated, intro, summary, 
                   </span>
                   {section.title}
                 </h2>
-                <div className="mt-4 space-y-4 text-[15px] leading-relaxed text-zinc-700 dark:text-zinc-300 [&_li]:pl-1 [&_strong]:font-semibold [&_strong]:text-zinc-900 dark:[&_strong]:text-zinc-50 [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5">
+                <div className="mt-4 space-y-4 text-[15px] leading-relaxed wrap-anywhere text-zinc-700 dark:text-zinc-300 [&_li]:pl-1 [&_strong]:font-semibold [&_strong]:text-zinc-900 dark:[&_strong]:text-zinc-50 [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5">
                   {section.content}
                 </div>
               </section>
@@ -135,7 +135,7 @@ export function LegalDocumentLayout({ title, href, lastUpdated, intro, summary, 
                 className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-zinc-900 transition-colors hover:bg-zinc-200"
               >
                 <Mail className="size-4" aria-hidden="true" />
-                {LEGAL_SUPPORT_EMAIL}
+                Send email
               </a>
             </div>
           </article>

@@ -74,7 +74,7 @@ export function ActivityDetailReviews({ reviews, rating, reviewCount }: Activity
                     </span>
                   )}
                 </div>
-                <p className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">{r.text}</p>
+                <p className="text-sm leading-relaxed wrap-anywhere text-zinc-700 dark:text-zinc-300">{r.text}</p>
               </li>
             );
           })}

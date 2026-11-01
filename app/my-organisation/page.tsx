@@ -151,7 +151,7 @@ export default function MyOrganisationPage() {
   // Loading
   if (currentUser === undefined || organisation === undefined) {
     return (
-      <div className="mx-auto w-full max-w-7xl p-4 md:p-6">
+      <div className="mx-auto w-full max-w-7xl px-4 py-6 md:px-6 md:py-8">
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
           <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 md:px-6">
             <div className="space-y-2">
@@ -178,8 +178,8 @@ export default function MyOrganisationPage() {
 
   if (currentUser !== null && !isOrganiser) {
     return (
-      <div className="mx-auto w-full max-w-7xl p-4 md:p-6">
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm p-6 text-center space-y-3">
+      <div className="mx-auto w-full max-w-7xl px-4 py-6 md:px-6 md:py-8">
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm p-5 text-center space-y-3">
           <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Access Denied</p>
           <p className="text-sm text-muted-foreground">You must be an organiser to access this page.</p>
           <Button size="sm" onClick={() => router.push(SIGNED_IN_HOME_HREF)}>
@@ -192,8 +192,8 @@ export default function MyOrganisationPage() {
 
   if (currentUser === null && isSignedIn) {
     return (
-      <div className="mx-auto w-full max-w-7xl p-4 md:p-6">
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm p-6 text-center space-y-3">
+      <div className="mx-auto w-full max-w-7xl px-4 py-6 md:px-6 md:py-8">
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm p-5 text-center space-y-3">
           <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Setting Up</p>
           <p className="text-sm text-muted-foreground">Your account is being set up. Please wait a moment and refresh.</p>
           <Button size="sm" onClick={() => router.push(SIGNED_IN_HOME_HREF)}>
@@ -206,8 +206,8 @@ export default function MyOrganisationPage() {
 
   if (organisation === null) {
     return (
-      <div className="mx-auto w-full max-w-7xl p-4 md:p-6">
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm p-6 text-center space-y-3">
+      <div className="mx-auto w-full max-w-7xl px-4 py-6 md:px-6 md:py-8">
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm p-5 text-center space-y-3">
           <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">No Organisation Found</p>
           <p className="text-sm text-muted-foreground">You don&apos;t have an organisation associated with your account.</p>
           <Button size="sm" onClick={() => router.push(SIGNED_IN_HOME_HREF)}>
@@ -259,8 +259,8 @@ export default function MyOrganisationPage() {
           <StripeConnectButton organisationId={organisation._id} />
           <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
             {/* Header */}
-            <div className="flex flex-col gap-3 border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 dark:border-zinc-800 px-5 py-4 md:px-6">
+              <div className="flex min-w-48 flex-1 items-center gap-2">
                 <Building2 className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Organisation details</h2>

@@ -73,14 +73,12 @@ export function AuthFormShell({
   const copy = PANEL_COPY[variant];
 
   return (
-    // Desktop: exactly one screen tall; the form column scrolls on its own, so the
-    // page-level scroll lock (NoScrollWrapper) can never cut anything off.
+    // Desktop: exactly one screen tall; the form column scrolls on its own.
     <div className="auth-shell flex min-h-screen bg-background lg:h-screen lg:min-h-0 lg:overflow-hidden">
       {/* Brand panel — desktop only; sign-in mirrors it to the right */}
       <aside
         className={cn(
           "relative m-3 hidden shrink-0 flex-col justify-between gap-8 overflow-hidden rounded-3xl bg-zinc-950 p-10 text-zinc-50 lg:flex lg:w-[42%] xl:p-12 dark:bg-zinc-900 dark:ring-1 dark:ring-white/10 dark:shadow-[0_24px_60px_-24px_rgba(0,0,0,0.8)]",
-          variant === "signin" && "lg:order-last"
         )}
       >
         {/* Soft blue glow lifts the panel off the page, most visibly in dark mode */}
@@ -93,7 +91,7 @@ export function AuthFormShell({
           <h2 className="text-[clamp(2.25rem,3.4vw,3rem)] font-bold leading-[1.02] tracking-[-0.045em]">
             {copy.title}
           </h2>
-          <ul className="flex flex-col gap-3 text-[15px] text-zinc-300">
+          <ul className="flex flex-col gap-3 text-[0.9375rem] text-zinc-300">
             {copy.perks.map((perk) => (
               <li key={perk} className="flex items-start gap-3">
                 <Check className="mt-1 size-5 shrink-0 text-blue-400" strokeWidth={2.5} aria-hidden="true" />
@@ -140,8 +138,8 @@ export function AuthFormShell({
 
 export const authFormStyles = {
   header: "space-y-2 px-0",
-  title: "text-[30px] font-bold leading-tight tracking-[-0.03em]",
-  description: "text-[15px] text-muted-foreground",
+  title: "text-[1.875rem] font-bold leading-tight tracking-[-0.03em]",
+  description: "text-[0.9375rem] text-muted-foreground",
   content: "space-y-4 px-0",
   footer: "flex flex-col items-start space-y-3 px-0",
   sectionTitle: "text-xs uppercase tracking-widest text-muted-foreground",

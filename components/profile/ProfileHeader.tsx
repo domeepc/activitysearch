@@ -76,12 +76,12 @@ export function ProfileHeader({
         <div className="absolute inset-0 bg-[linear-gradient(110deg,#1e3a8a_0%,#1d4ed8_40%,#2563eb_70%,#60a5fa_100%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_20%,rgba(255,255,255,0.25),transparent_45%)]" />
       </div>
-      <div className="relative flex flex-wrap items-end gap-x-4 gap-y-3 px-5 pb-5 sm:px-6">
-        <Avatar className="-mt-12 size-24 border-4 border-white text-3xl shadow-sm sm:size-[104px] dark:border-zinc-900">
+      <div className="relative flex flex-wrap items-start gap-x-4 gap-y-3 px-5 pb-5 pt-3 sm:px-6">
+        <Avatar className="-mt-15 size-24 sm:-mt-16 border-4 border-white text-3xl shadow-sm sm:size-[104px] dark:border-zinc-900">
           <AvatarImage src={avatar} alt="" />
           <AvatarFallback name={`${name} ${lastname}`} />
         </Avatar>
-        <div className="min-w-[200px] flex-1 pb-1">
+        <div className="min-w-[200px] flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{fullName}</h1>
             {level !== undefined && (
@@ -95,7 +95,7 @@ export function ProfileHeader({
           </p>
         </div>
 
-        <div className="flex gap-2 pb-1">
+        <div className="flex gap-2">
           {isOwnProfile ? (
             settingsUrl && (
               <Button asChild variant="outline" className="h-10">

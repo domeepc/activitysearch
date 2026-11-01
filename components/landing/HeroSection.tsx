@@ -39,7 +39,7 @@ export function HeroSection({ tiles = [], marquee = [], quest }: HeroSectionProp
   return (
     <section className="relative overflow-hidden pt-28 md:pt-36">
       <div className="mx-auto w-full max-w-[1440px] px-4 md:px-10">
-        <p className="flex items-center gap-3 text-[13px] text-zinc-400">
+        <p className="flex items-center gap-3 text-[0.8125rem] text-zinc-400">
           <span className="h-2 w-2 rounded-full bg-green-500" aria-hidden="true" />
           Live map of activities near you
         </p>
@@ -66,12 +66,12 @@ export function HeroSection({ tiles = [], marquee = [], quest }: HeroSectionProp
                 name="q"
                 type="search"
                 placeholder="Kayaking, padel, hiking…"
-                className="h-12 min-w-0 flex-1 bg-transparent text-[15px] text-zinc-50 placeholder:text-zinc-500 focus:outline-none"
+                className="h-12 min-w-0 flex-1 bg-transparent text-base text-zinc-50 placeholder:text-zinc-500 focus:outline-none"
               />
             </label>
             <button
               type="submit"
-              className="h-12 shrink-0 whitespace-nowrap rounded-full bg-blue-600 px-4 text-[15px] font-semibold text-white transition hover:bg-blue-500 active:scale-[0.97] sm:px-6"
+              className="h-12 shrink-0 whitespace-nowrap rounded-full bg-blue-600 px-4 text-[0.9375rem] font-semibold text-white transition hover:bg-blue-500 active:scale-[0.97] sm:px-6"
             >
               Explore map
             </button>
@@ -89,10 +89,10 @@ export function HeroSection({ tiles = [], marquee = [], quest }: HeroSectionProp
         ))}
         <Link
           href="/sign-in"
-          className="col-span-2 flex h-56 flex-col justify-end gap-2 rounded-3xl bg-violet-950 p-5 transition-transform hover:-translate-y-1 md:col-span-3 md:h-[320px]"
+          className="col-span-2 flex h-56 flex-col justify-end gap-2 rounded-3xl bg-violet-950 p-5 transition-transform motion-safe:hover:-translate-y-1 md:col-span-3 md:h-[320px]"
         >
           <span className="text-xs uppercase tracking-[0.08em] text-violet-200">Quest</span>
-          <span className="text-[22px] font-bold leading-tight tracking-[-0.02em] text-zinc-50">
+          <span className="text-[1.375rem] font-bold leading-tight tracking-[-0.02em] text-zinc-50">
             {quest?.title ?? "Try two different categories in one weekend"}
           </span>
           <span className="text-sm text-amber-200">{quest ? quest.badge : "Weekend explorer badge"}</span>
@@ -100,7 +100,7 @@ export function HeroSection({ tiles = [], marquee = [], quest }: HeroSectionProp
       </div>
 
       <div aria-hidden="true" className="mt-10 overflow-hidden whitespace-nowrap border-y border-zinc-800">
-        <div className="inline-flex gap-12 py-4 text-[22px] font-semibold tracking-[-0.02em] text-zinc-500 motion-safe:animate-marquee">
+        <div className="inline-flex gap-12 py-4 text-[1.375rem] font-semibold tracking-[-0.02em] text-zinc-500 motion-safe:animate-marquee">
           {[...ticker, ...ticker].map((item, i) => (
             <span key={i} className="inline-flex items-center gap-12">
               {item}
@@ -124,7 +124,7 @@ function HeroTile({ title, imageUrl, href, className }: { title: string; imageUr
         className="object-cover transition-transform duration-700 ease-out motion-safe:group-hover:scale-105"
         priority
       />
-      <span className="absolute bottom-4 left-4 rounded-full bg-zinc-950/70 px-3 py-2 text-[13px] text-zinc-50 backdrop-blur">
+      <span className="absolute bottom-4 left-4 rounded-full bg-zinc-950/70 px-3 py-2 text-[0.8125rem] text-zinc-50 backdrop-blur">
         {title}
       </span>
     </Link>

@@ -96,6 +96,7 @@ export const showcase = query({
             author: user ? `${user.name} ${user.lastname ? `${user.lastname[0]}.` : ""}`.trim() : "Former guest",
             avatar: user?.avatar ?? "",
             activityName: activityName.get(r.activityId) ?? "",
+            activityId: activityName.has(r.activityId) ? r.activityId : undefined,
           };
         })
     );

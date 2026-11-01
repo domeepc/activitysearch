@@ -39,7 +39,7 @@ export function OrganiserStats({ activityIDs }: { activityIDs: Id<"activities">[
   return (
     <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {cards.map(({ label, value, icon: Icon }) => (
-        <div key={label} className="flex flex-col gap-2 rounded-2xl border border-border bg-white p-4 shadow-sm dark:bg-zinc-900">
+        <div key={label} className="flex flex-col gap-2 rounded-2xl border border-border bg-white p-5 shadow-sm dark:bg-zinc-900">
           <dt className="flex items-center gap-2 text-xs text-muted-foreground">
             <Icon className="size-3.5" aria-hidden="true" />
             {label}

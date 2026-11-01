@@ -75,7 +75,7 @@ export default function DesktopFilterSection({
                   aria-pressed={active}
                   onClick={() => toggleCategory(category)}
                   className={cn(
-                    "h-8 rounded-full border px-3 text-[13px] transition-colors active:scale-[0.97]",
+                    "h-8 rounded-full border px-3 text-[13px] transition-[color,background-color,border-color,transform] duration-150 ease-out active:scale-[0.97]",
                     active
                       ? "border-blue-600 bg-blue-50 font-medium text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"
                       : "border-border text-foreground hover:bg-muted"

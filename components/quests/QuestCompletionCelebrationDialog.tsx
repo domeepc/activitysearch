@@ -80,7 +80,7 @@ export function QuestCompletionCelebrationDialog({
                 className="-mt-12 rounded-3xl bg-background p-3 shadow-xl ring-4 ring-background"
                 style={{ animation: "quest-badge-pop 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.1s both" }}
               >
-                <div className="rounded-2xl bg-blue-50 p-2 dark:bg-blue-950/60">
+                <div className="rounded-lg bg-blue-50 p-2 dark:bg-blue-950/60">
                   <QuestVisual iconImageUrl={quest.iconImageUrl} iconSvg={quest.iconSvg} size="xl" />
                 </div>
               </div>

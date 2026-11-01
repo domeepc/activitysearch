@@ -557,6 +557,7 @@ export default function CustomSignUpORG() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   disabled={loading}
                 >
@@ -584,6 +585,7 @@ export default function CustomSignUpORG() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   disabled={loading}
                 >
@@ -625,7 +627,7 @@ export default function CustomSignUpORG() {
               <Label htmlFor="organisationDescription">Organisation Description</Label>
               <Textarea
                 id="organisationDescription"
-                placeholder="Describe your organisation..."
+                placeholder="Describe your organisation…"
                 value={organisationDescription}
                 onChange={(e) => setOrganisationDescription(e.target.value)}
                 required
@@ -1212,7 +1214,7 @@ export default function CustomSignUpORG() {
             <div
               key={currentPage}
               className={cn(
-                !isInitialRender && "animate-in fade-in-0 duration-300 ease-in-out",
+                !isInitialRender && "animate-in fade-in-0 duration-200 ease-out",
                 !isInitialRender && direction === "forward" && "slide-in-from-right-4",
                 !isInitialRender && direction === "backward" && "slide-in-from-left-4"
               )}
