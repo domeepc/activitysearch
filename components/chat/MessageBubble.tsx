@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -124,6 +125,8 @@ export function MessageBubble({
   messageType = "text",
   reservationCardData,
 }: MessageBubbleProps) {
+  // Only messages that arrive while the chat is open slide in; history renders still.
+  const [isNew] = useState(() => Date.now() - timestamp < 5000);
   const timeAgo = formatTimeAgo(timestamp);
   const profileHref =
     !isFromCurrentUser && showSenderName && senderProfileUserId
@@ -140,7 +143,7 @@ export function MessageBubble({
     return (
       <>
         {showDateDivider && <DateDivider timestamp={timestamp} />}
-        <div className="flex flex-col items-center gap-2 py-1 animate-in fade-in-0 slide-in-from-bottom-1 duration-300">
+        <div className={cn("flex flex-col items-center gap-2 py-1", isNew && "animate-in fade-in-0 slide-in-from-bottom-1 duration-200 ease-out")}>
           <span className="text-xs text-zinc-600 dark:text-zinc-400">
             {who} reserved an activity for the team · {timeAgo}
           </span>
@@ -157,7 +160,8 @@ export function MessageBubble({
       {showDateDivider && <DateDivider timestamp={timestamp} />}
       <div
         className={cn(
-          "flex max-w-[85%] items-end gap-2 sm:max-w-[70%] animate-in fade-in-0 slide-in-from-bottom-1 duration-200",
+          "flex max-w-[85%] items-end gap-2 sm:max-w-[70%]",
+          isNew && "animate-in fade-in-0 slide-in-from-bottom-1 duration-200 ease-out",
           isFromCurrentUser ? "flex-row-reverse self-end" : "self-start"
         )}
       >

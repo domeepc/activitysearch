@@ -12,7 +12,7 @@ export function CategorySection({ items }: CategorySectionProps) {
   const displayItems = items && items.length > 0 ? items : categories;
 
   return (
-    <section id="explore" aria-labelledby="explore-h" className="mx-auto w-full max-w-[1440px] scroll-mt-20 px-4 pt-28 md:px-10">
+    <section id="explore" aria-labelledby="explore-h" className="mx-auto w-full max-w-[1440px] px-4 pt-28 md:px-10">
       <SectionHeading
         id="explore-h"
         index="01"
@@ -46,9 +46,9 @@ export function CategorySection({ items }: CategorySectionProps) {
             ) : null}
             {/* Scrim keeps white text legible over any photo */}
             <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/30" />
-            <span className="relative text-[13px] text-zinc-300">0{i + 1}</span>
+            <span className="relative text-[0.8125rem] text-zinc-300">0{i + 1}</span>
             <span className="relative flex flex-col gap-2">
-              <span className="text-[30px] font-bold leading-none tracking-[-0.03em]">{category.title}</span>
+              <span className="text-[1.875rem] font-bold leading-tight tracking-[-0.03em]">{category.title}</span>
               <span className="text-sm text-zinc-300">{category.subtitle}</span>
             </span>
           </Link>

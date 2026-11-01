@@ -472,7 +472,7 @@ export function ReservationDialog({
                         setSelectedTime(time);
                       }}
                       className={cn(
-                        "h-10 rounded-xl border text-sm font-medium tabular-nums transition-colors active:scale-[0.97]",
+                        "h-10 rounded-xl border text-sm font-medium tabular-nums transition-[color,background-color,border-color,transform] duration-150 ease-out active:scale-[0.97]",
                         selectedTime === time
                           ? "border-blue-600 bg-blue-600 text-white"
                           : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"

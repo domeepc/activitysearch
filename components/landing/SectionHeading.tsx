@@ -19,7 +19,7 @@ export function SectionHeading({
   return (
     <div className="flex flex-wrap items-end gap-6">
       <div className="min-w-[280px] flex-1">
-        <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-blue-400">
+        <p className="text-[0.8125rem] font-semibold uppercase tracking-[0.08em] text-blue-400">
           {index} — {eyebrow}
         </p>
         <h2

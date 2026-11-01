@@ -45,7 +45,7 @@ export function OAuthButtons({
         type="button"
         onClick={onGoogleClick}
         disabled={disabled}
-        className="h-11 border-border/70 hover:border-border hover:bg-muted/30 justify-start gap-3 pl-4 font-normal text-sm text-foreground/80 hover:text-foreground transition-all"
+        className="h-11 border-border/70 hover:border-border hover:bg-muted/30 justify-start gap-3 pl-4 font-normal text-sm text-foreground/80 hover:text-foreground"
       >
         <GoogleIcon />
         Continue with Google
@@ -55,7 +55,7 @@ export function OAuthButtons({
         type="button"
         onClick={onMicrosoftClick}
         disabled={disabled}
-        className="h-11 border-border/70 hover:border-border hover:bg-muted/30 justify-start gap-3 pl-4 font-normal text-sm text-foreground/80 hover:text-foreground transition-all"
+        className="h-11 border-border/70 hover:border-border hover:bg-muted/30 justify-start gap-3 pl-4 font-normal text-sm text-foreground/80 hover:text-foreground"
       >
         <MicrosoftIcon />
         Continue with Microsoft
@@ -65,7 +65,7 @@ export function OAuthButtons({
         type="button"
         onClick={onFacebookClick}
         disabled={disabled}
-        className="h-11 border-border/70 hover:border-border hover:bg-muted/30 justify-start gap-3 pl-4 font-normal text-sm text-foreground/80 hover:text-foreground transition-all"
+        className="h-11 border-border/70 hover:border-border hover:bg-muted/30 justify-start gap-3 pl-4 font-normal text-sm text-foreground/80 hover:text-foreground"
       >
         <FacebookIcon />
         Continue with Facebook

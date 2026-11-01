@@ -20,7 +20,9 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
       props.onChange?.(e);
     };
 
-    const handleDivClick = () => {
+    const handleDivClick = (e: React.MouseEvent) => {
+      // Inside a <label>, the bubbling click would toggle the input a second time and undo ours.
+      e.preventDefault();
       if (!props.disabled && inputRef.current) {
         inputRef.current.click();
       }

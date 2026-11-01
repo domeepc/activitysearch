@@ -103,7 +103,7 @@ export default function ActivityPage({
         });
         setIsReservationDialogOpen(true);
       }}
-      className="w-full rounded-xl bg-blue-600 hover:bg-blue-500"
+      className="w-full rounded-xl bg-blue-600 text-white hover:bg-blue-500"
     >
       <Calendar className="mr-2 h-4 w-4" />
       Reserve
@@ -183,7 +183,7 @@ export default function ActivityPage({
           {description ? (
             <section aria-labelledby="about-h" className="flex flex-col gap-3">
               <h2 id="about-h" className="text-xl font-bold tracking-tight">About this activity</h2>
-              <p className="max-w-2xl whitespace-pre-line text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
+              <p className="max-w-2xl whitespace-pre-line wrap-anywhere text-base leading-relaxed text-zinc-700 dark:text-zinc-300">
                 {description}
               </p>
             </section>

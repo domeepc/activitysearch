@@ -57,7 +57,7 @@ export default function MobileFilterDialog({
             </span>
             <span
               className={cn(
-                "relative inline-flex size-10 shrink-0 items-center justify-center rounded-xl",
+                "relative inline-flex size-10 shrink-0 items-center justify-center rounded-lg",
                 filterCount > 0 ? "bg-blue-600 text-white" : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
               )}
               aria-hidden="true"
@@ -87,7 +87,7 @@ export default function MobileFilterDialog({
         <DialogOverlay />
         <DialogPrimitive.Content
           onOpenAutoFocus={(e) => e.preventDefault()}
-          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] flex-col rounded-t-3xl bg-white shadow-[0_-12px_48px_-12px_rgba(0,0,0,0.3)] outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-bottom-full data-[state=closed]:slide-out-to-bottom-full duration-300 dark:bg-zinc-900"
+          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] flex-col rounded-t-3xl bg-white shadow-[0_-12px_48px_-12px_rgba(0,0,0,0.3)] outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-bottom-full data-[state=closed]:slide-out-to-bottom-full duration-300 ease-drawer dark:bg-zinc-900"
         >
           <div className="flex justify-center pt-3" aria-hidden="true">
             <span className="h-1 w-10 rounded-full bg-zinc-300 dark:bg-zinc-700" />
@@ -164,7 +164,7 @@ export default function MobileFilterDialog({
             <button
               type="button"
               onClick={onSearch}
-              className="h-12 flex-1 rounded-xl bg-blue-600 text-sm font-semibold text-white transition-colors hover:bg-blue-700 active:scale-[0.99]"
+              className="h-12 flex-1 rounded-xl bg-blue-600 text-sm font-semibold text-white transition-[background-color,transform] duration-150 ease-out hover:bg-blue-700 active:scale-[0.99]"
             >
               Show {resultCount} {resultCount === 1 ? "activity" : "activities"}
             </button>

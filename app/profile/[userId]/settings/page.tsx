@@ -299,7 +299,7 @@ export default function ProfileSettingsPage({
           </div>
         </section>
 
-        <section id="appearance" aria-labelledby="appearance-h" className="scroll-mt-24 flex flex-wrap items-center gap-4 rounded-2xl border border-border bg-white px-5 py-5 shadow-sm md:px-6 dark:bg-zinc-900">
+        <section id="appearance" aria-labelledby="appearance-h" className="scroll-mt-24 flex flex-wrap items-center gap-4 rounded-2xl border border-border bg-white p-5 shadow-sm dark:bg-zinc-900">
           <div className="min-w-[200px] flex-1">
             <h2 id="appearance-h" className="text-[17px] font-semibold text-zinc-900 dark:text-zinc-50">Appearance</h2>
             <p className="text-sm text-muted-foreground">Follow your device, or pick light or dark.</p>
@@ -307,7 +307,7 @@ export default function ProfileSettingsPage({
           <ThemePreference />
         </section>
 
-        <section id="danger" aria-labelledby="danger-h" className="scroll-mt-24 flex flex-wrap items-center gap-4 rounded-2xl border border-red-200 bg-white px-5 py-5 md:px-6 dark:border-red-900/60 dark:bg-zinc-900">
+        <section id="danger" aria-labelledby="danger-h" className="scroll-mt-24 flex flex-wrap items-center gap-4 rounded-2xl border border-red-200 bg-white p-5 dark:border-red-900/60 dark:bg-zinc-900">
           <div className="min-w-[200px] flex-1">
             <h2 id="danger-h" className="text-[15px] font-semibold text-red-700 dark:text-red-400">Delete account</h2>
             <p className="text-sm text-muted-foreground">

@@ -18,10 +18,10 @@ export function QuestsSection({ items }: QuestsSectionProps) {
   const displayQuests = items && items.length > 0 ? items : landingQuests;
 
   return (
-    <section id="quests" aria-labelledby="quests-h" className="mx-auto w-full max-w-[1440px] scroll-mt-20 px-4 pt-28 md:px-10">
+    <section id="quests" aria-labelledby="quests-h" className="mx-auto w-full max-w-[1440px] px-4 pt-28 md:px-10">
       <div className="flex flex-wrap gap-10 rounded-4xl bg-zinc-50 p-6 text-zinc-950 md:p-12">
-        <div className="flex min-w-[280px] flex-1 flex-col gap-4">
-          <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-blue-700">03 — Quests</p>
+        <div className="flex flex-[1_1_280px] flex-col gap-4">
+          <p className="text-[0.8125rem] font-semibold uppercase tracking-[0.08em] text-blue-700">03 — Quests</p>
           <h2 id="quests-h" className="text-[clamp(2.5rem,5vw,4.25rem)] font-extrabold leading-[0.95] tracking-[-0.045em]">
             Level up <Accent className="text-blue-600">as you go</Accent>.
           </h2>
@@ -30,7 +30,7 @@ export function QuestsSection({ items }: QuestsSectionProps) {
           </p>
           <Link
             href="/sign-in"
-            className="mt-2 inline-flex h-12 items-center self-start rounded-full bg-zinc-950 px-6 text-[15px] font-semibold text-zinc-50 transition hover:bg-zinc-800 active:scale-[0.97]"
+            className="mt-2 inline-flex h-12 items-center self-start rounded-full bg-zinc-950 px-6 text-[0.9375rem] font-semibold text-zinc-50 transition hover:bg-zinc-800 active:scale-[0.97]"
           >
             Start exploring
           </Link>

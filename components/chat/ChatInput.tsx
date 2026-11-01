@@ -48,7 +48,7 @@ export function ChatInput({ onSend, disabled = false }: ChatInputProps) {
           disabled={!messageText.trim() || disabled}
           size="icon"
           aria-label="Send message"
-          className="shrink-0 h-11 w-11 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 transition-transform"
+          className="shrink-0 h-11 w-11 rounded-xl bg-blue-600 text-white hover:bg-blue-500"
         >
           <Send className="h-4 w-4" />
         </Button>

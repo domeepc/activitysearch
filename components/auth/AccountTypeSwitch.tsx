@@ -24,7 +24,7 @@ export function AccountTypeSwitch({ active }: { active: (typeof OPTIONS)[number]
                 : "border border-border hover:border-foreground/30 hover:bg-muted"
             )}
           >
-            <span className="block text-[15px] font-semibold">{option.title}</span>
+            <span className="block text-[0.9375rem] font-semibold">{option.title}</span>
             <span className="block text-xs text-muted-foreground">{option.sub}</span>
           </Link>
         );

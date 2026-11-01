@@ -22,7 +22,7 @@ export function SecuritySection() {
       aria-labelledby="security-h"
       className="flex h-full flex-col gap-6 rounded-4xl border border-zinc-800 bg-zinc-900 p-6 md:p-9"
     >
-      <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-blue-400">05 — Security &amp; privacy</p>
+      <p className="text-[0.8125rem] font-semibold uppercase tracking-[0.08em] text-blue-400">05 — Security &amp; privacy</p>
       <h2 id="security-h" className="text-[clamp(2.1rem,4vw,3.5rem)] font-extrabold leading-none tracking-[-0.04em] text-zinc-50">
         Your conversations, <Accent>yours only</Accent>.
       </h2>
@@ -38,8 +38,8 @@ export function SecuritySection() {
       <div className="grid gap-5 sm:grid-cols-3">
         {points.map(({ title, description }) => (
           <div key={title}>
-            <h3 className="text-[15px] font-semibold text-zinc-50">{title}</h3>
-            <p className="mt-2 text-[13px] leading-relaxed text-zinc-400">{description}</p>
+            <h3 className="text-[0.9375rem] font-semibold text-zinc-50">{title}</h3>
+            <p className="mt-2 text-[0.8125rem] leading-relaxed text-zinc-400">{description}</p>
           </div>
         ))}
       </div>

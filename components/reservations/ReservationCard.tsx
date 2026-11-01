@@ -269,7 +269,7 @@ export function ReservationCard({ reservationId }: ReservationCardProps) {
             aria-valuemax={100}
           >
             <div
-              className={cn("h-full rounded-full transition-[width] duration-500", pct >= 100 ? "bg-green-600" : style.bar)}
+              className={cn("h-full rounded-full transition-[width] duration-300 ease-out", pct >= 100 ? "bg-green-600" : style.bar)}
               style={{ width: `${pct}%` }}
             />
           </div>

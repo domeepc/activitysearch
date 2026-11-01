@@ -3,7 +3,6 @@
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { mapActivityFromDb } from "@/lib/activities";
@@ -16,8 +15,6 @@ interface ActivityListSectionProps {
 }
 
 export default function ActivityListSection({ activityIDs, onEdit }: ActivityListSectionProps) {
-  const router = useRouter();
-
   const activitiesFromDb = useQuery(
     api.activity.getActivitiesByIds,
     activityIDs.length > 0 ? { activityIds: activityIDs } : "skip"
@@ -27,8 +24,6 @@ export default function ActivityListSection({ activityIDs, onEdit }: ActivityLis
     if (!activitiesFromDb) return [];
     return activitiesFromDb.map((doc) => mapActivityFromDb(doc));
   }, [activitiesFromDb]);
-
-  const handleCardClick = (activityId: string) => router.push(`/activities/${activityId}`);
 
   if (activityIDs.length === 0) {
     return (
@@ -80,12 +75,8 @@ export default function ActivityListSection({ activityIDs, onEdit }: ActivityLis
       </div>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-4 p-5 md:p-6">
         {activities.map((activity) => (
-          <div
+          <ActivityCardInList
             key={activity.id}
-            onClick={() => handleCardClick(activity.id)}
-            className="cursor-pointer transition-transform hover:-translate-y-0.5"
-          >
-            <ActivityCardInList
               activity={{
                 id: activity.id,
                 title: activity.title,
@@ -103,7 +94,6 @@ export default function ActivityListSection({ activityIDs, onEdit }: ActivityLis
               }}
               onEdit={onEdit}
             />
-          </div>
         ))}
       </div>
     </div>

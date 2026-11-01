@@ -16,7 +16,7 @@ export function ProfileInfo({ description, contact, joinedAt, isOwnProfile, chil
   return (
     <section aria-labelledby="about-h" className="flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
       <h2 id="about-h" className="text-[15px] font-bold">About</h2>
-      <p className="text-sm leading-relaxed whitespace-pre-line text-zinc-700 dark:text-zinc-300">
+      <p className="text-sm leading-relaxed whitespace-pre-line wrap-anywhere text-zinc-700 dark:text-zinc-300">
         {description || (
           <span className="text-zinc-500">{isOwnProfile ? "Add a short bio in settings so friends know what you're into." : "No bio yet."}</span>
         )}
